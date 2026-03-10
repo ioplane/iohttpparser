@@ -78,6 +78,9 @@
   - semantics corpus now covers additional no-body response precedence cases for `204` and `304`
   - semantics corpus now covers fixed-length framing and identical/conflicting duplicate `Content-Length`
   - semantics corpus now covers request/response keep-alive defaults for HTTP/1.0 and HTTP/1.1
+  - semantics corpus now covers request-side `Host` invariants for missing, duplicate, and empty `Host`
+  - semantics corpus now covers lenient response handling for `TE + CL`
+  - semantics corpus now covers positive `Transfer-Encoding` paths for request chains ending in `chunked` and case-insensitive `chunked`
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
