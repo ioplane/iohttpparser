@@ -35,15 +35,36 @@
   - `ihtp_parser.c` cleanup for real `PVS-Studio V769` findings
   - `.pvs-suppress.json` narrowed to current `V1042` license-noise only
   - public API and file namespace migrated from `hp_` / `HP_` to `ihtp_` / `IHTP_`
+- first real commit exists on `main`: `c383d68` (`chore: initialize iohttpparser`)
+- Sprint 1 worktree is active at `.worktrees/sprint-1` on `feature/sprint-1-scalar-correctness`
+- current Sprint 1 parser tasks completed:
+  - strict status-line separator enforcement
+  - request-target validation against `SP` / `CTL` / `DEL`
+  - `allow_spaces_in_uri` wired into request-line parsing without loosening `CTL` rejection
+  - bare `LF` handling wired to `reject_bare_lf` with strict reject and lenient accept
+  - `bare LF` policy coverage extended across request, response, and headers-only APIs
+  - header value validation for `CTL` / `DEL` with `HTAB` preserved
+  - `reject_obs_fold` now distinguishes strict reject from lenient raw folded-value acceptance
+  - lenient `obs-fold` continuation still rejects invalid control bytes
+  - `bytes_consumed` reset contract on incomplete/error paths
+  - response status-code range validation (`100..599`)
+  - response `reason-phrase` validation against control bytes
+  - regression coverage for `ERROR_TOO_LONG` and `ERROR_TOO_MANY_HEADERS`
+  - full container quality checkpoint is green again:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
 
-**Open blockers before Sprint 1 is considered active:**
-- no first real commit on `main`, so `.worktrees/` flow is not usable yet
-- repository import is still uncommitted and large, so sprint isolation has not started yet
+**Current Sprint 1 focus:**
+- continue scalar edge-case coverage
+- expand malformed request/response corpus
+- keep full container quality baseline green as parser tasks land
 
 **Immediate execution queue:**
-1. Commit the initial import plus container/docs/tooling fixes.
-2. Create the first worktree-backed sprint branch.
-3. Start Sprint 1 work on scalar correctness only after the repository is worktree-ready.
+1. Continue Sprint 1 parser-correctness tasks in `.worktrees/sprint-1`.
+2. Keep updating the roadmap as strict parser behaviors are locked down.
+3. Prepare a focused Sprint 1 commit once scalar correctness coverage reaches a stable checkpoint.
 
 ---
 
@@ -90,6 +111,7 @@
 - align behavior with RFC 9110 / RFC 9112
 - remove ambiguous or unsafe leniency defaults
 - expand Unity tests for malformed input
+- checkpoint and commit Sprint 1 parser work once the remaining parser-only gaps are enumerated
 
 **Exit criteria:**
 - `ctest --preset clang-debug` passes in container

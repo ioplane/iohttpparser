@@ -47,27 +47,30 @@ const char *ihtp_method_to_str(ihtp_method_t method)
     return "UNKNOWN";
 }
 
-/* ─── Internal: find CRLF ─────────────────────────────────────────────── */
+/* ─── Internal: find line ending ──────────────────────────────────────── */
 
-static const char *find_crlf(const char *buf, size_t len)
+static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_policy_t *policy,
+                                   const char **line_end, size_t *line_ending_len)
 {
-    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
-    const char *pos = buf;
-    size_t remaining = len;
+    const char *lf = memchr(buf, '\n', len);
 
-    while (remaining >= 2) {
-        const char *cr = scanner->find_char(pos, remaining, "\r");
-        if (cr >= pos + remaining) {
-            return nullptr;
-        }
-        size_t offset = (size_t)(cr - pos);
-        if (offset + 1 < remaining && cr[1] == '\n') {
-            return cr;
-        }
-        pos = cr + 1;
-        remaining = len - (size_t)(pos - buf);
+    if (lf == nullptr) {
+        return IHTP_INCOMPLETE;
     }
-    return nullptr;
+
+    if (lf > buf && lf[-1] == '\r') {
+        *line_end = lf - 1;
+        *line_ending_len = 2;
+        return IHTP_OK;
+    }
+
+    if (policy != nullptr && policy->reject_bare_lf) {
+        return IHTP_ERROR;
+    }
+
+    *line_end = lf;
+    *line_ending_len = 1;
+    return IHTP_OK;
 }
 
 static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset)
@@ -82,23 +85,73 @@ static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset
     return true;
 }
 
+static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *offset)
+{
+    for (size_t i = len; i > 0; i--) {
+        if ((unsigned char)buf[i - 1] == (unsigned char)ch) {
+            *offset = i - 1;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool request_target_is_valid(const char *buf, size_t len, bool allow_spaces)
+{
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (c == ' ' && allow_spaces) {
+            continue;
+        }
+
+        if (c <= 0x20 || c == 0x7f) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool field_text_is_valid(const char *buf, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (c == '\t' || c == ' ') {
+            continue;
+        }
+
+        if (c < 0x20 || c == 0x7f) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /* ─── Parse request-line ──────────────────────────────────────────────── */
 
 static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_request_t *req,
                                         const ihtp_policy_t *policy, size_t *line_end)
 {
-    (void)policy;
+    const char *line_break = nullptr;
+    size_t line_ending_len = 0;
 
-    /* Find end of request-line (CRLF) */
-    const char *crlf = find_crlf(buf, len);
-    if (crlf == nullptr) {
+    /* Find end of request-line */
+    ihtp_status_t line_status = find_line_end(buf, len, policy, &line_break, &line_ending_len);
+    if (line_status == IHTP_INCOMPLETE) {
         if (len > IHTP_MAX_REQUEST_LINE) {
             return IHTP_ERROR_TOO_LONG;
         }
         return IHTP_INCOMPLETE;
     }
+    if (line_status != IHTP_OK) {
+        return line_status;
+    }
 
-    size_t line_len = (size_t)(crlf - buf);
+    size_t line_len = (size_t)(line_break - buf);
     if (line_len > IHTP_MAX_REQUEST_LINE) {
         return IHTP_ERROR_TOO_LONG;
     }
@@ -124,9 +177,9 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
 
     /* Request-target */
     const char *path_start = sp1 + 1;
-    size_t remaining = line_len - req->method_len - 1;
     size_t sp2_offset = 0;
-    if (!find_char_offset(path_start, remaining, ' ', &sp2_offset)) {
+    size_t remaining = line_len - req->method_len - 1;
+    if (!find_last_char_offset(path_start, remaining, ' ', &sp2_offset)) {
         return IHTP_ERROR;
     }
     const char *sp2 = path_start + sp2_offset;
@@ -136,10 +189,14 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
     if (req->path_len == 0) {
         return IHTP_ERROR;
     }
+    if (!request_target_is_valid(req->path, req->path_len,
+                                 policy != nullptr && policy->allow_spaces_in_uri)) {
+        return IHTP_ERROR;
+    }
 
     /* HTTP-version: "HTTP/1.0" or "HTTP/1.1" */
     const char *ver = sp2 + 1;
-    size_t ver_len = (size_t)(crlf - ver);
+    size_t ver_len = (size_t)(line_break - ver);
     if (ver_len != 8 || memcmp(ver, "HTTP/1.", 7) != 0) {
         return IHTP_ERROR;
     }
@@ -151,7 +208,7 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
         return IHTP_ERROR;
     }
 
-    *line_end = (size_t)(crlf - buf) + 2; /* +2 for CRLF */
+    *line_end = line_len + line_ending_len;
     return IHTP_OK;
 }
 
@@ -165,31 +222,48 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
     size_t pos = 0;
 
     while (pos < len) {
-        /* Empty line = end of headers */
-        if (pos + 1 < len && buf[pos] == '\r' && buf[pos + 1] == '\n') {
-            *block_end = pos + 2;
-            *num_headers = count;
-            return IHTP_OK;
-        }
-
-        /* Reject obs-fold if strict */
-        if (policy != nullptr && policy->reject_obs_fold && ihtp_is_lws((uint8_t)buf[pos])) {
+        bool is_continuation = ihtp_is_lws((uint8_t)buf[pos]);
+        if (policy != nullptr && policy->reject_obs_fold && is_continuation) {
             return IHTP_ERROR;
         }
 
-        /* Find CRLF for this header line */
-        const char *crlf = find_crlf(buf + pos, len - pos);
-        if (crlf == nullptr) {
+        /* Find line ending for this header line */
+        const char *line_break = nullptr;
+        size_t line_ending_len = 0;
+        ihtp_status_t line_status =
+            find_line_end(buf + pos, len - pos, policy, &line_break, &line_ending_len);
+        if (line_status == IHTP_INCOMPLETE) {
             if (len - pos > IHTP_MAX_HEADER_LINE) {
                 return IHTP_ERROR_TOO_LONG;
             }
             *num_headers = count;
             return IHTP_INCOMPLETE;
         }
+        if (line_status != IHTP_OK) {
+            return line_status;
+        }
 
-        size_t line_len = (size_t)(crlf - (buf + pos));
+        size_t line_len = (size_t)(line_break - (buf + pos));
         if (line_len > IHTP_MAX_HEADER_LINE) {
             return IHTP_ERROR_TOO_LONG;
+        }
+        if (line_len == 0) {
+            *block_end = pos + line_ending_len;
+            *num_headers = count;
+            return IHTP_OK;
+        }
+
+        if (is_continuation) {
+            if (count == 0) {
+                return IHTP_ERROR;
+            }
+            if (!field_text_is_valid(buf + pos, line_len)) {
+                return IHTP_ERROR;
+            }
+
+            headers[count - 1].value_len = (size_t)(line_break - headers[count - 1].value);
+            pos += line_len + line_ending_len;
+            continue;
         }
 
         /* Parse: field-name ":" OWS field-value OWS */
@@ -215,7 +289,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
 
         /* Skip ": " and trim OWS from value */
         const char *val_start = colon + 1;
-        size_t val_len = (size_t)(crlf - val_start);
+        size_t val_len = (size_t)(line_break - val_start);
         while (val_len > 0 && ihtp_is_lws((uint8_t)*val_start)) {
             val_start++;
             val_len--;
@@ -223,12 +297,15 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         while (val_len > 0 && ihtp_is_lws((uint8_t)val_start[val_len - 1])) {
             val_len--;
         }
+        if (!field_text_is_valid(val_start, val_len)) {
+            return IHTP_ERROR;
+        }
 
         headers[count].value = val_start;
         headers[count].value_len = val_len;
         count++;
 
-        pos = (size_t)(crlf - buf) + 2;
+        pos += line_len + line_ending_len;
     }
 
     *num_headers = count;
@@ -248,6 +325,8 @@ ihtp_status_t ihtp_parse_request(const char *buf, size_t len, ihtp_request_t *re
     if (policy == nullptr) {
         policy = &strict;
     }
+
+    *bytes_consumed = 0;
 
     /* Zero the output */
     memset(req, 0, sizeof(*req));
@@ -286,18 +365,22 @@ ihtp_status_t ihtp_parse_response(const char *buf, size_t len, ihtp_response_t *
         policy = &strict;
     }
 
+    *bytes_consumed = 0;
+
     memset(resp, 0, sizeof(*resp));
 
     /* Find CRLF for status-line */
-    const char *crlf = find_crlf(buf, len);
-    if (crlf == nullptr) {
-        return IHTP_INCOMPLETE;
+    const char *line_break = nullptr;
+    size_t line_ending_len = 0;
+    ihtp_status_t line_status = find_line_end(buf, len, policy, &line_break, &line_ending_len);
+    if (line_status != IHTP_OK) {
+        return line_status;
     }
 
-    size_t line_len = (size_t)(crlf - buf);
+    size_t line_len = (size_t)(line_break - buf);
 
-    /* Parse: HTTP-version SP status-code SP reason-phrase */
-    if (line_len < 12 || memcmp(buf, "HTTP/1.", 7) != 0) {
+    /* Parse: HTTP-version SP status-code SP [reason-phrase] */
+    if (line_len < 13 || memcmp(buf, "HTTP/1.", 7) != 0) {
         return IHTP_ERROR;
     }
 
@@ -319,14 +402,24 @@ ihtp_status_t ihtp_parse_response(const char *buf, size_t len, ihtp_response_t *
         return IHTP_ERROR;
     }
     resp->status_code = (buf[9] - '0') * 100 + (buf[10] - '0') * 10 + (buf[11] - '0');
-
-    /* Reason phrase (optional) */
-    if (line_len > 12 && buf[12] == ' ') {
-        resp->reason = buf + 13;
-        resp->reason_len = (size_t)(crlf - (buf + 13));
+    if (resp->status_code < 100 || resp->status_code > 599) {
+        return IHTP_ERROR;
     }
 
-    size_t line_end = (size_t)(crlf - buf) + 2;
+    if (buf[12] != ' ') {
+        return IHTP_ERROR;
+    }
+
+    /* Reason phrase is optional, but the separator SP is mandatory. */
+    if (line_len > 13) {
+        resp->reason = buf + 13;
+        resp->reason_len = (size_t)(line_break - (buf + 13));
+        if (!field_text_is_valid(resp->reason, resp->reason_len)) {
+            return IHTP_ERROR;
+        }
+    }
+
+    size_t line_end = line_len + line_ending_len;
 
     /* Parse headers */
     size_t block_end = 0;
@@ -356,6 +449,8 @@ ihtp_status_t ihtp_parse_headers(const char *buf, size_t len, ihtp_header_t *hea
     if (policy == nullptr) {
         policy = &strict;
     }
+
+    *bytes_consumed = 0;
 
     size_t max_headers = *num_headers;
     size_t block_end = 0;
