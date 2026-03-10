@@ -58,6 +58,21 @@ const uint8_t ihtp_token_table[256] = {
 static ihtp_scanner_vtable_t scanner_vtable;
 static bool scanner_initialized = false;
 
+const char *ihtp_scanner_backend_name_for_level(int simd_level)
+{
+#ifdef IOHTTPPARSER_HAVE_AVX2
+    if ((simd_level & 0x02) != 0) {
+        return "avx2";
+    }
+#endif
+#ifdef IOHTTPPARSER_HAVE_SSE42
+    if ((simd_level & 0x01) != 0) {
+        return "sse42";
+    }
+#endif
+    return "scalar";
+}
+
 void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level)
 {
     /* Start with scalar baseline */
@@ -78,6 +93,11 @@ void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level)
         vtable->is_token = ihtp_scan_is_token_sse42;
     }
 #endif
+}
+
+const char *ihtp_scanner_active_backend_name(void)
+{
+    return ihtp_scanner_backend_name_for_level(ihtp_scanner_simd_level());
 }
 
 static void ihtp_scanner_init(void)

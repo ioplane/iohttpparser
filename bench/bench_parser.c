@@ -49,10 +49,13 @@ static uint64_t monotonic_ns(void)
 
 static void print_header(output_mode_t mode, size_t iterations, int simd_level)
 {
+    const char *active_backend = ihtp_scanner_backend_name_for_level(simd_level);
+
     if (mode == OUTPUT_TSV) {
         puts("format\ttsv\tv1");
         printf("meta\titerations\t%zu\n", iterations);
         printf("meta\tsimd_level\t0x%x\n", simd_level);
+        printf("meta\tactive_backend\t%s\n", active_backend);
         puts("columns\tbackend\toperation\tcase\tlen\telapsed_ns\tns_per_op");
         return;
     }
@@ -60,6 +63,7 @@ static void print_header(output_mode_t mode, size_t iterations, int simd_level)
     printf("iohttpparser scanner benchmark\n");
     printf("iterations: %zu\n", iterations);
     printf("simd-level: 0x%x\n\n", simd_level);
+    printf("active-backend: %s\n\n", active_backend);
 }
 
 static void run_find_bench(const char *backend_name, ihtp_scan_find_fn fn,
