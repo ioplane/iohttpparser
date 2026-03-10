@@ -69,6 +69,27 @@ When changing architecture-sensitive code:
 3. Keep policy differences in `ihtp_policy_t` or a successor policy structure, not in ad hoc branches.
 4. Update unit tests and architecture docs if boundaries shift.
 
+## Tooling Baseline
+
+- Required host tools:
+  - `git`
+  - `gh` with working `gh api graphql`
+  - `rg`
+  - `jq`
+  - `python3`
+  - `podman`
+- Strongly recommended:
+  - `uv` / `uvx`
+  - `clangd`
+  - `fd`
+  - `yq`
+  - `hyperfine`
+
+- Use:
+  - `rg` and `fd` for architecture surface discovery
+  - `gh api graphql` for PR/branch/repository state when architecture work spans review history
+  - `hyperfine` only for controlled benchmark comparisons, not for correctness claims
+
 ## References
 
 - `references/layer-map.md`
