@@ -452,6 +452,34 @@ void test_parse_response_accepts_bare_lf_in_lenient_mode(void)
     TEST_ASSERT_EQUAL_UINT(strlen(resp_str), consumed);
 }
 
+void test_parse_response_rejects_obs_fold_in_strict_mode(void)
+{
+    const char *resp_str = "HTTP/1.1 204 OK\r\nX-Test: one\r\n two\r\n\r\n";
+    ihtp_response_t resp;
+    size_t consumed = 0;
+
+    ihtp_status_t status =
+        ihtp_parse_response(resp_str, strlen(resp_str), &resp, nullptr, &consumed);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_parse_response_accepts_obs_fold_in_lenient_mode(void)
+{
+    const char *resp_str = "HTTP/1.1 204 OK\r\nX-Test: one\r\n two\r\n\r\n";
+    const ihtp_policy_t policy = IHTP_POLICY_LENIENT;
+    ihtp_response_t resp;
+    size_t consumed = 0;
+
+    ihtp_status_t status =
+        ihtp_parse_response(resp_str, strlen(resp_str), &resp, &policy, &consumed);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT(1, resp.num_headers);
+    TEST_ASSERT_EQUAL_UINT(9, resp.headers[0].value_len);
+    TEST_ASSERT_EQUAL_STRING_LEN("one\r\n two", resp.headers[0].value, resp.headers[0].value_len);
+}
+
 void test_parse_response_rejects_status_code_below_100(void)
 {
     const char *resp_str = "HTTP/1.1 099 Low\r\n\r\n";
@@ -559,6 +587,38 @@ void test_parse_headers_accepts_bare_lf_in_lenient_mode(void)
     TEST_ASSERT_EQUAL_UINT(strlen(hdr_str), consumed);
 }
 
+void test_parse_headers_rejects_obs_fold_in_strict_mode(void)
+{
+    const char *hdr_str = "X-Test: one\r\n two\r\n\r\n";
+    ihtp_header_t headers[4];
+    size_t num_headers = 4;
+    size_t consumed = 0;
+
+    ihtp_status_t status =
+        ihtp_parse_headers(hdr_str, strlen(hdr_str), headers, &num_headers, nullptr, &consumed);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+    TEST_ASSERT_EQUAL_UINT(0, consumed);
+}
+
+void test_parse_headers_accepts_obs_fold_in_lenient_mode(void)
+{
+    const char *hdr_str = "X-Test: one\r\n two\r\n\r\n";
+    const ihtp_policy_t policy = IHTP_POLICY_LENIENT;
+    ihtp_header_t headers[4];
+    size_t num_headers = 4;
+    size_t consumed = 0;
+
+    ihtp_status_t status =
+        ihtp_parse_headers(hdr_str, strlen(hdr_str), headers, &num_headers, &policy, &consumed);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT(1, num_headers);
+    TEST_ASSERT_EQUAL_UINT(9, headers[0].value_len);
+    TEST_ASSERT_EQUAL_STRING_LEN("one\r\n two", headers[0].value, headers[0].value_len);
+    TEST_ASSERT_EQUAL_UINT(strlen(hdr_str), consumed);
+}
+
 void test_parse_request_rejects_too_many_headers(void)
 {
     char req_str[4096];
@@ -644,6 +704,8 @@ int main(void)
     RUN_TEST(test_parse_response_rejects_missing_reason_separator);
     RUN_TEST(test_parse_response_rejects_bare_lf_in_strict_mode);
     RUN_TEST(test_parse_response_accepts_bare_lf_in_lenient_mode);
+    RUN_TEST(test_parse_response_rejects_obs_fold_in_strict_mode);
+    RUN_TEST(test_parse_response_accepts_obs_fold_in_lenient_mode);
     RUN_TEST(test_parse_response_rejects_status_code_below_100);
     RUN_TEST(test_parse_response_rejects_status_code_above_599);
     RUN_TEST(test_parse_response_rejects_ctl_in_reason_phrase);
@@ -652,6 +714,8 @@ int main(void)
     RUN_TEST(test_parse_headers_rejects_too_many_headers);
     RUN_TEST(test_parse_headers_rejects_bare_lf_in_strict_mode);
     RUN_TEST(test_parse_headers_accepts_bare_lf_in_lenient_mode);
+    RUN_TEST(test_parse_headers_rejects_obs_fold_in_strict_mode);
+    RUN_TEST(test_parse_headers_accepts_obs_fold_in_lenient_mode);
     RUN_TEST(test_parse_request_rejects_too_many_headers);
     RUN_TEST(test_method_from_str);
     RUN_TEST(test_method_to_str);
