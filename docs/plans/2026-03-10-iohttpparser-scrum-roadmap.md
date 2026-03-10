@@ -81,6 +81,7 @@
   - semantics corpus now covers request-side `Host` invariants for missing, duplicate, and empty `Host`
   - semantics corpus now covers lenient response handling for `TE + CL`
   - semantics corpus now covers positive `Transfer-Encoding` paths for request chains ending in `chunked` and case-insensitive `chunked`
+  - semantics corpus now covers malformed `Transfer-Encoding` lists and request-side rejection when `Transfer-Encoding` does not end in `chunked`
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
