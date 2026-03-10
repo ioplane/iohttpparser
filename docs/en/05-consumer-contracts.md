@@ -36,6 +36,11 @@ The stateful parser API is the preferred integration path for both:
 - `ihtp_parse_response_stateful()`
 - `ihtp_parse_headers_stateful()`
 
+The semantics handoff is now also part of the public surface:
+- `ihtp_request_apply_semantics()`
+- `ihtp_response_apply_semantics()`
+- header: `include/iohttpparser/ihtp_semantics.h`
+
 ---
 
 ## iohttp Contract

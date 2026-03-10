@@ -199,6 +199,7 @@
   - publish consumer contracts
   - turn differential results into ownership boundaries
   - define the remaining semantics queue for integration-sensitive cases
+- public semantics handoff is now being formalized in `include/iohttpparser/ihtp_semantics.h`
 - next implementation focus after the docs baseline:
   - `Upgrade`
   - `CONNECT`

@@ -16,8 +16,9 @@ Turn the merged parser, semantics, body-decoder, and differential work into expl
 
 1. consumer contract docs in `docs/en/` and `docs/ru/`
 2. explicit ownership notes for parser, semantics, and body-decoder handoff
-3. integration-oriented execution queue for remaining semantics work
-4. rename-aware planning that treats `ioguard` as the future strict consumer
+3. public semantics API in `include/iohttpparser/ihtp_semantics.h`
+4. integration-oriented execution queue for remaining semantics work
+5. rename-aware planning that treats `ioguard` as the future strict consumer
 
 ## Task Breakdown
 
@@ -37,6 +38,10 @@ Translate that split into concrete next engineering tasks:
 
 ### Task 3
 
+Promote semantics from de facto internal entry points to an explicit public integration surface.
+
+### Task 4
+
 Prepare follow-up implementation work:
 - policy presets
 - integration examples
@@ -54,6 +59,7 @@ flowchart TD
 
 - English consumer contract doc exists
 - Russian mirror exists
+- public semantics header exists and is used by tests
 - roadmap reflects Sprint 7 as the active delivery track
 - docs indices link the new materials
 

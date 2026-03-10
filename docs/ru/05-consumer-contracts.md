@@ -36,6 +36,11 @@ flowchart LR
 - `ihtp_parse_response_stateful()`
 - `ihtp_parse_headers_stateful()`
 
+Semantics handoff теперь тоже часть публичного surface:
+- `ihtp_request_apply_semantics()`
+- `ihtp_response_apply_semantics()`
+- header: `include/iohttpparser/ihtp_semantics.h`
+
 ---
 
 ## Контракт Для iohttp

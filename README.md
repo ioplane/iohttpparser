@@ -97,6 +97,8 @@ pkg-config --cflags --libs iohttpparser
 | `ihtp_parse_response_stateful()` | Parse HTTP response with explicit parser state |
 | `ihtp_parse_headers()` | Parse standalone header block |
 | `ihtp_parse_headers_stateful()` | Parse standalone header block with explicit parser state |
+| `ihtp_request_apply_semantics()` | Resolve request framing and keep-alive decisions |
+| `ihtp_response_apply_semantics()` | Resolve response framing and keep-alive decisions |
 | `ihtp_parser_state_init()` | Initialize parser state for request/response/headers mode |
 | `ihtp_parser_state_reset()` | Reset parser progress while preserving parser mode |
 | `ihtp_decode_chunked()` | Decode chunked transfer encoding (in-place) |
