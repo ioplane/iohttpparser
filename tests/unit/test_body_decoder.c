@@ -150,6 +150,86 @@ void test_chunked_incremental_trailer_across_buffers(void)
     TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
 }
 
+void test_chunked_accepts_chunk_extension(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5;foo=bar\r\nhello\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_TRUE(status >= 0);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
+void test_chunked_incomplete_chunk_extension(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5;foo=bar";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(0, bufsz);
+}
+
+void test_chunked_rejects_bare_lf_in_chunk_extension(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5;foo=bar\nhello\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_chunked_rejects_invalid_hex_digit(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "g\r\nhello\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_chunked_rejects_missing_lf_after_size(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5\rhello\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_chunked_rejects_missing_cr_after_data(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5\r\nhelloX\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_chunked_rejects_oversized_chunk_size(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "10000000000000000\r\nx\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
 /* ─── Fixed-length decoder ────────────────────────────────────────────── */
 
 void test_fixed_complete(void)
@@ -185,6 +265,13 @@ int main(void)
     RUN_TEST(test_chunked_incomplete_trailer);
     RUN_TEST(test_chunked_incremental_across_buffers);
     RUN_TEST(test_chunked_incremental_trailer_across_buffers);
+    RUN_TEST(test_chunked_accepts_chunk_extension);
+    RUN_TEST(test_chunked_incomplete_chunk_extension);
+    RUN_TEST(test_chunked_rejects_bare_lf_in_chunk_extension);
+    RUN_TEST(test_chunked_rejects_invalid_hex_digit);
+    RUN_TEST(test_chunked_rejects_missing_lf_after_size);
+    RUN_TEST(test_chunked_rejects_missing_cr_after_data);
+    RUN_TEST(test_chunked_rejects_oversized_chunk_size);
     RUN_TEST(test_fixed_complete);
     RUN_TEST(test_fixed_overflow);
     return UNITY_END();

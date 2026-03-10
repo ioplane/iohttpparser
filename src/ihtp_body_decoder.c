@@ -92,6 +92,8 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
             /* Skip chunk-ext until CR */
             if (buf[src] == '\r') {
                 decoder->state = CHUNK_SIZE_LF;
+            } else if (buf[src] == '\n') {
+                return IHTP_ERROR;
             }
             src++;
             break;
