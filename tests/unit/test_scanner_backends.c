@@ -146,21 +146,25 @@ void test_scanner_explicit_selection_invariants(void)
     ihtp_scanner_vtable_t selected;
 
     ihtp_scanner_select_vtable(&selected, 0);
+    TEST_ASSERT_EQUAL_STRING("scalar", ihtp_scanner_backend_name_for_level(0));
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_find_char_scalar, selected.find_char);
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_is_token_scalar, selected.is_token);
 
 #ifdef IOHTTPPARSER_HAVE_SSE42
     ihtp_scanner_select_vtable(&selected, 0x01);
+    TEST_ASSERT_EQUAL_STRING("sse42", ihtp_scanner_backend_name_for_level(0x01));
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_find_char_sse42, selected.find_char);
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_is_token_sse42, selected.is_token);
 #endif
 
 #ifdef IOHTTPPARSER_HAVE_AVX2
     ihtp_scanner_select_vtable(&selected, 0x02);
+    TEST_ASSERT_EQUAL_STRING("avx2", ihtp_scanner_backend_name_for_level(0x02));
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_find_char_avx2, selected.find_char);
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_is_token_avx2, selected.is_token);
 
     ihtp_scanner_select_vtable(&selected, 0x03);
+    TEST_ASSERT_EQUAL_STRING("avx2", ihtp_scanner_backend_name_for_level(0x03));
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_find_char_avx2, selected.find_char);
     TEST_ASSERT_EQUAL_PTR(ihtp_scan_is_token_avx2, selected.is_token);
 #endif

@@ -52,6 +52,16 @@ const ihtp_scanner_vtable_t *ihtp_scanner_get(void);
  */
 void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level);
 
+/**
+ * @brief Map a SIMD capability level to the selected internal backend name.
+ */
+const char *ihtp_scanner_backend_name_for_level(int simd_level);
+
+/**
+ * @brief Report the currently active scanner backend name.
+ */
+const char *ihtp_scanner_active_backend_name(void);
+
 /* ─── Scanner backends ────────────────────────────────────────────────── */
 
 /* Scalar (always available) */
