@@ -20,7 +20,10 @@ const char *ihtp_scan_find_char_sse42(const char *buf, size_t len, const char *d
         return ihtp_scan_find_char_scalar(buf, len, delims);
     }
 
-    __m128i needle = _mm_loadu_si128((const __m128i *)delims);
+    char needle_bytes[16] = {0};
+    memcpy(needle_bytes, delims, dlen);
+
+    __m128i needle = _mm_loadu_si128((const __m128i *)needle_bytes);
     int needle_len = (int)dlen;
 
     size_t i = 0;

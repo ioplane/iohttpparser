@@ -139,10 +139,18 @@
 - closeout branch is ready for review and merge
 - next implementation focus after merge is Sprint 4 SIMD scalar-equivalence and benchmarks
 
+**Current Sprint 4 focus:**
+- `feature/sprint-4-simd-equivalence` is active from the Sprint 3 closeout branch
+- scanner backend equivalence is now covered in `test_scanner_backends`
+- SSE4.2 delimiter loading was hardened to avoid over-reading short delimiter strings
+- `scripts/run-scanner-bench.sh` now provides a reproducible container benchmark smoke-run
+- next implementation focus is expanding scanner corpus inputs and benchmark slices
+
 **Immediate execution queue:**
 1. Review and merge Sprint 3 closeout branch into `main`.
-2. Open the next worktree from refreshed `main` for Sprint 4 SIMD work.
+2. Keep Sprint 4 moving from `feature/sprint-3-closeout` until merge permissions are available.
 3. Keep body corpus and body-fuzz workflow as the verification baseline for future body-decoder changes.
+4. Expand SIMD/scalar equivalence coverage and benchmark corpus slices.
 
 ---
 
@@ -254,6 +262,17 @@
 - build scalar-equivalence tests for SIMD paths
 - add benchmark harness and corpus slices
 - verify fallback on unsupported CPUs
+
+**Current progress on `feature/sprint-4-simd-equivalence`:**
+- `tests/unit/test_scanner_backends.c` compares scalar, SSE4.2, and AVX2 scanner behavior on shared find/token cases
+- `src/ihtp_scanner_sse42.c` now copies short delimiter strings into a fixed local buffer before `_mm_loadu_si128`
+- `bench/bench_parser.c` provides a first scanner benchmark harness for dispatch, scalar, SSE4.2, and AVX2 paths
+- `scripts/run-scanner-bench.sh` provides a reproducible container workflow for a release bench smoke-run
+- container validation is green for:
+  - `cmake --preset clang-debug`
+  - `cmake --build --preset clang-debug`
+  - `ctest --preset clang-debug`
+  - `ITERATIONS=5000 bash scripts/run-scanner-bench.sh`
 
 **Exit criteria:**
 - SIMD backends match scalar behavior on test corpus
