@@ -230,6 +230,28 @@ void test_chunked_rejects_oversized_chunk_size(void)
     TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
 }
 
+void test_chunked_rejects_bare_lf_in_trailer_line(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\nX-Test: ok\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_chunked_rejects_missing_lf_after_trailer_cr(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\nX-Test: ok\rX";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
 /* ─── Fixed-length decoder ────────────────────────────────────────────── */
 
 void test_fixed_complete(void)
@@ -303,6 +325,8 @@ int main(void)
     RUN_TEST(test_chunked_rejects_missing_lf_after_size);
     RUN_TEST(test_chunked_rejects_missing_cr_after_data);
     RUN_TEST(test_chunked_rejects_oversized_chunk_size);
+    RUN_TEST(test_chunked_rejects_bare_lf_in_trailer_line);
+    RUN_TEST(test_chunked_rejects_missing_lf_after_trailer_cr);
     RUN_TEST(test_fixed_complete);
     RUN_TEST(test_fixed_overflow);
     RUN_TEST(test_fixed_zero_length_body_is_immediately_complete);
