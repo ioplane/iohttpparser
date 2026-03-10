@@ -1,0 +1,8 @@
+reference=llhttp
+kind=response
+expect=ok
+policy=strict
+body_mode=fixed
+content_length=42
+keep_alive=true
+wire=HTTP/1.1 200 OK\r\nContent-Length: 42\r\n\r\n

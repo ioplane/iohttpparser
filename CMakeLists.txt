@@ -233,6 +233,14 @@ if(IOHTTPPARSER_BUILD_TESTS)
             IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
         )
     endif()
+    ihtp_add_test(test_semantics_differential tests/unit/test_semantics_differential.c
+        llhttp_vendor
+    )
+    if(TARGET test_semantics_differential)
+        target_compile_definitions(test_semantics_differential PRIVATE
+            IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+        )
+    endif()
     ihtp_add_test(test_semantics tests/unit/test_semantics.c)
     ihtp_add_test(test_semantics_corpus tests/unit/test_semantics_corpus.c)
     if(TARGET test_semantics_corpus)

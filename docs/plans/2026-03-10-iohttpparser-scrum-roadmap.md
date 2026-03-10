@@ -194,10 +194,16 @@
 - bare-`LF` divergence is now regression-covered for strict reject and lenient accept against `picohttpparser`
 - request and response baseline parity is now also covered against `llhttp` for complete and incomplete header blocks
 - bare-`LF` behavior is now regression-covered against `llhttp` for both strict reject and lenient accept
-- next implementation focus is expanding `llhttp` divergence coverage and using the resulting reference matrix to draft consumer contracts for `iohttp` and `ringwall`
+- semantics-level differential coverage now exists under `tests/corpus/semantics-differential/`
+- `test_semantics_differential` is wired into `ctest` for request/response framing comparisons against `llhttp`
+- HTTP/1.1 EOF response behavior is now fixed so keep-alive defaults do not override EOF framing
+- semantics corpus expectations were corrected for HTTP/1.1 EOF responses without explicit connection reuse
+- next implementation focus is committing the semantics differential batch and using the resulting reference matrix to draft consumer contracts for `iohttp` and `ringwall`
 
 **Immediate execution queue:**
-1. Expand Sprint 6 differential coverage around strict, lenient, incomplete, and malformed parser cases.
+1. Commit the semantics differential batch after the green container-only quality checkpoint.
+2. Merge Sprint 6 differential work.
+3. Start the next sprint for consumer integration contracts and remaining semantics edge cases.
 2. Extend `llhttp` differential coverage beyond baseline complete/incomplete cases to strict-lenient divergence and parser error paths.
 3. Use the resulting differential matrix to draft `iohttp` consumer expectations for stateful parsing and body-mode handoff.
 4. Follow with `ringwall` strict-profile contract work once cross-parser behavior is documented.
