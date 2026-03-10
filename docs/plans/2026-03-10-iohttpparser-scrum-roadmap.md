@@ -1,0 +1,274 @@
+# iohttpparser Scrum Roadmap
+
+**Goal:** Bring `iohttpparser` from parser prototype to a production-ready C23 HTTP/1.1 parser library with strict default semantics, SIMD scanner backends, validated quality tooling, and consumer-ready integration contracts for `iohttp` and `ringwall`.
+
+**Workflow constraints:**
+- Development and validation happen only inside the dev container.
+- Use `git` and `.worktrees/` for sprint isolation after the repository has a first real commit.
+- Use `gh api graphql` for GitHub organization checks, repo publication, and release automation.
+- Use repository-local skills as mandatory guidance:
+  - `.claude/skills/iohttpparser-architecture/`
+  - `.claude/skills/iohttpparser-coding-standards/`
+  - `.claude/skills/modern-c23/`
+  - `.claude/skills/http-rfc-reference/`
+
+**MCP note:** no MCP resources are currently configured for this repository, so planning relies on local docs, repo skills, and `gh api graphql`.
+
+## Current Status (2026-03-10)
+
+**Completed:**
+- dev image `localhost/iohttpparser-dev:latest` builds successfully
+- `.env` with local PVS credentials is available for container runs
+- `docs/rfc/` curated mirror and index are in place
+- `CLAUDE.md`, `CODEX.md`, base skills, RFC scraper, and plan docs were added
+- docs layout was normalized to `docs/en`, `docs/ru`, `docs/rfc`, `docs/plans`, `docs/tmp`
+- target GitHub organization `ioplane` was verified with `gh api graphql`
+- container-only baseline is green for:
+  - `cmake --preset clang-debug`
+  - `cmake --build --preset clang-debug`
+  - `ctest --preset clang-debug`
+  - `./scripts/quality.sh`
+- current Sprint 0 fixes include:
+  - `clang-format` normalization for headers, sources, tests, and examples
+  - `ihtp_body_decoder.c` fix for widening-cast analyzer findings
+  - `ihtp_scanner_sse42.c` fallback to scalar token validation until a proven SIMD-equivalent implementation exists
+  - `ihtp_parser.c` cleanup for real `PVS-Studio V769` findings
+  - `.pvs-suppress.json` narrowed to current `V1042` license-noise only
+  - public API and file namespace migrated from `hp_` / `HP_` to `ihtp_` / `IHTP_`
+
+**Open blockers before Sprint 1 is considered active:**
+- no first real commit on `main`, so `.worktrees/` flow is not usable yet
+- repository import is still uncommitted and large, so sprint isolation has not started yet
+
+**Immediate execution queue:**
+1. Commit the initial import plus container/docs/tooling fixes.
+2. Create the first worktree-backed sprint branch.
+3. Start Sprint 1 work on scalar correctness only after the repository is worktree-ready.
+
+---
+
+## Sprint 0: Tooling Baseline and Repository Hygiene
+
+**Goal:** Make the repository reproducible and ready for container-only development.
+
+**Deliverables:**
+- working dev image `iohttpparser-dev:latest`
+- `.env` for PVS loaded locally and excluded from git
+- `docs/rfc/` curated mirror and index
+- `CLAUDE.md`, `CODEX.md`, base skills, and plan docs aligned
+- public API namespace frozen as `ihtp_` / `IHTP_`
+- first real commit on `main`
+
+**Exit criteria:**
+- container builds successfully
+- `git worktree add` becomes usable after the first commit
+- local docs structure matches `iohttp`
+- baseline quality findings are triaged into:
+  - must-fix code defects
+  - accepted temporary tool noise / suppressions
+
+---
+
+## Sprint 1: Scalar Correctness for Request-Line and Headers
+
+**Goal:** Lock down the scalar parser as the source of truth.
+
+**Entry gate:**
+- Sprint 0 is complete
+- first commit exists
+- quality baseline is stable enough that new parser defects are distinguishable from inherited noise
+
+**Scope:**
+- request-line parsing
+- status-line parsing
+- header extraction
+- strict/lenient policy defaults
+- consumed-byte accounting
+
+**Tasks:**
+- finish parser edge-case coverage
+- align behavior with RFC 9110 / RFC 9112
+- remove ambiguous or unsafe leniency defaults
+- expand Unity tests for malformed input
+
+**Exit criteria:**
+- `ctest --preset clang-debug` passes in container
+- strict mode behavior is documented and test-covered
+
+---
+
+## Sprint 2: Semantics and Framing Security
+
+**Goal:** Treat semantics as a security boundary.
+
+**Scope:**
+- `Content-Length`
+- `Transfer-Encoding`
+- `TE + CL`
+- keep-alive / close
+- duplicate headers and framing ambiguity
+
+**Tasks:**
+- harden semantics layer against smuggling patterns
+- add negative corpus for ambiguous framing
+- document `iohttp` vs `ringwall` profile differences
+
+**Exit criteria:**
+- conflicting `Content-Length` and `TE + CL` cases are reject-by-default
+- semantics tests cover strict and lenient profiles
+
+---
+
+## Sprint 3: Body Decoder Completion
+
+**Goal:** Make fixed-length and chunked decoding production-ready.
+
+**Scope:**
+- fixed-length tracking
+- chunked decoder state machine
+- trailer consumption
+- malformed chunk handling
+
+**Tasks:**
+- complete chunk parser edge cases
+- add in-place decoder tests
+- add fuzz seeds for body framing
+
+**Exit criteria:**
+- body decoder behavior is deterministic and incremental
+- fuzz targets compile and run in the container
+
+---
+
+## Sprint 4: SIMD Backend Stabilization
+
+**Goal:** Optimize scanner backends without changing parser semantics.
+
+**Scope:**
+- scalar baseline
+- SSE4.2 backend
+- AVX2 backend
+- runtime dispatch invariants
+
+**Tasks:**
+- build scalar-equivalence tests for SIMD paths
+- add benchmark harness and corpus slices
+- verify fallback on unsupported CPUs
+
+**Exit criteria:**
+- SIMD backends match scalar behavior on test corpus
+- benchmark results are reproducible in container
+
+---
+
+## Sprint 5: Fuzzing, Sanitizers, and Static Analysis
+
+**Goal:** Raise confidence before consumer integration.
+
+**Scope:**
+- fuzz targets
+- ASan/UBSan
+- MSan where practical
+- cppcheck
+- PVS-Studio
+- CodeChecker
+
+**Tasks:**
+- integrate fuzz scripts
+- curate malformed corpus from `docs/tmp/draft`
+- baseline and fix analyzer findings
+
+**Exit criteria:**
+- quality pipeline passes for touched code
+- corpus and fuzz harness are documented in repo
+
+---
+
+## Sprint 6: iohttp Integration Contract
+
+**Goal:** Make `iohttpparser` usable as the HTTP/1.1 codec for `iohttp`.
+
+**Scope:**
+- parser API review
+- request model mapping
+- policy defaults for general server use
+- public packaging and install story
+
+**Tasks:**
+- define adapter contract for `iohttp`
+- validate public headers and pkg-config metadata
+- test parser under a small containerized integration harness
+
+**Exit criteria:**
+- `iohttp` can consume the library without parser-core changes
+- integration expectations are documented
+
+---
+
+## Sprint 7: ringwall Strict-Profile Integration
+
+**Goal:** Provide a stricter consumer profile for `ringwall`.
+
+**Scope:**
+- fail-closed policy profile
+- tighter limits
+- minimal leniency
+- proxy/control-plane assumptions
+
+**Tasks:**
+- codify `strict-proxy` behavior
+- define migration path from current `llhttp`-oriented assumptions
+- add security regression tests for proxy-sensitive cases
+
+**Exit criteria:**
+- `ringwall` integration contract is explicit
+- strict profile behavior is separate from `iohttp` general profile
+
+---
+
+## Sprint 8: Publication and Release Preparation
+
+**Goal:** Publish the repository into GitHub organization `ioplane` and cut the first usable release.
+
+**Tasks:**
+- create or confirm target repository with `gh api graphql`
+- push canonical branches with `git`
+- add release checklist and changelog entry
+- validate install, pkg-config, and docs layout
+
+**Exit criteria:**
+- repository published under `https://github.com/ioplane`
+- first tagged release candidate prepared
+
+---
+
+## Worktree Strategy
+
+After the first commit:
+- keep `.worktrees/sprint-<n>/` for active sprint branches
+- use one worktree per sprint or per risky integration stream
+- keep `main` clean and container-validated
+
+Suggested naming:
+- `feature/sprint-1-scalar-correctness`
+- `feature/sprint-2-semantics-hardening`
+- `feature/sprint-4-simd-stabilization`
+
+---
+
+## Definition of Done
+
+A sprint is done only if:
+- code and checks were run inside the container
+- touched behavior has unit tests
+- docs and local skills stay aligned with architecture changes
+- no new unresolved quality findings are introduced in touched files
+- sprint results are committed and, when relevant, isolated in a worktree-backed branch
+
+## Revised Near-Term Order
+
+1. Finish Sprint 0:
+   - create the first real commit on `main`
+2. Start worktree-based Sprint 1 branch:
+   - `feature/sprint-1-scalar-correctness`
+3. Defer new feature work in semantics/SIMD until the scalar and tooling baseline is commit-clean.

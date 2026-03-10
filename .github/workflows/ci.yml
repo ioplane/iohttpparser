@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/pnx/iohttpparser-dev:latest
+    strategy:
+      matrix:
+        preset: [clang-debug, gcc-debug]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: cmake --preset "$PRESET"
+
+      - name: Build
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: cmake --build --preset "$PRESET"
+
+      - name: Test
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: ctest --preset "$PRESET" --output-on-failure
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/pnx/iohttpparser-dev:latest
+    strategy:
+      matrix:
+        preset: [clang-asan, clang-msan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: cmake --preset "$PRESET"
+
+      - name: Build
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: cmake --build --preset "$PRESET"
+
+      - name: Test
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: ctest --preset "$PRESET" --output-on-failure
+
+  format:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/pnx/iohttpparser-dev:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake --preset clang-debug
+
+      - name: Check formatting
+        run: cmake --build --preset clang-debug --target format-check
