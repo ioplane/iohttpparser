@@ -44,6 +44,14 @@ typedef struct {
  */
 const ihtp_scanner_vtable_t *ihtp_scanner_get(void);
 
+/**
+ * @brief Select scanner backend functions for a specific SIMD capability level.
+ *
+ * This is internal glue for runtime dispatch and deterministic tests. The
+ * selection remains fail-safe: scalar baseline first, then SSE4.2, then AVX2.
+ */
+void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level);
+
 /* ─── Scanner backends ────────────────────────────────────────────────── */
 
 /* Scalar (always available) */
