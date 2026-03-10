@@ -92,13 +92,42 @@ pkg-config --cflags --libs iohttpparser
 | Function | Description |
 |----------|-------------|
 | `ihtp_parse_request()` | Parse HTTP request (request-line + headers) |
+| `ihtp_parse_request_stateful()` | Parse HTTP request with explicit parser state |
 | `ihtp_parse_response()` | Parse HTTP response (status-line + headers) |
+| `ihtp_parse_response_stateful()` | Parse HTTP response with explicit parser state |
 | `ihtp_parse_headers()` | Parse standalone header block |
+| `ihtp_parse_headers_stateful()` | Parse standalone header block with explicit parser state |
+| `ihtp_parser_state_init()` | Initialize parser state for request/response/headers mode |
+| `ihtp_parser_state_reset()` | Reset parser progress while preserving parser mode |
 | `ihtp_decode_chunked()` | Decode chunked transfer encoding (in-place) |
 | `ihtp_decode_fixed()` | Track fixed-length body consumption |
 | `ihtp_method_from_str()` | Resolve method string to enum |
 | `ihtp_method_to_str()` | Method enum to string |
 | `ihtp_version()` | Library version string |
+
+## Stateful Parser API
+
+- `ihtp_parser_state_t` exposes explicit progress for request, response, and headers-only parsing
+- `state.cursor` tracks consumed bytes inside the accumulated buffer
+- `state.phase` exposes `start-line`, `headers`, `done`, or `error`
+- stateless `ihtp_parse_request()` / `ihtp_parse_response()` / `ihtp_parse_headers()` stay available and are layered on top of the same parser path
+
+```c
+ihtp_request_t req = {0};
+ihtp_parser_state_t st;
+size_t consumed = 0;
+
+ihtp_parser_state_init(&st, IHTP_PARSER_MODE_REQUEST);
+
+if (ihtp_parse_request_stateful(&st, wire, partial_len, &req, nullptr, &consumed) ==
+    IHTP_INCOMPLETE) {
+    /* grow the same accumulated buffer and call again */
+}
+```
+
+See:
+- [`docs/en/parser-state.md`](docs/en/parser-state.md)
+- [`docs/ru/parser-state.md`](docs/ru/parser-state.md)
 
 ## Body Decoder Contracts
 
