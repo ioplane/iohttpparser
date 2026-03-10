@@ -58,6 +58,7 @@ if command -v cppcheck >/dev/null 2>&1; then
         --error-exitcode=1 --inline-suppr \
         --project="${BUILD_DIR}/compile_commands.json" \
         --suppress='*:/usr/local/src/unity/*' \
+        --suppress='*:/workspace/tests/third_party/*' \
         -q 2>&1; then
         ok "cppcheck clean"
     else
@@ -90,6 +91,7 @@ if command -v pvs-studio-analyzer >/dev/null 2>&1; then
             -f "${BUILD_DIR}/compile_commands.json" \
             -o "${PVS_LOG}" \
             -e /usr/local/src/unity/ \
+            -e tests/third_party/ \
             ${PVS_SUPPRESS_ARG} \
             -j"${NPROC}" 2>&1 | grep -v '^\[' || true
 
@@ -120,6 +122,7 @@ if command -v CodeChecker >/dev/null 2>&1; then
     CC_SKIP=$(mktemp)
     cat > "${CC_SKIP}" <<'SKIP'
 -/usr/local/src/unity/*
+-/workspace/tests/third_party/*
 SKIP
 
     CC_BASELINE=".codechecker.baseline"
@@ -139,7 +142,8 @@ SKIP
         ${CC_BASELINE_ARG} 2>&1 || true)
     CC_OUT=$(echo "${CC_OUT}" \
         | grep -v '^\[INFO\]' | grep -v '^$' \
-        | grep -v '/usr/local/src/unity/' || true)
+        | grep -v '/usr/local/src/unity/' \
+        | grep -v '/workspace/tests/third_party/' || true)
     CC_HIGH=$(echo "${CC_OUT}" | grep -c '\[HIGH\]' || true)
     CC_MED=$(echo "${CC_OUT}" | grep -c '\[MEDIUM\]' || true)
     if [[ "${CC_HIGH}" -gt 0 || "${CC_MED}" -gt 0 ]]; then

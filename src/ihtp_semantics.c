@@ -391,8 +391,8 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
         resp->body_mode = IHTP_BODY_EOF;
     }
 
-    /* Default keep-alive */
-    if (!has_connection && resp->version == IHTP_HTTP_11) {
+    /* HTTP/1.1 defaults to keep-alive unless EOF framing requires connection close. */
+    if (!has_connection && resp->version == IHTP_HTTP_11 && resp->body_mode != IHTP_BODY_EOF) {
         resp->keep_alive = true;
     }
 

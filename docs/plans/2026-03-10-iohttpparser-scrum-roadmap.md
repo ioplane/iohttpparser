@@ -183,12 +183,31 @@
   - `./scripts/quality.sh`
 - next implementation focus is documenting the public stateful API in user-facing docs and deciding whether parser-state consumers need finer-grained completion metadata beyond `phase` and `cursor`
 
+**Current Sprint 6 focus:**
+- `feature/sprint-6-differential` is active from `origin/main`
+- differential corpus infrastructure now exists under `tests/corpus/differential/`
+- `test_differential_corpus` is wired into `ctest` as a data-driven cross-parser runner
+- a real `picohttpparser` adapter is now vendored under `tests/third_party/picohttpparser/`
+- a real `llhttp` adapter is now vendored under `tests/third_party/llhttp/` using generated C artifacts plus native helper sources
+- the differential runner now supports separate reference and `iohttpparser` expectations so strict-vs-lenient divergence can be asserted explicitly
+- request and response baseline parity is covered for complete and incomplete header blocks
+- bare-`LF` divergence is now regression-covered for strict reject and lenient accept against `picohttpparser`
+- request and response baseline parity is now also covered against `llhttp` for complete and incomplete header blocks
+- bare-`LF` behavior is now regression-covered against `llhttp` for both strict reject and lenient accept
+- semantics-level differential coverage now exists under `tests/corpus/semantics-differential/`
+- `test_semantics_differential` is wired into `ctest` for request/response framing comparisons against `llhttp`
+- HTTP/1.1 EOF response behavior is now fixed so keep-alive defaults do not override EOF framing
+- semantics corpus expectations were corrected for HTTP/1.1 EOF responses without explicit connection reuse
+- next implementation focus is committing the semantics differential batch and using the resulting reference matrix to draft consumer contracts for `iohttp` and `ringwall`
+
 **Immediate execution queue:**
-1. Review and merge Sprint 3 closeout branch into `main`.
-2. Keep Sprint 4 moving from `feature/sprint-3-closeout` until merge permissions are available.
-3. Keep body corpus and body-fuzz workflow as the verification baseline for future body-decoder changes.
-4. Expand SIMD/scalar equivalence coverage and benchmark corpus slices.
-5. Document and stabilize the public parser-state API without reintroducing callbacks or hidden allocation.
+1. Commit the semantics differential batch after the green container-only quality checkpoint.
+2. Merge Sprint 6 differential work.
+3. Start the next sprint for consumer integration contracts and remaining semantics edge cases.
+2. Extend `llhttp` differential coverage beyond baseline complete/incomplete cases to strict-lenient divergence and parser error paths.
+3. Use the resulting differential matrix to draft `iohttp` consumer expectations for stateful parsing and body-mode handoff.
+4. Follow with `ringwall` strict-profile contract work once cross-parser behavior is documented.
+5. Keep full container quality and fuzz-smoke baselines green as new differential tooling lands.
 
 ---
 
@@ -354,24 +373,26 @@
 
 ---
 
-## Sprint 6: iohttp Integration Contract
+## Sprint 6: Differential Validation Against Reference Parsers
 
-**Goal:** Make `iohttpparser` usable as the HTTP/1.1 codec for `iohttp`.
+**Goal:** Validate `iohttpparser` behavior against established HTTP/1.1 parser references without inheriting their unsafe leniency.
 
 **Scope:**
-- parser API review
-- request model mapping
-- policy defaults for general server use
-- public packaging and install story
+- data-driven differential corpus
+- `picohttpparser` adapter
+- `llhttp` adapter
+- explicit strict-vs-lenient divergence expectations
 
 **Tasks:**
-- define adapter contract for `iohttp`
-- validate public headers and pkg-config metadata
-- test parser under a small containerized integration harness
+- build a reusable differential runner in `ctest`
+- compare request and response parsing against `picohttpparser` and `llhttp`
+- encode acceptable divergence in case metadata instead of ad hoc test code
+- keep vendored/reference parser warning suppressions target-local
 
 **Exit criteria:**
-- `iohttp` can consume the library without parser-core changes
-- integration expectations are documented
+- reference-backed request and response differential corpus exists
+- acceptable divergence is documented and regression-covered
+- container baseline stays green with differential tests enabled
 
 ---
 
