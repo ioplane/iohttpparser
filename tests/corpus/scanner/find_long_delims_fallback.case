@@ -1,0 +1,4 @@
+kind=find
+buf=0123456789abcdefq
+delims=abcdefghijklmnopq
+expected_offset=10

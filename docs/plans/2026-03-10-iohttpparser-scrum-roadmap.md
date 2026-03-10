@@ -142,9 +142,17 @@
 **Current Sprint 4 focus:**
 - `feature/sprint-4-simd-equivalence` is active from the Sprint 3 closeout branch
 - scanner backend equivalence is now covered in `test_scanner_backends`
+- scanner corpus coverage now exists under `tests/corpus/scanner/` with `test_scanner_corpus`
 - SSE4.2 delimiter loading was hardened to avoid over-reading short delimiter strings
 - `scripts/run-scanner-bench.sh` now provides a reproducible container benchmark smoke-run
-- next implementation focus is expanding scanner corpus inputs and benchmark slices
+- benchmark slices now include longer parser-like request and header inputs
+- full Sprint 4 checkpoint baseline is green:
+  - `cmake --preset clang-debug`
+  - `cmake --build --preset clang-debug`
+  - `ctest --preset clang-debug`
+  - `ITERATIONS=3000 bash scripts/run-scanner-bench.sh`
+  - `./scripts/quality.sh`
+- next implementation focus is verifying fallback behavior more explicitly and deciding whether SIMD token validation should remain scalar-backed
 
 **Immediate execution queue:**
 1. Review and merge Sprint 3 closeout branch into `main`.
@@ -265,6 +273,7 @@
 
 **Current progress on `feature/sprint-4-simd-equivalence`:**
 - `tests/unit/test_scanner_backends.c` compares scalar, SSE4.2, and AVX2 scanner behavior on shared find/token cases
+- `tests/unit/test_scanner_corpus.c` and `tests/corpus/scanner/` provide data-driven scanner equivalence coverage for embedded NUL, high-byte, empty-delimiter, and long-delimiter cases
 - `src/ihtp_scanner_sse42.c` now copies short delimiter strings into a fixed local buffer before `_mm_loadu_si128`
 - `bench/bench_parser.c` provides a first scanner benchmark harness for dispatch, scalar, SSE4.2, and AVX2 paths
 - `scripts/run-scanner-bench.sh` provides a reproducible container workflow for a release bench smoke-run
@@ -272,7 +281,8 @@
   - `cmake --preset clang-debug`
   - `cmake --build --preset clang-debug`
   - `ctest --preset clang-debug`
-  - `ITERATIONS=5000 bash scripts/run-scanner-bench.sh`
+  - `ITERATIONS=3000 bash scripts/run-scanner-bench.sh`
+  - `./scripts/quality.sh`
 
 **Exit criteria:**
 - SIMD backends match scalar behavior on test corpus

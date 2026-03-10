@@ -1,0 +1,3 @@
+kind=token
+buf=Content-Type
+expected=true

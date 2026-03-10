@@ -1,0 +1,4 @@
+kind=find
+buf=A\0:B
+delims=:
+expected_offset=2

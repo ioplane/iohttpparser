@@ -6,8 +6,8 @@
 
 #include <unity/unity.h>
 
-#include "ihtp_internal.h"
 #include <iohttpparser/ihtp_scanner.h>
+#include "ihtp_internal.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -38,12 +38,13 @@ void tearDown(void)
 static void assert_find_case_eq(const char *backend_name, ihtp_scan_find_fn backend,
                                 const find_case_t *test_case)
 {
-    const char *expected = ihtp_scan_find_char_scalar(test_case->buf, test_case->len,
-                                                      test_case->delims);
+    const char *expected =
+        ihtp_scan_find_char_scalar(test_case->buf, test_case->len, test_case->delims);
     const char *actual = backend(test_case->buf, test_case->len, test_case->delims);
 
     TEST_ASSERT_EQUAL_PTR_MESSAGE(expected, actual, backend_name);
-    TEST_ASSERT_EQUAL_PTR_MESSAGE(test_case->buf + test_case->expected_offset, actual, backend_name);
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(test_case->buf + test_case->expected_offset, actual,
+                                  backend_name);
 }
 
 static void assert_token_case_eq(const char *backend_name, ihtp_scan_token_fn backend,
@@ -61,17 +62,28 @@ void test_scanner_scalar_backend_cases(void)
     static const char binary_buf[] = {'A', (char)0xFF, 'B', '\0'};
     static const find_case_t find_cases[] = {
         {.name = "empty", .buf = "", .len = 0, .delims = " ", .expected_offset = 0},
-        {.name = "request space", .buf = "GET / HTTP/1.1", .len = 14, .delims = " ",
+        {.name = "request space",
+         .buf = "GET / HTTP/1.1",
+         .len = 14,
+         .delims = " ",
          .expected_offset = 3},
-        {.name = "crlf", .buf = "Header: value\r\n", .len = 15, .delims = "\r\n",
+        {.name = "crlf",
+         .buf = "Header: value\r\n",
+         .len = 15,
+         .delims = "\r\n",
          .expected_offset = 13},
-        {.name = "multiple delimiters", .buf = "key=value&other", .len = 15, .delims = "=&",
+        {.name = "multiple delimiters",
+         .buf = "key=value&other",
+         .len = 15,
+         .delims = "=&",
          .expected_offset = 3},
         {.name = "not found", .buf = "token", .len = 5, .delims = ":", .expected_offset = 5},
-        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF",
-         .expected_offset = 1},
-        {.name = "sse fallback >16", .buf = "0123456789abcdefq", .len = 17,
-         .delims = "abcdefghijklmnopq", .expected_offset = 10},
+        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF", .expected_offset = 1},
+        {.name = "sse fallback >16",
+         .buf = "0123456789abcdefq",
+         .len = 17,
+         .delims = "abcdefghijklmnopq",
+         .expected_offset = 10},
     };
     static const char token_high_byte[] = {'O', 'K', (char)0xFF, '\0'};
     static const token_case_t token_cases[] = {
@@ -84,8 +96,8 @@ void test_scanner_scalar_backend_cases(void)
     };
 
     for (size_t i = 0; i < sizeof(find_cases) / sizeof(find_cases[0]); i++) {
-        const char *actual = ihtp_scan_find_char_scalar(find_cases[i].buf, find_cases[i].len,
-                                                        find_cases[i].delims);
+        const char *actual =
+            ihtp_scan_find_char_scalar(find_cases[i].buf, find_cases[i].len, find_cases[i].delims);
         TEST_ASSERT_EQUAL_PTR(find_cases[i].buf + find_cases[i].expected_offset, actual);
     }
 
@@ -102,17 +114,28 @@ void test_scanner_sse42_equivalence(void)
     static const char token_high_byte[] = {'O', 'K', (char)0xFF, '\0'};
     static const find_case_t find_cases[] = {
         {.name = "empty", .buf = "", .len = 0, .delims = " ", .expected_offset = 0},
-        {.name = "request space", .buf = "GET / HTTP/1.1", .len = 14, .delims = " ",
+        {.name = "request space",
+         .buf = "GET / HTTP/1.1",
+         .len = 14,
+         .delims = " ",
          .expected_offset = 3},
-        {.name = "crlf", .buf = "Header: value\r\n", .len = 15, .delims = "\r\n",
+        {.name = "crlf",
+         .buf = "Header: value\r\n",
+         .len = 15,
+         .delims = "\r\n",
          .expected_offset = 13},
-        {.name = "multiple delimiters", .buf = "key=value&other", .len = 15, .delims = "=&",
+        {.name = "multiple delimiters",
+         .buf = "key=value&other",
+         .len = 15,
+         .delims = "=&",
          .expected_offset = 3},
         {.name = "not found", .buf = "token", .len = 5, .delims = ":", .expected_offset = 5},
-        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF",
-         .expected_offset = 1},
-        {.name = "sse fallback >16", .buf = "0123456789abcdefq", .len = 17,
-         .delims = "abcdefghijklmnopq", .expected_offset = 10},
+        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF", .expected_offset = 1},
+        {.name = "sse fallback >16",
+         .buf = "0123456789abcdefq",
+         .len = 17,
+         .delims = "abcdefghijklmnopq",
+         .expected_offset = 10},
     };
     static const token_case_t token_cases[] = {
         {.name = "empty", .buf = "", .len = 0, .expected = true},
@@ -144,17 +167,28 @@ void test_scanner_avx2_equivalence(void)
     static const char token_high_byte[] = {'O', 'K', (char)0xFF, '\0'};
     static const find_case_t find_cases[] = {
         {.name = "empty", .buf = "", .len = 0, .delims = " ", .expected_offset = 0},
-        {.name = "request space", .buf = "GET / HTTP/1.1", .len = 14, .delims = " ",
+        {.name = "request space",
+         .buf = "GET / HTTP/1.1",
+         .len = 14,
+         .delims = " ",
          .expected_offset = 3},
-        {.name = "crlf", .buf = "Header: value\r\n", .len = 15, .delims = "\r\n",
+        {.name = "crlf",
+         .buf = "Header: value\r\n",
+         .len = 15,
+         .delims = "\r\n",
          .expected_offset = 13},
-        {.name = "multiple delimiters", .buf = "key=value&other", .len = 15, .delims = "=&",
+        {.name = "multiple delimiters",
+         .buf = "key=value&other",
+         .len = 15,
+         .delims = "=&",
          .expected_offset = 3},
         {.name = "not found", .buf = "token", .len = 5, .delims = ":", .expected_offset = 5},
-        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF",
-         .expected_offset = 1},
-        {.name = "wide block", .buf = "0123456789abcdefghijklmnopqrstuvwx?", .len = 35,
-         .delims = "?", .expected_offset = 34},
+        {.name = "high byte", .buf = binary_buf, .len = 3, .delims = "\xFF", .expected_offset = 1},
+        {.name = "wide block",
+         .buf = "0123456789abcdefghijklmnopqrstuvwx?",
+         .len = 35,
+         .delims = "?",
+         .expected_offset = 34},
     };
     static const token_case_t token_cases[] = {
         {.name = "empty", .buf = "", .len = 0, .expected = true},

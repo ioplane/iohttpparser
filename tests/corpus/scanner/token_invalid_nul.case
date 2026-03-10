@@ -1,0 +1,3 @@
+kind=token
+buf=OK\0
+expected=false

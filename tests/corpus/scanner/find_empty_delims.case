@@ -1,0 +1,4 @@
+kind=find
+buf=token
+delims=
+expected_offset=5

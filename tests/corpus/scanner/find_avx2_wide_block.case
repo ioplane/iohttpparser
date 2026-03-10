@@ -1,0 +1,4 @@
+kind=find
+buf=0123456789abcdefghijklmnopqrstuvwx?
+delims=?
+expected_offset=34
