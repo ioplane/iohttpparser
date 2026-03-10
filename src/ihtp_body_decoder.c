@@ -23,6 +23,13 @@ enum {
     CHUNK_DONE = 7,    /* Complete */
 };
 
+enum {
+    TRAILER_LINE_START = 0, /* At start of a trailer line */
+    TRAILER_DONE_LF = 1,    /* Saw CR for the terminating empty line */
+    TRAILER_LINE = 2,       /* Inside a non-empty trailer line */
+    TRAILER_LINE_LF = 3,    /* Saw CR inside a trailer line */
+};
+
 static uint64_t ihtp_hex_digit_to_u64(char c)
 {
     if (c >= '0' && c <= '9') {
@@ -97,6 +104,7 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
             if (decoder->bytes_left_in_chunk == 0) {
                 /* Last chunk — go to trailer */
                 if (decoder->consume_trailer) {
+                    decoder->hex_count = TRAILER_LINE_START;
                     decoder->state = CHUNK_TRAILER;
                 } else {
                     decoder->state = CHUNK_DONE;
@@ -145,18 +153,53 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
             break;
 
         case CHUNK_TRAILER:
-            /* Simple trailer skip: look for empty line (CRLF CRLF) */
-            /* TODO: proper trailer parsing */
-            if (buf[src] == '\r') {
-                if (src + 1 < avail && buf[src + 1] == '\n') {
-                    decoder->state = CHUNK_DONE;
-                    src += 2;
-                    *bufsz = dst;
-                    return (ihtp_status_t)(avail - src);
+            if (decoder->hex_count == TRAILER_LINE_START) {
+                if (buf[src] == '\r') {
+                    decoder->hex_count = TRAILER_DONE_LF;
+                    src++;
+                    break;
                 }
+                if (buf[src] == '\n') {
+                    return IHTP_ERROR;
+                }
+                decoder->hex_count = TRAILER_LINE;
+                src++;
+                break;
             }
-            src++;
-            break;
+
+            if (decoder->hex_count == TRAILER_DONE_LF) {
+                if (buf[src] != '\n') {
+                    return IHTP_ERROR;
+                }
+                src++;
+                decoder->state = CHUNK_DONE;
+                *bufsz = dst;
+                return (ihtp_status_t)(avail - src);
+            }
+
+            if (decoder->hex_count == TRAILER_LINE) {
+                if (buf[src] == '\r') {
+                    decoder->hex_count = TRAILER_LINE_LF;
+                    src++;
+                    break;
+                }
+                if (buf[src] == '\n') {
+                    return IHTP_ERROR;
+                }
+                src++;
+                break;
+            }
+
+            if (decoder->hex_count == TRAILER_LINE_LF) {
+                if (buf[src] != '\n') {
+                    return IHTP_ERROR;
+                }
+                src++;
+                decoder->hex_count = TRAILER_LINE_START;
+                break;
+            }
+
+            return IHTP_ERROR;
 
         case CHUNK_DONE:
             *bufsz = dst;

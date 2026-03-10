@@ -66,6 +66,90 @@ void test_chunked_null_args(void)
     TEST_ASSERT_EQUAL_INT(IHTP_ERROR, ihtp_decode_chunked(&dec, nullptr, &bufsz));
 }
 
+void test_chunked_consume_empty_trailer(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(0, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
+void test_chunked_consume_non_empty_trailer(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\nX-Test: ok\r\n\r\n";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(0, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
+void test_chunked_incomplete_trailer(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\nX-Test: ok\r";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
+void test_chunked_incremental_across_buffers(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf1[] = "5\r\nhe";
+    char buf2[] = "llo\r\n0\r\n\r\n";
+    size_t bufsz1 = strlen(buf1);
+    size_t bufsz2 = strlen(buf2);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf1, &bufsz1);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(2, bufsz1);
+    TEST_ASSERT_EQUAL_STRING_LEN("he", buf1, 2);
+    TEST_ASSERT_EQUAL_UINT64(2, dec.total_decoded);
+
+    status = ihtp_decode_chunked(&dec, buf2, &bufsz2);
+
+    TEST_ASSERT_TRUE(status >= 0);
+    TEST_ASSERT_EQUAL_UINT(3, bufsz2);
+    TEST_ASSERT_EQUAL_STRING_LEN("llo", buf2, 3);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+}
+
+void test_chunked_incremental_trailer_across_buffers(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf1[] = "5\r\nhello\r\n0\r\nX-Test:";
+    char buf2[] = " ok\r\n\r\n";
+    size_t bufsz1 = strlen(buf1);
+    size_t bufsz2 = strlen(buf2);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf1, &bufsz1);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz1);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf1, 5);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+
+    status = ihtp_decode_chunked(&dec, buf2, &bufsz2);
+
+    TEST_ASSERT_EQUAL_INT(0, status);
+    TEST_ASSERT_EQUAL_UINT(0, bufsz2);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+}
+
 /* ─── Fixed-length decoder ────────────────────────────────────────────── */
 
 void test_fixed_complete(void)
@@ -96,6 +180,11 @@ int main(void)
     RUN_TEST(test_chunked_multiple);
     RUN_TEST(test_chunked_incomplete);
     RUN_TEST(test_chunked_null_args);
+    RUN_TEST(test_chunked_consume_empty_trailer);
+    RUN_TEST(test_chunked_consume_non_empty_trailer);
+    RUN_TEST(test_chunked_incomplete_trailer);
+    RUN_TEST(test_chunked_incremental_across_buffers);
+    RUN_TEST(test_chunked_incremental_trailer_across_buffers);
     RUN_TEST(test_fixed_complete);
     RUN_TEST(test_fixed_overflow);
     return UNITY_END();

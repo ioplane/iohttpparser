@@ -90,6 +90,18 @@
     - `cmake --build --preset clang-debug`
     - `ctest --preset clang-debug`
     - `./scripts/quality.sh`
+- Sprint 3 worktree is active at `.worktrees/sprint-3` on `feature/sprint-3-body-decoder`
+- current Sprint 3 body decoder tasks completed:
+  - chunked trailer consumption now distinguishes empty trailers from non-empty trailer sections
+  - non-empty trailers are consumed line-by-line until the terminating empty line
+  - chunked body tests now cover empty trailers, non-empty trailers, and incomplete trailers
+  - chunked body tests now cover incremental decoding across multiple buffers
+  - chunked body tests now cover incremental trailer consumption across multiple buffers
+  - full container quality checkpoint is green in Sprint 3:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
 
 **Current Sprint 1 focus:**
 - continue scalar edge-case coverage
@@ -101,10 +113,15 @@
 - expand negative corpus for smuggling-sensitive cases
 - keep full container quality baseline green as semantics tasks land
 
+**Current Sprint 3 focus:**
+- complete body decoder edge cases
+- harden incremental chunked decoding and trailer handling
+- keep full container quality baseline green as body tasks land
+
 **Immediate execution queue:**
-1. Continue Sprint 1 parser-correctness tasks in `.worktrees/sprint-1`.
-2. Keep updating the roadmap as strict parser behaviors are locked down.
-3. Prepare a focused Sprint 1 commit once scalar correctness coverage reaches a stable checkpoint.
+1. Continue Sprint 3 body-decoder tasks in `.worktrees/sprint-3`.
+2. Keep updating the roadmap as body decoder invariants are locked down.
+3. Prepare the next Sprint 3 checkpoint after chunk parser edge cases and fixed-length regressions expand further.
 
 ---
 
