@@ -239,6 +239,15 @@ if(IOHTTPPARSER_BUILD_FUZZ AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
 
     ihtp_add_fuzz(fuzz_parser tests/fuzz/fuzz_parser.c)
     ihtp_add_fuzz(fuzz_chunked tests/fuzz/fuzz_chunked.c)
+    ihtp_add_fuzz(fuzz_scanner tests/fuzz/fuzz_scanner.c)
+    if(TARGET fuzz_scanner)
+        if(IOHTTPPARSER_SIMD_SSE42)
+            target_compile_definitions(fuzz_scanner PRIVATE IOHTTPPARSER_HAVE_SSE42)
+        endif()
+        if(IOHTTPPARSER_SIMD_AVX2)
+            target_compile_definitions(fuzz_scanner PRIVATE IOHTTPPARSER_HAVE_AVX2)
+        endif()
+    endif()
 endif()
 
 # ============================================================================
