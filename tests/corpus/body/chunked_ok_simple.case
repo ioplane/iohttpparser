@@ -1,0 +1,7 @@
+kind=chunked
+expect=ok
+consume_trailer=false
+wire=5\r\nhello\r\n0\r\n\r\n
+decoded=hello
+status_value=2
+total_decoded=5

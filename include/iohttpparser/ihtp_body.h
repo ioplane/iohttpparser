@@ -13,6 +13,14 @@
  * @brief Chunked transfer decoder state.
  *
  * Zero-initialize before first use.
+ *
+ * Contract:
+ * - state is preserved across calls for incremental decoding
+ * - total_decoded counts only payload bytes, never chunk framing or trailers
+ * - if consume_trailer is false, completion leaves the terminal CRLF and any
+ *   following bytes undecoded in the caller buffer
+ * - if consume_trailer is true, trailer lines are consumed until the
+ *   terminating empty line before reporting completion
  */
 typedef struct {
     uint64_t bytes_left_in_chunk; /**< Remaining bytes in current chunk */
@@ -27,6 +35,8 @@ typedef struct {
  *
  * Rewrites buf in-place, removing chunk framing.
  * On return, *bufsz is updated to decoded data length.
+ * The function is incremental: callers may invoke it repeatedly with
+ * subsequent buffer slices using the same decoder state.
  *
  * @param decoder  Decoder state (zero-init before first call).
  * @param buf      Input/output buffer (modified in-place).
@@ -61,7 +71,8 @@ void ihtp_fixed_decoder_init(ihtp_fixed_decoder_t *decoder, uint64_t content_len
  *
  * @param decoder Decoder state.
  * @param len     Number of bytes received.
- * @return IHTP_OK if all expected bytes consumed, IHTP_INCOMPLETE if more needed.
+ * @return IHTP_OK if all expected bytes consumed, IHTP_INCOMPLETE if more
+ *         data is needed, IHTP_ERROR if len exceeds remaining bytes.
  */
 [[nodiscard]] ihtp_status_t ihtp_decode_fixed(ihtp_fixed_decoder_t *decoder, size_t len);
 

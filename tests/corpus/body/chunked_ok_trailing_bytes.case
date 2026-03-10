@@ -1,0 +1,7 @@
+kind=chunked
+expect=ok
+consume_trailer=true
+wire=5\r\nhello\r\n0\r\nX-Test: ok\r\n\r\nXYZ
+decoded=hello
+status_value=3
+total_decoded=5

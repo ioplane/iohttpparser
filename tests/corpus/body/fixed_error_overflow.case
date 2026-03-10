@@ -1,0 +1,6 @@
+kind=fixed
+expect=error
+content_length=10
+consume_len=20
+total_decoded=0
+remaining=10

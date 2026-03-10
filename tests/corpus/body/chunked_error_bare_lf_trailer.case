@@ -1,0 +1,4 @@
+kind=chunked
+expect=error
+consume_trailer=true
+wire=5\r\nhello\r\n0\r\nX-Test: ok\n\r\n

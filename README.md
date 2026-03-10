@@ -100,6 +100,15 @@ pkg-config --cflags --libs iohttpparser
 | `ihtp_method_to_str()` | Method enum to string |
 | `ihtp_version()` | Library version string |
 
+## Body Decoder Contracts
+
+- `ihtp_decode_chunked()` is incremental: reuse the same decoder across calls as more bytes arrive
+- `*bufsz` is always rewritten to decoded payload bytes kept in the caller buffer
+- on complete chunked decode, the non-negative return value is the count of undecoded trailing bytes
+- with `consume_trailer = false`, the terminal chunk trailer section stays in trailing bytes
+- with `consume_trailer = true`, trailer lines are consumed through the terminating empty line before completion
+- `ihtp_fixed_decoder_t` tracks only payload accounting: `remaining`, `total_decoded`, and overflow rejection
+
 ## Status Codes
 
 | Code | Meaning |

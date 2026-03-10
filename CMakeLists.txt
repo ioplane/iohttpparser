@@ -193,6 +193,12 @@ if(IOHTTPPARSER_BUILD_TESTS)
         )
     endif()
     ihtp_add_test(test_body_decoder tests/unit/test_body_decoder.c)
+    ihtp_add_test(test_body_decoder_corpus tests/unit/test_body_decoder_corpus.c)
+    if(TARGET test_body_decoder_corpus)
+        target_compile_definitions(test_body_decoder_corpus PRIVATE
+            IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+        )
+    endif()
 endif()
 
 # ============================================================================

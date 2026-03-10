@@ -109,6 +109,16 @@
   - `clang-fuzz` builds both `fuzz_chunked` and `fuzz_parser` successfully in the container
   - starter parser fuzz seeds now exist under `tests/fuzz/corpus/parser/`
   - both `fuzz_chunked` and `fuzz_parser` have been executed successfully in the container against local seed corpora
+  - body decoder corpus now exists under `tests/corpus/body/`
+  - `test_body_decoder_corpus` is wired into `ctest` for representative valid and invalid chunked and fixed-length cases
+  - decoder contracts are now documented in `include/iohttpparser/ihtp_body.h`, `README.md`, `docs/en/body-decoder.md`, and `docs/ru/body-decoder.md`
+  - `scripts/run-body-fuzz.sh` now provides a reproducible in-container body-fuzz workflow using temporary corpus copies
+  - Sprint 3 closeout verification is green on this branch:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
+    - `RUNS=64 bash scripts/run-body-fuzz.sh`
   - full container quality checkpoint is green in Sprint 3:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
@@ -126,14 +136,13 @@
 - keep full container quality baseline green as semantics tasks land
 
 **Current Sprint 3 focus:**
-- complete body decoder edge cases
-- harden incremental chunked decoding and trailer handling
-- keep full container quality baseline green as body tasks land
+- closeout branch is ready for review and merge
+- next implementation focus after merge is Sprint 4 SIMD scalar-equivalence and benchmarks
 
 **Immediate execution queue:**
-1. Continue Sprint 3 body-decoder tasks in `.worktrees/sprint-3`.
-2. Keep updating the roadmap as body decoder invariants are locked down.
-3. Prepare the next Sprint 3 checkpoint after chunk parser edge cases and fixed-length regressions expand further.
+1. Review and merge Sprint 3 closeout branch into `main`.
+2. Open the next worktree from refreshed `main` for Sprint 4 SIMD work.
+3. Keep body corpus and body-fuzz workflow as the verification baseline for future body-decoder changes.
 
 ---
 
