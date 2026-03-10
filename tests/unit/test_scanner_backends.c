@@ -91,6 +91,56 @@ void test_scanner_dispatch_invariants(void)
                           (int)ihtp_scan_is_token(token_buf, strlen(token_buf)));
 }
 
+void test_scanner_exhaustive_single_byte_equivalence(void)
+{
+    uint8_t buf[256];
+    int level = ihtp_scanner_simd_level();
+
+    for (size_t i = 0; i < sizeof(buf); i++) {
+        buf[i] = (uint8_t)i;
+    }
+
+    for (size_t i = 1; i < sizeof(buf); i++) {
+        char delim[2] = {(char)buf[i], '\0'};
+        const char *expected = ihtp_scan_find_char_scalar((const char *)buf, sizeof(buf), delim);
+
+        TEST_ASSERT_EQUAL_PTR((const char *)buf + i, expected);
+        TEST_ASSERT_EQUAL_PTR(expected, ihtp_scan_find_char((const char *)buf, sizeof(buf), delim));
+
+#ifdef IOHTTPPARSER_HAVE_SSE42
+        if ((level & 0x01) != 0) {
+            TEST_ASSERT_EQUAL_PTR(expected,
+                                  ihtp_scan_find_char_sse42((const char *)buf, sizeof(buf), delim));
+        }
+#endif
+#ifdef IOHTTPPARSER_HAVE_AVX2
+        if ((level & 0x02) != 0) {
+            TEST_ASSERT_EQUAL_PTR(expected,
+                                  ihtp_scan_find_char_avx2((const char *)buf, sizeof(buf), delim));
+        }
+#endif
+    }
+
+    for (size_t i = 0; i < sizeof(buf); i++) {
+        char byte = (char)buf[i];
+        bool expected = ihtp_scan_is_token_scalar(&byte, 1);
+
+        TEST_ASSERT_EQUAL_INT((int)ihtp_is_token_char(buf[i]), (int)expected);
+        TEST_ASSERT_EQUAL_INT((int)expected, (int)ihtp_scan_is_token(&byte, 1));
+
+#ifdef IOHTTPPARSER_HAVE_SSE42
+        if ((level & 0x01) != 0) {
+            TEST_ASSERT_EQUAL_INT((int)expected, (int)ihtp_scan_is_token_sse42(&byte, 1));
+        }
+#endif
+#ifdef IOHTTPPARSER_HAVE_AVX2
+        if ((level & 0x02) != 0) {
+            TEST_ASSERT_EQUAL_INT((int)expected, (int)ihtp_scan_is_token_avx2(&byte, 1));
+        }
+#endif
+    }
+}
+
 void test_scanner_scalar_backend_cases(void)
 {
     static const char binary_buf[] = {'A', (char)0xFF, 'B', '\0'};
@@ -252,6 +302,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_scanner_scalar_backend_cases);
     RUN_TEST(test_scanner_dispatch_invariants);
+    RUN_TEST(test_scanner_exhaustive_single_byte_equivalence);
     RUN_TEST(test_scanner_sse42_equivalence);
     RUN_TEST(test_scanner_avx2_equivalence);
     return UNITY_END();
