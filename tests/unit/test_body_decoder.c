@@ -150,6 +150,76 @@ void test_chunked_incremental_trailer_across_buffers(void)
     TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
 }
 
+void test_chunked_incremental_size_crlf_across_buffers(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf1[] = "5\r";
+    char buf2[] = "\nhello\r\n0\r\n\r\n";
+    size_t bufsz1 = strlen(buf1);
+    size_t bufsz2 = strlen(buf2);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf1, &bufsz1);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(0, bufsz1);
+    TEST_ASSERT_EQUAL_UINT64(0, dec.total_decoded);
+
+    status = ihtp_decode_chunked(&dec, buf2, &bufsz2);
+
+    TEST_ASSERT_EQUAL_INT(2, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz2);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf2, 5);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+}
+
+void test_chunked_incremental_data_crlf_across_buffers(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf1[] = "5\r\nhello\r";
+    char buf2[] = "\n0\r\n\r\n";
+    size_t bufsz1 = strlen(buf1);
+    size_t bufsz2 = strlen(buf2);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf1, &bufsz1);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz1);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf1, 5);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+
+    status = ihtp_decode_chunked(&dec, buf2, &bufsz2);
+
+    TEST_ASSERT_EQUAL_INT(2, status);
+    TEST_ASSERT_EQUAL_UINT(0, bufsz2);
+    TEST_ASSERT_EQUAL_UINT64(5, dec.total_decoded);
+}
+
+void test_chunked_returns_trailing_bytes_without_trailer_consumption(void)
+{
+    ihtp_chunked_decoder_t dec = {0};
+    char buf[] = "5\r\nhello\r\n0\r\n\r\nXYZ";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(5, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
+void test_chunked_returns_trailing_bytes_after_trailer_consumption(void)
+{
+    ihtp_chunked_decoder_t dec = {.consume_trailer = true};
+    char buf[] = "5\r\nhello\r\n0\r\nX-Test: ok\r\n\r\nXYZ";
+    size_t bufsz = strlen(buf);
+
+    ihtp_status_t status = ihtp_decode_chunked(&dec, buf, &bufsz);
+
+    TEST_ASSERT_EQUAL_INT(3, status);
+    TEST_ASSERT_EQUAL_UINT(5, bufsz);
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+}
+
 void test_chunked_accepts_chunk_extension(void)
 {
     ihtp_chunked_decoder_t dec = {0};
@@ -318,6 +388,10 @@ int main(void)
     RUN_TEST(test_chunked_incomplete_trailer);
     RUN_TEST(test_chunked_incremental_across_buffers);
     RUN_TEST(test_chunked_incremental_trailer_across_buffers);
+    RUN_TEST(test_chunked_incremental_size_crlf_across_buffers);
+    RUN_TEST(test_chunked_incremental_data_crlf_across_buffers);
+    RUN_TEST(test_chunked_returns_trailing_bytes_without_trailer_consumption);
+    RUN_TEST(test_chunked_returns_trailing_bytes_after_trailer_consumption);
     RUN_TEST(test_chunked_accepts_chunk_extension);
     RUN_TEST(test_chunked_incomplete_chunk_extension);
     RUN_TEST(test_chunked_rejects_bare_lf_in_chunk_extension);

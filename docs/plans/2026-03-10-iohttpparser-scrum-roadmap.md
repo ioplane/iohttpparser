@@ -102,6 +102,8 @@
   - chunked body tests now cover malformed chunk framing for invalid hex digits, missing `LF`, missing `CR`, and oversized chunk sizes
   - fixed-length body tests now cover zero-length bodies, zero-length no-op consumes, and overflow after partial progress
   - chunked body tests now cover trailer-line strictness for bare `LF` and missing `LF` after trailer `CR`
+  - chunked body tests now cover incremental `CRLF` boundary splits across size and data transitions
+  - chunked body tests now document trailing-byte completion contract both with and without trailer consumption
   - full container quality checkpoint is green in Sprint 3:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
