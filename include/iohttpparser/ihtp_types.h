@@ -70,6 +70,36 @@ typedef enum {
 } ihtp_http_version_t;
 
 /**
+ * @brief Stateful parser mode.
+ */
+typedef enum {
+    IHTP_PARSER_MODE_REQUEST = 0,
+    IHTP_PARSER_MODE_RESPONSE = 1,
+    IHTP_PARSER_MODE_HEADERS = 2,
+} ihtp_parser_mode_t;
+
+/**
+ * @brief Public parser phase for stateful incremental parsing.
+ */
+typedef enum {
+    IHTP_PARSER_PHASE_START_LINE = 0,
+    IHTP_PARSER_PHASE_HEADERS = 1,
+    IHTP_PARSER_PHASE_DONE = 2,
+    IHTP_PARSER_PHASE_ERROR = 3,
+} ihtp_parser_phase_t;
+
+/**
+ * @brief Stateful parser object for incremental request/response/header parsing.
+ *
+ * Zero-initialize before first use or call ihtp_parser_state_init().
+ */
+typedef struct {
+    ihtp_parser_mode_t mode;   /**< Parser mode: request, response, or headers */
+    ihtp_parser_phase_t phase; /**< Current parser phase */
+    size_t cursor;             /**< Bytes consumed inside the accumulated input buffer */
+} ihtp_parser_state_t;
+
+/**
  * @brief A single HTTP header (name-value pair).
  *
  * Pointers reference the original input buffer (zero-copy).

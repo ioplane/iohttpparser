@@ -10,6 +10,23 @@
 #include <iohttpparser/ihtp_types.h>
 
 /**
+ * @brief Initialize a parser state object for incremental parsing.
+ *
+ * @param state Parser state object.
+ * @param mode  Request, response, or headers-only parsing mode.
+ */
+void ihtp_parser_state_init(ihtp_parser_state_t *state, ihtp_parser_mode_t mode);
+
+/**
+ * @brief Reset an initialized parser state object to its initial phase.
+ *
+ * The parser mode is preserved.
+ *
+ * @param state Parser state object.
+ */
+void ihtp_parser_state_reset(ihtp_parser_state_t *state);
+
+/**
  * @brief Parse an HTTP request (request-line + headers).
  *
  * Pull-based incremental API: call repeatedly with accumulated data.
@@ -26,6 +43,25 @@
                                                const ihtp_policy_t *policy, size_t *bytes_consumed);
 
 /**
+ * @brief Parse an HTTP request using explicit parser state.
+ *
+ * Reuse the same state object across calls while the accumulated input buffer grows.
+ * The output remains zero-copy and points into the caller-owned buffer.
+ *
+ * @param state          Parser state initialized with IHTP_PARSER_MODE_REQUEST.
+ * @param buf            Input buffer (accumulated bytes).
+ * @param len            Length of input buffer.
+ * @param req            Output: parsed request.
+ * @param policy         Parsing policy. NULL = strict.
+ * @param bytes_consumed Output: total bytes consumed on IHTP_OK.
+ * @return IHTP_OK on success, IHTP_INCOMPLETE if more data is needed, IHTP_ERROR on failure.
+ */
+[[nodiscard]] ihtp_status_t ihtp_parse_request_stateful(ihtp_parser_state_t *state, const char *buf,
+                                                        size_t len, ihtp_request_t *req,
+                                                        const ihtp_policy_t *policy,
+                                                        size_t *bytes_consumed);
+
+/**
  * @brief Parse an HTTP response (status-line + headers).
  *
  * @param buf          Input buffer.
@@ -38,6 +74,23 @@
 [[nodiscard]] ihtp_status_t ihtp_parse_response(const char *buf, size_t len, ihtp_response_t *resp,
                                                 const ihtp_policy_t *policy,
                                                 size_t *bytes_consumed);
+
+/**
+ * @brief Parse an HTTP response using explicit parser state.
+ *
+ * @param state          Parser state initialized with IHTP_PARSER_MODE_RESPONSE.
+ * @param buf            Input buffer.
+ * @param len            Length of input buffer.
+ * @param resp           Output: parsed response.
+ * @param policy         Parsing policy. NULL = strict.
+ * @param bytes_consumed Output: total bytes consumed on IHTP_OK.
+ * @return IHTP_OK on success, IHTP_INCOMPLETE if more data is needed, IHTP_ERROR on failure.
+ */
+[[nodiscard]] ihtp_status_t ihtp_parse_response_stateful(ihtp_parser_state_t *state,
+                                                         const char *buf, size_t len,
+                                                         ihtp_response_t *resp,
+                                                         const ihtp_policy_t *policy,
+                                                         size_t *bytes_consumed);
 
 /**
  * @brief Parse headers only (for trailer sections or standalone header parsing).
@@ -53,6 +106,25 @@
 [[nodiscard]] ihtp_status_t ihtp_parse_headers(const char *buf, size_t len, ihtp_header_t *headers,
                                                size_t *num_headers, const ihtp_policy_t *policy,
                                                size_t *bytes_consumed);
+
+/**
+ * @brief Parse a standalone header block using explicit parser state.
+ *
+ * @param state          Parser state initialized with IHTP_PARSER_MODE_HEADERS.
+ * @param buf            Input buffer.
+ * @param len            Length of input buffer.
+ * @param headers        Output header array.
+ * @param num_headers    Input/output header count.
+ * @param max_headers    Maximum number of headers that fit in the array.
+ * @param policy         Parsing policy. NULL = strict.
+ * @param bytes_consumed Output: total bytes consumed on IHTP_OK.
+ * @return IHTP_OK on success, IHTP_INCOMPLETE if more data is needed, IHTP_ERROR on failure.
+ */
+[[nodiscard]] ihtp_status_t ihtp_parse_headers_stateful(ihtp_parser_state_t *state, const char *buf,
+                                                        size_t len, ihtp_header_t *headers,
+                                                        size_t *num_headers, size_t max_headers,
+                                                        const ihtp_policy_t *policy,
+                                                        size_t *bytes_consumed);
 
 /**
  * @brief Resolve method string to enum.

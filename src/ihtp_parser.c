@@ -47,6 +47,29 @@ const char *ihtp_method_to_str(ihtp_method_t method)
     return "UNKNOWN";
 }
 
+void ihtp_parser_state_init(ihtp_parser_state_t *state, ihtp_parser_mode_t mode)
+{
+    if (state == nullptr) {
+        return;
+    }
+
+    state->mode = mode;
+    state->phase = mode == IHTP_PARSER_MODE_HEADERS ? IHTP_PARSER_PHASE_HEADERS
+                                                    : IHTP_PARSER_PHASE_START_LINE;
+    state->cursor = 0;
+}
+
+void ihtp_parser_state_reset(ihtp_parser_state_t *state)
+{
+    if (state == nullptr) {
+        return;
+    }
+
+    state->phase = state->mode == IHTP_PARSER_MODE_HEADERS ? IHTP_PARSER_PHASE_HEADERS
+                                                           : IHTP_PARSER_PHASE_START_LINE;
+    state->cursor = 0;
+}
+
 /* ─── Internal: find line ending ──────────────────────────────────────── */
 
 static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_policy_t *policy,
@@ -129,6 +152,63 @@ static bool field_text_is_valid(const char *buf, size_t len)
     }
 
     return true;
+}
+
+static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_response_t *resp,
+                                       const ihtp_policy_t *policy, size_t *line_end)
+{
+    const char *line_break = nullptr;
+    size_t line_ending_len = 0;
+    ihtp_status_t line_status = find_line_end(buf, len, policy, &line_break, &line_ending_len);
+
+    if (line_status != IHTP_OK) {
+        return line_status;
+    }
+
+    size_t line_len = (size_t)(line_break - buf);
+
+    if (line_len < 13 || memcmp(buf, "HTTP/1.", 7) != 0) {
+        return IHTP_ERROR;
+    }
+
+    if (buf[7] == '1') {
+        resp->version = IHTP_HTTP_11;
+    } else if (buf[7] == '0') {
+        resp->version = IHTP_HTTP_10;
+    } else {
+        return IHTP_ERROR;
+    }
+
+    if (buf[8] != ' ') {
+        return IHTP_ERROR;
+    }
+
+    if (!ihtp_is_digit((uint8_t)buf[9]) || !ihtp_is_digit((uint8_t)buf[10]) ||
+        !ihtp_is_digit((uint8_t)buf[11])) {
+        return IHTP_ERROR;
+    }
+    resp->status_code = (buf[9] - '0') * 100 + (buf[10] - '0') * 10 + (buf[11] - '0');
+    if (resp->status_code < 100 || resp->status_code > 599) {
+        return IHTP_ERROR;
+    }
+
+    if (buf[12] != ' ') {
+        return IHTP_ERROR;
+    }
+
+    if (line_len > 13) {
+        resp->reason = buf + 13;
+        resp->reason_len = (size_t)(line_break - (buf + 13));
+        if (!field_text_is_valid(resp->reason, resp->reason_len)) {
+            return IHTP_ERROR;
+        }
+    } else {
+        resp->reason = buf + 13;
+        resp->reason_len = 0;
+    }
+
+    *line_end = line_len + line_ending_len;
+    return IHTP_OK;
 }
 
 /* ─── Parse request-line ──────────────────────────────────────────────── */
@@ -215,10 +295,11 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
 /* ─── Parse headers ───────────────────────────────────────────────────── */
 
 static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header_t *headers,
-                                        size_t *num_headers, size_t max_headers,
-                                        const ihtp_policy_t *policy, size_t *block_end)
+                                        size_t initial_count, size_t *num_headers,
+                                        size_t max_headers, const ihtp_policy_t *policy,
+                                        size_t *block_end)
 {
-    size_t count = 0;
+    size_t count = initial_count;
     size_t pos = 0;
 
     while (pos < len) {
@@ -237,6 +318,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
                 return IHTP_ERROR_TOO_LONG;
             }
             *num_headers = count;
+            *block_end = pos;
             return IHTP_INCOMPLETE;
         }
         if (line_status != IHTP_OK) {
@@ -309,7 +391,185 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
     }
 
     *num_headers = count;
+    *block_end = pos;
     return IHTP_INCOMPLETE;
+}
+
+static const ihtp_policy_t *resolve_policy(const ihtp_policy_t *policy)
+{
+    static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
+    if (policy == nullptr) {
+        return &strict;
+    }
+
+    return policy;
+}
+
+static ihtp_status_t parser_state_error(ihtp_parser_state_t *state)
+{
+    if (state != nullptr) {
+        state->phase = IHTP_PARSER_PHASE_ERROR;
+    }
+
+    return IHTP_ERROR;
+}
+
+/* ─── Internal stateful parser entry points ───────────────────────────── */
+
+ihtp_status_t ihtp_parse_request_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
+                                          ihtp_request_t *req, const ihtp_policy_t *policy,
+                                          size_t *bytes_consumed)
+{
+    if (state == nullptr || buf == nullptr || req == nullptr || bytes_consumed == nullptr ||
+        state->mode != IHTP_PARSER_MODE_REQUEST) {
+        return IHTP_ERROR;
+    }
+
+    policy = resolve_policy(policy);
+    *bytes_consumed = 0;
+
+    if (state->phase == IHTP_PARSER_PHASE_ERROR) {
+        return IHTP_ERROR;
+    }
+    if (state->phase == IHTP_PARSER_PHASE_DONE) {
+        *bytes_consumed = state->cursor;
+        return IHTP_OK;
+    }
+
+    if (state->phase == IHTP_PARSER_PHASE_START_LINE) {
+        size_t line_end = 0;
+        ihtp_status_t status =
+            parse_request_line(buf + state->cursor, len - state->cursor, req, policy, &line_end);
+        if (status != IHTP_OK) {
+            if (status == IHTP_ERROR || status == IHTP_ERROR_TOO_LONG) {
+                state->phase = IHTP_PARSER_PHASE_ERROR;
+            }
+            return status;
+        }
+
+        state->cursor += line_end;
+        state->phase = IHTP_PARSER_PHASE_HEADERS;
+    }
+
+    if (state->phase == IHTP_PARSER_PHASE_HEADERS) {
+        size_t block_end = 0;
+        ihtp_status_t status = parse_header_block(buf + state->cursor, len - state->cursor,
+                                                  req->headers, req->num_headers, &req->num_headers,
+                                                  IHTP_MAX_HEADERS, policy, &block_end);
+        state->cursor += block_end;
+        if (status == IHTP_INCOMPLETE) {
+            return status;
+        }
+        if (status != IHTP_OK) {
+            state->phase = IHTP_PARSER_PHASE_ERROR;
+            return status;
+        }
+
+        state->phase = IHTP_PARSER_PHASE_DONE;
+    }
+
+    *bytes_consumed = state->cursor;
+    return IHTP_OK;
+}
+
+ihtp_status_t ihtp_parse_response_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
+                                           ihtp_response_t *resp, const ihtp_policy_t *policy,
+                                           size_t *bytes_consumed)
+{
+    if (state == nullptr || buf == nullptr || resp == nullptr || bytes_consumed == nullptr ||
+        state->mode != IHTP_PARSER_MODE_RESPONSE) {
+        return IHTP_ERROR;
+    }
+
+    policy = resolve_policy(policy);
+    *bytes_consumed = 0;
+
+    if (state->phase == IHTP_PARSER_PHASE_ERROR) {
+        return IHTP_ERROR;
+    }
+    if (state->phase == IHTP_PARSER_PHASE_DONE) {
+        *bytes_consumed = state->cursor;
+        return IHTP_OK;
+    }
+
+    if (state->phase == IHTP_PARSER_PHASE_START_LINE) {
+        size_t line_end = 0;
+        ihtp_status_t status =
+            parse_status_line(buf + state->cursor, len - state->cursor, resp, policy, &line_end);
+        if (status != IHTP_OK) {
+            if (status == IHTP_ERROR) {
+                state->phase = IHTP_PARSER_PHASE_ERROR;
+            }
+            return status;
+        }
+
+        state->cursor += line_end;
+        state->phase = IHTP_PARSER_PHASE_HEADERS;
+    }
+
+    if (state->phase == IHTP_PARSER_PHASE_HEADERS) {
+        size_t block_end = 0;
+        ihtp_status_t status = parse_header_block(buf + state->cursor, len - state->cursor,
+                                                  resp->headers, resp->num_headers,
+                                                  &resp->num_headers, IHTP_MAX_HEADERS, policy,
+                                                  &block_end);
+        state->cursor += block_end;
+        if (status == IHTP_INCOMPLETE) {
+            return status;
+        }
+        if (status != IHTP_OK) {
+            state->phase = IHTP_PARSER_PHASE_ERROR;
+            return status;
+        }
+
+        state->phase = IHTP_PARSER_PHASE_DONE;
+    }
+
+    *bytes_consumed = state->cursor;
+    return IHTP_OK;
+}
+
+ihtp_status_t ihtp_parse_headers_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
+                                          ihtp_header_t *headers, size_t *num_headers,
+                                          size_t max_headers, const ihtp_policy_t *policy,
+                                          size_t *bytes_consumed)
+{
+    if (state == nullptr || buf == nullptr || headers == nullptr || num_headers == nullptr ||
+        bytes_consumed == nullptr || state->mode != IHTP_PARSER_MODE_HEADERS) {
+        return IHTP_ERROR;
+    }
+
+    policy = resolve_policy(policy);
+    *bytes_consumed = 0;
+
+    if (state->phase == IHTP_PARSER_PHASE_ERROR) {
+        return IHTP_ERROR;
+    }
+    if (state->phase == IHTP_PARSER_PHASE_DONE) {
+        *bytes_consumed = state->cursor;
+        return IHTP_OK;
+    }
+
+    if (state->phase != IHTP_PARSER_PHASE_HEADERS) {
+        return parser_state_error(state);
+    }
+
+    size_t block_end = 0;
+    ihtp_status_t status = parse_header_block(buf + state->cursor, len - state->cursor, headers,
+                                              *num_headers, num_headers, max_headers, policy,
+                                              &block_end);
+    state->cursor += block_end;
+    if (status == IHTP_INCOMPLETE) {
+        return status;
+    }
+    if (status != IHTP_OK) {
+        state->phase = IHTP_PARSER_PHASE_ERROR;
+        return status;
+    }
+
+    state->phase = IHTP_PARSER_PHASE_DONE;
+    *bytes_consumed = state->cursor;
+    return IHTP_OK;
 }
 
 /* ─── Public: parse request ───────────────────────────────────────────── */
@@ -321,34 +581,11 @@ ihtp_status_t ihtp_parse_request(const char *buf, size_t len, ihtp_request_t *re
         return IHTP_ERROR;
     }
 
-    static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
-    if (policy == nullptr) {
-        policy = &strict;
-    }
-
-    *bytes_consumed = 0;
-
-    /* Zero the output */
     memset(req, 0, sizeof(*req));
 
-    /* Parse request-line */
-    size_t line_end = 0;
-    ihtp_status_t status = parse_request_line(buf, len, req, policy, &line_end);
-    if (status != IHTP_OK) {
-        return status;
-    }
-
-    /* Parse headers */
-    size_t block_end = 0;
-    size_t max_headers = IHTP_MAX_HEADERS;
-    status = parse_header_block(buf + line_end, len - line_end, req->headers, &req->num_headers,
-                                max_headers, policy, &block_end);
-    if (status != IHTP_OK) {
-        return status;
-    }
-
-    *bytes_consumed = line_end + block_end;
-    return IHTP_OK;
+    ihtp_parser_state_t state;
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    return ihtp_parse_request_stateful(&state, buf, len, req, policy, bytes_consumed);
 }
 
 /* ─── Public: parse response ──────────────────────────────────────────── */
@@ -360,78 +597,11 @@ ihtp_status_t ihtp_parse_response(const char *buf, size_t len, ihtp_response_t *
         return IHTP_ERROR;
     }
 
-    static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
-    if (policy == nullptr) {
-        policy = &strict;
-    }
-
-    *bytes_consumed = 0;
-
     memset(resp, 0, sizeof(*resp));
 
-    /* Find CRLF for status-line */
-    const char *line_break = nullptr;
-    size_t line_ending_len = 0;
-    ihtp_status_t line_status = find_line_end(buf, len, policy, &line_break, &line_ending_len);
-    if (line_status != IHTP_OK) {
-        return line_status;
-    }
-
-    size_t line_len = (size_t)(line_break - buf);
-
-    /* Parse: HTTP-version SP status-code SP [reason-phrase] */
-    if (line_len < 13 || memcmp(buf, "HTTP/1.", 7) != 0) {
-        return IHTP_ERROR;
-    }
-
-    if (buf[7] == '1') {
-        resp->version = IHTP_HTTP_11;
-    } else if (buf[7] == '0') {
-        resp->version = IHTP_HTTP_10;
-    } else {
-        return IHTP_ERROR;
-    }
-
-    if (buf[8] != ' ') {
-        return IHTP_ERROR;
-    }
-
-    /* Status code: 3 digits */
-    if (!ihtp_is_digit((uint8_t)buf[9]) || !ihtp_is_digit((uint8_t)buf[10]) ||
-        !ihtp_is_digit((uint8_t)buf[11])) {
-        return IHTP_ERROR;
-    }
-    resp->status_code = (buf[9] - '0') * 100 + (buf[10] - '0') * 10 + (buf[11] - '0');
-    if (resp->status_code < 100 || resp->status_code > 599) {
-        return IHTP_ERROR;
-    }
-
-    if (buf[12] != ' ') {
-        return IHTP_ERROR;
-    }
-
-    /* Reason phrase is optional, but the separator SP is mandatory. */
-    if (line_len > 13) {
-        resp->reason = buf + 13;
-        resp->reason_len = (size_t)(line_break - (buf + 13));
-        if (!field_text_is_valid(resp->reason, resp->reason_len)) {
-            return IHTP_ERROR;
-        }
-    }
-
-    size_t line_end = line_len + line_ending_len;
-
-    /* Parse headers */
-    size_t block_end = 0;
-    size_t max_headers = IHTP_MAX_HEADERS;
-    ihtp_status_t status = parse_header_block(buf + line_end, len - line_end, resp->headers,
-                                              &resp->num_headers, max_headers, policy, &block_end);
-    if (status != IHTP_OK) {
-        return status;
-    }
-
-    *bytes_consumed = line_end + block_end;
-    return IHTP_OK;
+    ihtp_parser_state_t state;
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_RESPONSE);
+    return ihtp_parse_response_stateful(&state, buf, len, resp, policy, bytes_consumed);
 }
 
 /* ─── Public: parse headers only ──────────────────────────────────────── */
@@ -445,19 +615,11 @@ ihtp_status_t ihtp_parse_headers(const char *buf, size_t len, ihtp_header_t *hea
         return IHTP_ERROR;
     }
 
-    static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
-    if (policy == nullptr) {
-        policy = &strict;
-    }
-
-    *bytes_consumed = 0;
-
     size_t max_headers = *num_headers;
-    size_t block_end = 0;
-    ihtp_status_t status =
-        parse_header_block(buf, len, headers, num_headers, max_headers, policy, &block_end);
-    if (status == IHTP_OK) {
-        *bytes_consumed = block_end;
-    }
-    return status;
+    *num_headers = 0;
+
+    ihtp_parser_state_t state;
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_HEADERS);
+    return ihtp_parse_headers_stateful(&state, buf, len, headers, num_headers, max_headers, policy,
+                                       bytes_consumed);
 }
