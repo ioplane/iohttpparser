@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.25)
 project(iohttpparser
     VERSION 0.1.0
     DESCRIPTION "High-performance HTTP/1.1 parser for C23 with SIMD acceleration"
-    HOMEPAGE_URL "https://github.com/pnx/iohttpparser"
+    HOMEPAGE_URL "https://github.com/ioplane/iohttpparser"
     LANGUAGES C
 )
 
