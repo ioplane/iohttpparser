@@ -46,6 +46,9 @@ __pycache__/
 .DS_Store
 docs/tmp/
 .worktrees/
+.serena/*
+!.serena/project.yml
+.ccls-cache/
 
 # Static analysis output
 PVS-Studio.log

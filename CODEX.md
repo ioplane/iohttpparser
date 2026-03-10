@@ -34,3 +34,20 @@ Read these in order before making non-trivial changes:
 ## Local Skills
 
 Repository-local skills live under `.claude/skills/`. They are the closest thing to project memory for repeated architecture and standards decisions, even when the active agent is not Claude.
+
+## Required Utilities
+
+For effective Codex work on this repository, keep these available on the host:
+- `git` for branches, worktrees, history, and patch-oriented review
+- `gh` with working auth, especially `gh api graphql`, for repository and PR automation
+- `rg` (`ripgrep`) for fast code and path discovery
+- `jq` for processing JSON output from GitHub APIs, tool output, and generated reports
+- `python3` for small project-local automation and validation scripts
+- `podman` for the required build/test/quality execution environment
+- `uv` / `uvx` for optional MCP and helper tooling such as Serena
+- `clangd` for local semantic C/C++ navigation when Serena or other LSP-based tooling is used
+
+Useful but optional:
+- `fd` for fast filename discovery
+- `yq` for YAML inspection
+- `hyperfine` for repeatable benchmark comparisons

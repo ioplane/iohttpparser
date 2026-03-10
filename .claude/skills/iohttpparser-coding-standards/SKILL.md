@@ -43,3 +43,24 @@ description: Use when writing or reviewing any C code in iohttpparser, especiall
 - Add or update unit tests for each behavior change.
 - Add negative tests for malformed or ambiguous framing.
 - Keep SIMD changes covered by scalar-equivalence tests where possible.
+
+## Tooling Baseline
+
+- Required host tools:
+  - `git`
+  - `gh` with working `gh api graphql`
+  - `rg`
+  - `jq`
+  - `python3`
+  - `podman`
+- Strongly recommended:
+  - `uv` / `uvx`
+  - `clangd`
+  - `fd`
+  - `yq`
+  - `hyperfine`
+
+- Prefer:
+  - `rg` over slower text search tools
+  - `fd` for filename discovery when available
+  - `jq` / `yq` for structured config inspection instead of ad hoc parsing

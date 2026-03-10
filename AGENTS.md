@@ -17,6 +17,22 @@ ctest --preset clang-debug
 ```
 Use `cmake --build --preset clang-debug --target format` to rewrite formatting and `--target format-check` to verify it. Run `./scripts/quality.sh` before submitting changes; it builds, tests, checks formatting, and runs static analysis tools when installed.
 
+## Required Host Utilities
+Keep these available on the host for effective agent and contributor workflows:
+- `git`
+- `gh` with working `gh api graphql` authentication
+- `rg` (`ripgrep`)
+- `jq`
+- `python3`
+- `podman`
+
+Strongly recommended:
+- `uv` / `uvx`
+- `clangd`
+- `fd`
+- `yq`
+- `hyperfine`
+
 ## Coding Style & Naming Conventions
 Target C23 only; C extensions are disabled. Follow `.clang-format`: 4-space indentation, Linux brace style, 100-column limit, and right-aligned pointer stars (`int *ptr`). Keep public and internal symbols consistent with the existing scheme: `ihtp_` for functions, `IHTP_` for macros and enum values, and `_t` for typedefs. Prefer small, single-purpose translation units and keep public headers stable.
 
