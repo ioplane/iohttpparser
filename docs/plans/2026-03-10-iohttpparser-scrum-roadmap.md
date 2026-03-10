@@ -61,6 +61,10 @@
   - conflicting duplicate `Content-Length` rejected; identical duplicates accepted
   - explicit `Connection` header decisions preserved over version defaults
   - `Host` validation added for `HTTP/1.1` requests
+  - `Transfer-Encoding` parsing hardened for comma-separated codings and case-insensitive `chunked`
+  - requests with `Transfer-Encoding` not ending in `chunked` are reject-by-default
+  - malformed `Transfer-Encoding` and `Connection` token lists are rejected
+  - `Connection` token-list parsing is now case-insensitive and close-wins
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
