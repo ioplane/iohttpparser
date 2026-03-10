@@ -408,6 +408,31 @@ void test_semantics_response_204_ignores_content_length(void)
     TEST_ASSERT_EQUAL_UINT64(0, resp.content_length);
 }
 
+void test_semantics_response_101_ignores_content_length(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Content-Length: 42\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+    TEST_ASSERT_EQUAL_UINT64(0, resp.content_length);
+}
+
+void test_semantics_response_204_ignores_transfer_encoding(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 204 No Content\r\n"
+                                                       "Transfer-Encoding: chunked\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+}
+
 void test_semantics_response_304_ignores_transfer_encoding(void)
 {
     ihtp_response_t resp;
@@ -418,6 +443,19 @@ void test_semantics_response_304_ignores_transfer_encoding(void)
 
     TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
     TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+}
+
+void test_semantics_response_304_ignores_content_length(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 304 Not Modified\r\n"
+                                                       "Content-Length: 42\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+    TEST_ASSERT_EQUAL_UINT64(0, resp.content_length);
 }
 
 void test_semantics_response_204_rejects_te_cl_conflict(void)
@@ -628,7 +666,10 @@ int main(void)
     RUN_TEST(test_semantics_response_rejects_conflicting_content_length);
     RUN_TEST(test_semantics_response_accepts_identical_duplicate_content_length);
     RUN_TEST(test_semantics_response_204_ignores_content_length);
+    RUN_TEST(test_semantics_response_101_ignores_content_length);
+    RUN_TEST(test_semantics_response_204_ignores_transfer_encoding);
     RUN_TEST(test_semantics_response_304_ignores_transfer_encoding);
+    RUN_TEST(test_semantics_response_304_ignores_content_length);
     RUN_TEST(test_semantics_response_204_rejects_te_cl_conflict);
     RUN_TEST(test_semantics_keepalive_http11);
     RUN_TEST(test_semantics_keepalive_http10);

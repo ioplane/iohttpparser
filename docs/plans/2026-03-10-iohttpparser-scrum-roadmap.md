@@ -69,6 +69,7 @@
   - `chunked` transfer-coding parameters are rejected
   - empty `Connection` values are rejected
   - no-body response regressions are covered for `204` and `304`
+  - no-body response precedence is now regression-covered for `1xx`, `204`, and `304`
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
