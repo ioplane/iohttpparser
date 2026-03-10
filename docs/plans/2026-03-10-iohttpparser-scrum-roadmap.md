@@ -107,6 +107,8 @@
   - `fuzz_chunked` now exercises both `consume_trailer = false` and `consume_trailer = true`
   - starter chunked fuzz seeds now exist under `tests/fuzz/corpus/chunked/`
   - `clang-fuzz` builds both `fuzz_chunked` and `fuzz_parser` successfully in the container
+  - starter parser fuzz seeds now exist under `tests/fuzz/corpus/parser/`
+  - both `fuzz_chunked` and `fuzz_parser` have been executed successfully in the container against local seed corpora
   - full container quality checkpoint is green in Sprint 3:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`
