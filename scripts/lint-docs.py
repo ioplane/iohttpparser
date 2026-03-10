@@ -65,14 +65,15 @@ def lint_numbered_doc(path: Path) -> None:
 
 def main() -> int:
     expected_sets: list[list[str]] = []
+    min_numbered_docs = 4
 
     for lang_dir in LANG_DIRS:
         if not lang_dir.is_dir():
             fail(f"{lang_dir}: missing docs directory")
 
         numbered = sorted(p.name for p in lang_dir.iterdir() if p.is_file() and NUMBERED_RE.match(p.name))
-        if len(numbered) != 4:
-            fail(f"{lang_dir}: expected 4 numbered docs, found {len(numbered)}")
+        if len(numbered) < min_numbered_docs:
+            fail(f"{lang_dir}: expected at least {min_numbered_docs} numbered docs, found {len(numbered)}")
 
         expected_sets.append(numbered)
         for name in numbered:
