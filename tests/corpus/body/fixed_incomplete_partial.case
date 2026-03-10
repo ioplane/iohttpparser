@@ -1,0 +1,6 @@
+kind=fixed
+expect=incomplete
+content_length=10
+consume_len=6
+total_decoded=6
+remaining=4

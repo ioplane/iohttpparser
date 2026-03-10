@@ -1,0 +1,4 @@
+kind=find
+buf=Header: value\r\n
+delims=\r\n
+expected_offset=13

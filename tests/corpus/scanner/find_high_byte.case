@@ -1,0 +1,4 @@
+kind=find
+buf=A\xFFB
+delims=\xFF
+expected_offset=1

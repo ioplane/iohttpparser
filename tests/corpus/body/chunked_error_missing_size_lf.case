@@ -1,0 +1,4 @@
+kind=chunked
+expect=error
+consume_trailer=false
+wire=5\rhello\r\n0\r\n\r\n
