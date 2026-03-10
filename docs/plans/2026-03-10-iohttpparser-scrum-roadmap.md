@@ -65,6 +65,10 @@
   - requests with `Transfer-Encoding` not ending in `chunked` are reject-by-default
   - malformed `Transfer-Encoding` and `Connection` token lists are rejected
   - `Connection` token-list parsing is now case-insensitive and close-wins
+  - duplicate `chunked` codings are rejected both within one header and across multiple headers
+  - `chunked` transfer-coding parameters are rejected
+  - empty `Connection` values are rejected
+  - no-body response regressions are covered for `204` and `304`
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`

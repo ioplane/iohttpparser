@@ -205,6 +205,18 @@ void test_semantics_request_rejects_duplicate_chunked_across_headers(void)
     TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
 }
 
+void test_semantics_request_rejects_chunked_with_parameters(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("POST /data HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Transfer-Encoding: gzip, chunked;foo=bar\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
+}
+
 void test_semantics_request_rejects_te_cl_in_strict_mode(void)
 {
     ihtp_request_t req;
@@ -340,6 +352,17 @@ void test_semantics_response_rejects_duplicate_chunked_across_headers(void)
     ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
                                                        "Transfer-Encoding: gzip, chunked\r\n"
                                                        "Transfer-Encoding: chunked\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
+}
+
+void test_semantics_response_rejects_chunked_with_parameters(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
+                                                       "Transfer-Encoding: chunked;foo=bar\r\n"
                                                        "\r\n",
                                                        &resp, nullptr);
 
@@ -537,11 +560,34 @@ void test_semantics_request_rejects_malformed_connection_list(void)
     TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
 }
 
+void test_semantics_request_rejects_empty_connection_value(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("GET / HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Connection:\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
+}
+
 void test_semantics_response_rejects_malformed_connection_list(void)
 {
     ihtp_response_t resp;
     ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
                                                        "Connection: close,,keep-alive\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
+}
+
+void test_semantics_response_rejects_empty_connection_value(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
+                                                       "Connection:\r\n"
                                                        "\r\n",
                                                        &resp, nullptr);
 
@@ -566,6 +612,7 @@ int main(void)
     RUN_TEST(test_semantics_request_rejects_malformed_transfer_encoding_list);
     RUN_TEST(test_semantics_request_rejects_duplicate_chunked_in_single_header);
     RUN_TEST(test_semantics_request_rejects_duplicate_chunked_across_headers);
+    RUN_TEST(test_semantics_request_rejects_chunked_with_parameters);
     RUN_TEST(test_semantics_request_rejects_te_cl_in_strict_mode);
     RUN_TEST(test_semantics_request_allows_te_cl_in_lenient_mode);
     RUN_TEST(test_semantics_request_rejects_conflicting_content_length);
@@ -577,6 +624,7 @@ int main(void)
     RUN_TEST(test_semantics_response_rejects_malformed_transfer_encoding_list);
     RUN_TEST(test_semantics_response_rejects_duplicate_chunked_in_single_header);
     RUN_TEST(test_semantics_response_rejects_duplicate_chunked_across_headers);
+    RUN_TEST(test_semantics_response_rejects_chunked_with_parameters);
     RUN_TEST(test_semantics_response_rejects_conflicting_content_length);
     RUN_TEST(test_semantics_response_accepts_identical_duplicate_content_length);
     RUN_TEST(test_semantics_response_204_ignores_content_length);
@@ -589,10 +637,12 @@ int main(void)
     RUN_TEST(test_semantics_request_connection_token_list_close_wins);
     RUN_TEST(test_semantics_request_connection_is_case_insensitive);
     RUN_TEST(test_semantics_request_rejects_malformed_connection_list);
+    RUN_TEST(test_semantics_request_rejects_empty_connection_value);
     RUN_TEST(test_semantics_response_connection_close_overrides_http11_default);
     RUN_TEST(test_semantics_response_connection_keep_alive_preserved_for_http10);
     RUN_TEST(test_semantics_response_connection_token_list_close_wins);
     RUN_TEST(test_semantics_response_connection_is_case_insensitive);
     RUN_TEST(test_semantics_response_rejects_malformed_connection_list);
+    RUN_TEST(test_semantics_response_rejects_empty_connection_value);
     return UNITY_END();
 }

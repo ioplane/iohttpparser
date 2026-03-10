@@ -116,8 +116,10 @@ static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_wi
         }
 
         size_t coding_len = part_len;
+        bool has_params = false;
         const char *params = memchr(part, ';', part_len);
         if (params != nullptr) {
+            has_params = true;
             coding_len = (size_t)(params - part);
             while (coding_len > 0 && ihtp_is_lws((uint8_t)part[coding_len - 1])) {
                 coding_len--;
@@ -131,6 +133,9 @@ static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_wi
         }
 
         final_chunked = bytes_eq_ignore_case(part, coding_len, "chunked", 7);
+        if (final_chunked && has_params) {
+            return false;
+        }
         if (final_chunked) {
             local_chunked_count++;
         }
@@ -157,6 +162,7 @@ static bool parse_connection_header(const char *value, size_t len, bool *has_clo
                                     bool *has_keep_alive)
 {
     size_t pos = 0;
+    bool saw_token = false;
 
     while (pos < len) {
         size_t part_start = pos;
@@ -184,6 +190,7 @@ static bool parse_connection_header(const char *value, size_t len, bool *has_clo
         } else if (bytes_eq_ignore_case(part, part_len, "keep-alive", 10)) {
             *has_keep_alive = true;
         }
+        saw_token = true;
 
         if (pos < len && value[pos] == ',') {
             pos++;
@@ -193,7 +200,7 @@ static bool parse_connection_header(const char *value, size_t len, bool *has_clo
         }
     }
 
-    return true;
+    return saw_token;
 }
 
 /* ─── Apply semantics to parsed request ───────────────────────────────── */
