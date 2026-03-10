@@ -100,6 +100,7 @@
   - chunk extensions now reject bare `LF` in strict decoder flow
   - chunked body tests now cover valid, incomplete, and malformed chunk extensions
   - chunked body tests now cover malformed chunk framing for invalid hex digits, missing `LF`, missing `CR`, and oversized chunk sizes
+  - fixed-length body tests now cover zero-length bodies, zero-length no-op consumes, and overflow after partial progress
   - full container quality checkpoint is green in Sprint 3:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`

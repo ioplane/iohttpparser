@@ -251,6 +251,37 @@ void test_fixed_overflow(void)
     TEST_ASSERT_EQUAL_INT(IHTP_ERROR, ihtp_decode_fixed(&dec, 20));
 }
 
+void test_fixed_zero_length_body_is_immediately_complete(void)
+{
+    ihtp_fixed_decoder_t dec;
+    ihtp_fixed_decoder_init(&dec, 0);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_decode_fixed(&dec, 0));
+    TEST_ASSERT_EQUAL_UINT64(0, dec.remaining);
+    TEST_ASSERT_EQUAL_UINT64(0, dec.total_decoded);
+}
+
+void test_fixed_zero_length_consume_is_noop_while_incomplete(void)
+{
+    ihtp_fixed_decoder_t dec;
+    ihtp_fixed_decoder_init(&dec, 5);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, ihtp_decode_fixed(&dec, 0));
+    TEST_ASSERT_EQUAL_UINT64(5, dec.remaining);
+    TEST_ASSERT_EQUAL_UINT64(0, dec.total_decoded);
+}
+
+void test_fixed_overflow_after_partial_consume_preserves_state(void)
+{
+    ihtp_fixed_decoder_t dec;
+    ihtp_fixed_decoder_init(&dec, 10);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE, ihtp_decode_fixed(&dec, 6));
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, ihtp_decode_fixed(&dec, 5));
+    TEST_ASSERT_EQUAL_UINT64(4, dec.remaining);
+    TEST_ASSERT_EQUAL_UINT64(6, dec.total_decoded);
+}
+
 /* ─── Main ────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -274,5 +305,8 @@ int main(void)
     RUN_TEST(test_chunked_rejects_oversized_chunk_size);
     RUN_TEST(test_fixed_complete);
     RUN_TEST(test_fixed_overflow);
+    RUN_TEST(test_fixed_zero_length_body_is_immediately_complete);
+    RUN_TEST(test_fixed_zero_length_consume_is_noop_while_incomplete);
+    RUN_TEST(test_fixed_overflow_after_partial_consume_preserves_state);
     return UNITY_END();
 }
