@@ -90,6 +90,30 @@
     - `cmake --build --preset clang-debug`
     - `ctest --preset clang-debug`
     - `./scripts/quality.sh`
+- Sprint 3 worktree is active at `.worktrees/sprint-3` on `feature/sprint-3-body-decoder`
+- current Sprint 3 body decoder tasks completed:
+  - chunked trailer consumption now distinguishes empty trailers from non-empty trailer sections
+  - non-empty trailers are consumed line-by-line until the terminating empty line
+  - chunked body tests now cover empty trailers, non-empty trailers, and incomplete trailers
+  - chunked body tests now cover incremental decoding across multiple buffers
+  - chunked body tests now cover incremental trailer consumption across multiple buffers
+  - chunk extensions now reject bare `LF` in strict decoder flow
+  - chunked body tests now cover valid, incomplete, and malformed chunk extensions
+  - chunked body tests now cover malformed chunk framing for invalid hex digits, missing `LF`, missing `CR`, and oversized chunk sizes
+  - fixed-length body tests now cover zero-length bodies, zero-length no-op consumes, and overflow after partial progress
+  - chunked body tests now cover trailer-line strictness for bare `LF` and missing `LF` after trailer `CR`
+  - chunked body tests now cover incremental `CRLF` boundary splits across size and data transitions
+  - chunked body tests now document trailing-byte completion contract both with and without trailer consumption
+  - `fuzz_chunked` now exercises both `consume_trailer = false` and `consume_trailer = true`
+  - starter chunked fuzz seeds now exist under `tests/fuzz/corpus/chunked/`
+  - `clang-fuzz` builds both `fuzz_chunked` and `fuzz_parser` successfully in the container
+  - starter parser fuzz seeds now exist under `tests/fuzz/corpus/parser/`
+  - both `fuzz_chunked` and `fuzz_parser` have been executed successfully in the container against local seed corpora
+  - full container quality checkpoint is green in Sprint 3:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
 
 **Current Sprint 1 focus:**
 - continue scalar edge-case coverage
@@ -101,10 +125,15 @@
 - expand negative corpus for smuggling-sensitive cases
 - keep full container quality baseline green as semantics tasks land
 
+**Current Sprint 3 focus:**
+- complete body decoder edge cases
+- harden incremental chunked decoding and trailer handling
+- keep full container quality baseline green as body tasks land
+
 **Immediate execution queue:**
-1. Continue Sprint 1 parser-correctness tasks in `.worktrees/sprint-1`.
-2. Keep updating the roadmap as strict parser behaviors are locked down.
-3. Prepare a focused Sprint 1 commit once scalar correctness coverage reaches a stable checkpoint.
+1. Continue Sprint 3 body-decoder tasks in `.worktrees/sprint-3`.
+2. Keep updating the roadmap as body decoder invariants are locked down.
+3. Prepare the next Sprint 3 checkpoint after chunk parser edge cases and fixed-length regressions expand further.
 
 ---
 
