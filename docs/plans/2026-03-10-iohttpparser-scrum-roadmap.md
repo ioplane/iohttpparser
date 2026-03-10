@@ -160,11 +160,28 @@
   - `./scripts/quality.sh`
 - next implementation focus is verifying fallback behavior more explicitly and deciding whether SIMD token validation should remain scalar-backed
 
+**Current Sprint 5 focus:**
+- `feature/sprint-5-parser-state` is active from `origin/main`
+- internal `ihtp_parser_state_t` skeleton now exists for request, response, and headers-only parsing
+- internal stateful entry points now exist:
+  - `ihtp_parse_request_stateful()`
+  - `ihtp_parse_response_stateful()`
+  - `ihtp_parse_headers_stateful()`
+- current public API remains unchanged and is now layered on top of the stateful internal path
+- request/status line progress and header-block progress can now survive repeated calls on the same accumulated buffer without restarting from byte zero
+- new `test_parser_state` covers:
+  - request start-line to headers transition
+  - response status-line to headers transition
+  - headers-only incremental progress
+  - sticky error phase behavior
+- next implementation focus is deciding how much of this state model should become public API and how to expose it without weakening zero-copy contracts
+
 **Immediate execution queue:**
 1. Review and merge Sprint 3 closeout branch into `main`.
 2. Keep Sprint 4 moving from `feature/sprint-3-closeout` until merge permissions are available.
 3. Keep body corpus and body-fuzz workflow as the verification baseline for future body-decoder changes.
 4. Expand SIMD/scalar equivalence coverage and benchmark corpus slices.
+5. Turn the internal parser-state skeleton into a consumer-ready public API without reintroducing callbacks or hidden allocation.
 
 ---
 
