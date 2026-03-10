@@ -55,11 +55,27 @@
     - `cmake --build --preset clang-debug`
     - `ctest --preset clang-debug`
     - `./scripts/quality.sh`
+- Sprint 2 worktree is active at `.worktrees/sprint-2` on `feature/sprint-2-semantics-hardening`
+- current Sprint 2 semantics tasks completed:
+  - `TE + CL` strict reject / lenient accept coverage for requests and responses
+  - conflicting duplicate `Content-Length` rejected; identical duplicates accepted
+  - explicit `Connection` header decisions preserved over version defaults
+  - `Host` validation added for `HTTP/1.1` requests
+  - full container quality checkpoint is green in Sprint 2:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
 
 **Current Sprint 1 focus:**
 - continue scalar edge-case coverage
 - expand malformed request/response corpus
 - keep full container quality baseline green as parser tasks land
+
+**Current Sprint 2 focus:**
+- continue semantics hardening around framing ambiguity
+- expand negative corpus for smuggling-sensitive cases
+- keep full container quality baseline green as semantics tasks land
 
 **Immediate execution queue:**
 1. Continue Sprint 1 parser-correctness tasks in `.worktrees/sprint-1`.

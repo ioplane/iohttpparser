@@ -78,6 +78,8 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
     bool has_te = false;
     bool has_cl = false;
     bool chunked = false;
+    bool has_connection = false;
+    bool has_host = false;
     uint64_t content_length = 0;
 
     for (size_t i = 0; i < req->num_headers; i++) {
@@ -93,22 +95,39 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
                 }
             }
         } else if (header_name_eq(h, "content-length", 14)) {
-            has_cl = true;
-            if (!parse_content_length(h->value, h->value_len, &content_length)) {
+            uint64_t parsed_content_length = 0;
+
+            if (!parse_content_length(h->value, h->value_len, &parsed_content_length)) {
                 return IHTP_ERROR;
             }
+            if (has_cl && parsed_content_length != content_length) {
+                return IHTP_ERROR;
+            }
+            has_cl = true;
+            content_length = parsed_content_length;
         } else if (header_name_eq(h, "connection", 10)) {
             /* Determine keep-alive from Connection header */
             if (h->value_len == 10 && memcmp(h->value, "keep-alive", 10) == 0) {
                 req->keep_alive = true;
+                has_connection = true;
             } else if (h->value_len == 5 && memcmp(h->value, "close", 5) == 0) {
                 req->keep_alive = false;
+                has_connection = true;
             }
+        } else if (header_name_eq(h, "host", 4)) {
+            if (has_host || h->value_len == 0) {
+                return IHTP_ERROR;
+            }
+            has_host = true;
         }
     }
 
     /* TE + CL conflict (RFC 9112 Section 6.1) */
     if (has_te && has_cl && policy->reject_te_cl) {
+        return IHTP_ERROR;
+    }
+
+    if (req->version == IHTP_HTTP_11 && !has_host) {
         return IHTP_ERROR;
     }
 
@@ -123,7 +142,7 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
     }
 
     /* Default keep-alive based on HTTP version */
-    if (!has_cl && !has_te) {
+    if (!has_connection) {
         /* No explicit Connection header decision — use version default */
         if (req->version == IHTP_HTTP_11) {
             req->keep_alive = true;
@@ -151,6 +170,7 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
     bool has_te = false;
     bool has_cl = false;
     bool chunked = false;
+    bool has_connection = false;
     uint64_t content_length = 0;
 
     for (size_t i = 0; i < resp->num_headers; i++) {
@@ -165,11 +185,29 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
                 }
             }
         } else if (header_name_eq(h, "content-length", 14)) {
-            has_cl = true;
-            if (!parse_content_length(h->value, h->value_len, &content_length)) {
+            uint64_t parsed_content_length = 0;
+
+            if (!parse_content_length(h->value, h->value_len, &parsed_content_length)) {
                 return IHTP_ERROR;
             }
+            if (has_cl && parsed_content_length != content_length) {
+                return IHTP_ERROR;
+            }
+            has_cl = true;
+            content_length = parsed_content_length;
+        } else if (header_name_eq(h, "connection", 10)) {
+            if (h->value_len == 10 && memcmp(h->value, "keep-alive", 10) == 0) {
+                resp->keep_alive = true;
+                has_connection = true;
+            } else if (h->value_len == 5 && memcmp(h->value, "close", 5) == 0) {
+                resp->keep_alive = false;
+                has_connection = true;
+            }
         }
+    }
+
+    if (has_te && has_cl && policy->reject_te_cl) {
+        return IHTP_ERROR;
     }
 
     /* 1xx, 204, 304 have no body */
@@ -186,7 +224,7 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
     }
 
     /* Default keep-alive */
-    if (resp->version == IHTP_HTTP_11) {
+    if (!has_connection && resp->version == IHTP_HTTP_11) {
         resp->keep_alive = true;
     }
 
