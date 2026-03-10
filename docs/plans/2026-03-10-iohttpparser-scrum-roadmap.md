@@ -143,6 +143,7 @@
 - `feature/sprint-4-simd-equivalence` is active from the Sprint 3 closeout branch
 - scanner backend equivalence is now covered in `test_scanner_backends`
 - scanner corpus coverage now exists under `tests/corpus/scanner/` with `test_scanner_corpus`
+- runtime dispatch invariants are now covered for active backend selection and public scanner delegation
 - SSE4.2 delimiter loading was hardened to avoid over-reading short delimiter strings
 - `scripts/run-scanner-bench.sh` now provides a reproducible container benchmark smoke-run
 - benchmark slices now include longer parser-like request and header inputs
@@ -273,6 +274,7 @@
 
 **Current progress on `feature/sprint-4-simd-equivalence`:**
 - `tests/unit/test_scanner_backends.c` compares scalar, SSE4.2, and AVX2 scanner behavior on shared find/token cases
+- `tests/unit/test_scanner_backends.c` now also verifies runtime dispatch chooses the expected active backend and that public scanner APIs delegate to it
 - `tests/unit/test_scanner_corpus.c` and `tests/corpus/scanner/` provide data-driven scanner equivalence coverage for embedded NUL, high-byte, empty-delimiter, and long-delimiter cases
 - `src/ihtp_scanner_sse42.c` now copies short delimiter strings into a fixed local buffer before `_mm_loadu_si128`
 - `bench/bench_parser.c` provides a first scanner benchmark harness for dispatch, scalar, SSE4.2, and AVX2 paths

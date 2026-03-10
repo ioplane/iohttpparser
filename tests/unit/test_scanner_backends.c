@@ -57,6 +57,40 @@ static void assert_token_case_eq(const char *backend_name, ihtp_scan_token_fn ba
     TEST_ASSERT_EQUAL_INT_MESSAGE((int)expected, (int)actual, backend_name);
 }
 
+void test_scanner_dispatch_invariants(void)
+{
+    static const char dispatch_buf[] = "Header: value\r\n";
+    static const char token_buf[] = "Content-Type";
+    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
+    const ihtp_scanner_vtable_t *scanner_again = ihtp_scanner_get();
+    int level = ihtp_scanner_simd_level();
+    ihtp_scan_find_fn expected_find = ihtp_scan_find_char_scalar;
+    ihtp_scan_token_fn expected_token = ihtp_scan_is_token_scalar;
+
+#ifdef IOHTTPPARSER_HAVE_SSE42
+    if ((level & 0x01) != 0) {
+        expected_find = ihtp_scan_find_char_sse42;
+        expected_token = ihtp_scan_is_token_sse42;
+    }
+#endif
+#ifdef IOHTTPPARSER_HAVE_AVX2
+    if ((level & 0x02) != 0) {
+        expected_find = ihtp_scan_find_char_avx2;
+        expected_token = ihtp_scan_is_token_avx2;
+    }
+#endif
+
+    TEST_ASSERT_NOT_NULL(scanner);
+    TEST_ASSERT_EQUAL_PTR(scanner, scanner_again);
+    TEST_ASSERT_EQUAL_PTR(expected_find, scanner->find_char);
+    TEST_ASSERT_EQUAL_PTR(expected_token, scanner->is_token);
+
+    TEST_ASSERT_EQUAL_PTR(expected_find(dispatch_buf, strlen(dispatch_buf), "\r\n"),
+                          ihtp_scan_find_char(dispatch_buf, strlen(dispatch_buf), "\r\n"));
+    TEST_ASSERT_EQUAL_INT((int)expected_token(token_buf, strlen(token_buf)),
+                          (int)ihtp_scan_is_token(token_buf, strlen(token_buf)));
+}
+
 void test_scanner_scalar_backend_cases(void)
 {
     static const char binary_buf[] = {'A', (char)0xFF, 'B', '\0'};
@@ -217,6 +251,7 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_scanner_scalar_backend_cases);
+    RUN_TEST(test_scanner_dispatch_invariants);
     RUN_TEST(test_scanner_sse42_equivalence);
     RUN_TEST(test_scanner_avx2_equivalence);
     return UNITY_END();
