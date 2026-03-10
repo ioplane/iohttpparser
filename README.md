@@ -1,10 +1,13 @@
+[![en](https://img.shields.io/badge/lang-en-blue.svg)](docs/en/README.md)
+[![ru](https://img.shields.io/badge/lang-ru-green.svg)](docs/ru/README.md)
+
 # iohttpparser
 
 <p align="center">
-  <img src="https://img.shields.io/badge/C23-ISO%2FIEC%209899%3A2024-blue?style=for-the-badge" alt="C23">
-  <img src="https://img.shields.io/badge/RFC%209112-HTTP%2F1.1-green?style=for-the-badge" alt="RFC 9112">
-  <img src="https://img.shields.io/badge/SIMD-SSE4.2%20%7C%20AVX2-orange?style=for-the-badge" alt="SIMD">
-  <img src="https://img.shields.io/badge/License-MIT%20%7C%20LGPL--2.1-purple?style=for-the-badge" alt="License">
+  <a href="docs/plans/2026-03-10-iohttpparser-c23-architecture-plan.md"><img src="https://img.shields.io/badge/C23-ISO%2FIEC%209899%3A2024-blue?style=for-the-badge" alt="C23"></a>
+  <a href="docs/rfc/rfc9112.txt"><img src="https://img.shields.io/badge/RFC%209112-HTTP%2F1.1-green?style=for-the-badge" alt="RFC 9112"></a>
+  <a href="docs/plans/2026-03-10-iohttpparser-c23-architecture-plan.md"><img src="https://img.shields.io/badge/SIMD-SSE4.2%20%7C%20AVX2-orange?style=for-the-badge" alt="SIMD"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT%20%7C%20LGPL--2.1-purple?style=for-the-badge" alt="License"></a>
 </p>
 
 High-performance HTTP/1.1 parser for C23 with SIMD acceleration and RFC 9112 compliance.
@@ -71,7 +74,7 @@ ctest --preset clang-debug
 ```cmake
 include(FetchContent)
 FetchContent_Declare(iohttpparser
-    GIT_REPOSITORY https://github.com/pnx/iohttpparser.git
+    GIT_REPOSITORY https://github.com/ioplane/iohttpparser.git
     GIT_TAG v0.1.0
 )
 FetchContent_MakeAvailable(iohttpparser)
