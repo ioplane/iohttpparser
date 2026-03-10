@@ -86,11 +86,13 @@ static bool parse_content_length(const char *value, size_t len, uint64_t *out)
     return true;
 }
 
-static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_with_chunked)
+static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_with_chunked,
+                                    size_t *chunked_count)
 {
     size_t pos = 0;
     bool saw_coding = false;
     bool final_chunked = false;
+    size_t local_chunked_count = 0;
 
     while (pos < len) {
         size_t part_start = pos;
@@ -129,6 +131,9 @@ static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_wi
         }
 
         final_chunked = bytes_eq_ignore_case(part, coding_len, "chunked", 7);
+        if (final_chunked) {
+            local_chunked_count++;
+        }
         saw_coding = true;
 
         if (pos < len && value[pos] == ',') {
@@ -144,6 +149,7 @@ static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_wi
     }
 
     *ends_with_chunked = final_chunked;
+    *chunked_count = local_chunked_count;
     return true;
 }
 
@@ -210,6 +216,7 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
     bool has_host = false;
     bool connection_close = false;
     bool connection_keep_alive = false;
+    size_t chunked_count = 0;
     uint64_t content_length = 0;
 
     for (size_t i = 0; i < req->num_headers; i++) {
@@ -217,12 +224,15 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
 
         if (header_name_eq(h, "transfer-encoding", 17)) {
             bool header_chunked = false;
+            size_t header_chunked_count = 0;
 
             has_te = true;
-            if (!parse_transfer_encoding(h->value, h->value_len, &header_chunked)) {
+            if (!parse_transfer_encoding(h->value, h->value_len, &header_chunked,
+                                         &header_chunked_count)) {
                 return IHTP_ERROR;
             }
             chunked = header_chunked;
+            chunked_count += header_chunked_count;
         } else if (header_name_eq(h, "content-length", 14)) {
             uint64_t parsed_content_length = 0;
 
@@ -253,6 +263,9 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
     }
 
     if (req->version == IHTP_HTTP_11 && !has_host) {
+        return IHTP_ERROR;
+    }
+    if (chunked_count > 1) {
         return IHTP_ERROR;
     }
     if (has_te && !chunked) {
@@ -308,6 +321,7 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
     bool has_connection = false;
     bool connection_close = false;
     bool connection_keep_alive = false;
+    size_t chunked_count = 0;
     uint64_t content_length = 0;
 
     for (size_t i = 0; i < resp->num_headers; i++) {
@@ -315,12 +329,15 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
 
         if (header_name_eq(h, "transfer-encoding", 17)) {
             bool header_chunked = false;
+            size_t header_chunked_count = 0;
 
             has_te = true;
-            if (!parse_transfer_encoding(h->value, h->value_len, &header_chunked)) {
+            if (!parse_transfer_encoding(h->value, h->value_len, &header_chunked,
+                                         &header_chunked_count)) {
                 return IHTP_ERROR;
             }
             chunked = header_chunked;
+            chunked_count += header_chunked_count;
         } else if (header_name_eq(h, "content-length", 14)) {
             uint64_t parsed_content_length = 0;
 
@@ -341,6 +358,9 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
     }
 
     if (has_te && has_cl && policy->reject_te_cl) {
+        return IHTP_ERROR;
+    }
+    if (chunked_count > 1) {
         return IHTP_ERROR;
     }
     if (connection_close) {
