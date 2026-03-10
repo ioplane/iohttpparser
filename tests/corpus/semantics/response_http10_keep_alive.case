@@ -1,0 +1,6 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=eof
+keep_alive=true
+wire=HTTP/1.0 200 OK\r\nConnection: keep-alive\r\n\r\n

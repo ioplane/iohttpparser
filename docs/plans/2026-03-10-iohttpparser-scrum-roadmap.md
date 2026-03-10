@@ -72,10 +72,12 @@
   - no-body response precedence is now regression-covered for `1xx`, `204`, and `304`
   - semantics negative corpus has started under `tests/corpus/semantics/`
   - corpus-driven regression runner is wired into `ctest`
-  - corpus assertions now cover both `body_mode` and `keep_alive`
+  - corpus assertions now cover `body_mode`, `content_length`, and `keep_alive`
   - semantics corpus now covers malformed and empty `Connection` values
   - semantics corpus now covers `chunked` transfer-coding parameters for requests and responses
   - semantics corpus now covers additional no-body response precedence cases for `204` and `304`
+  - semantics corpus now covers fixed-length framing and identical/conflicting duplicate `Content-Length`
+  - semantics corpus now covers request/response keep-alive defaults for HTTP/1.0 and HTTP/1.1
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`

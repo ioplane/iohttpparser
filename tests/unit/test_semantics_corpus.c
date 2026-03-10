@@ -33,6 +33,8 @@ typedef struct {
     corpus_expect_t expect;
     ihtp_body_mode_t body_mode;
     bool has_body_mode;
+    uint64_t content_length;
+    bool has_content_length;
     bool keep_alive;
     bool has_keep_alive;
 } corpus_case_t;
@@ -142,11 +144,13 @@ static void run_corpus_case(const char *path)
     const ihtp_policy_t *policy = nullptr;
     corpus_expect_t expect = CORPUS_EXPECT_OK;
     ihtp_body_mode_t body_mode = IHTP_BODY_NONE;
+    uint64_t content_length = 0;
     bool keep_alive = false;
     bool has_kind = false;
     bool has_mode = false;
     bool has_expect = false;
     bool has_body_mode = false;
+    bool has_content_length = false;
     bool has_keep_alive = false;
     bool has_wire = false;
 
@@ -198,6 +202,15 @@ static void run_corpus_case(const char *path)
         } else if (str_eq(key, "body_mode")) {
             body_mode = parse_body_mode(value);
             has_body_mode = true;
+        } else if (str_eq(key, "content_length")) {
+            char *end = nullptr;
+            unsigned long long parsed = strtoull(value, &end, 10);
+
+            TEST_ASSERT_NOT_NULL_MESSAGE(end, path);
+            TEST_ASSERT_EQUAL_CHAR_MESSAGE('\0', *end, path);
+
+            content_length = (uint64_t)parsed;
+            has_content_length = true;
         } else if (str_eq(key, "keep_alive")) {
             keep_alive = parse_bool_value(value);
             has_keep_alive = true;
@@ -237,6 +250,9 @@ static void run_corpus_case(const char *path)
         if (has_body_mode) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(body_mode, req.body_mode, path);
         }
+        if (has_content_length) {
+            TEST_ASSERT_EQUAL_UINT64_MESSAGE(content_length, req.content_length, path);
+        }
         if (has_keep_alive) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, req.keep_alive, path);
         }
@@ -260,6 +276,9 @@ static void run_corpus_case(const char *path)
     if (has_body_mode) {
         TEST_ASSERT_EQUAL_INT_MESSAGE(body_mode, resp.body_mode, path);
     }
+    if (has_content_length) {
+        TEST_ASSERT_EQUAL_UINT64_MESSAGE(content_length, resp.content_length, path);
+    }
     if (has_keep_alive) {
         TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, resp.keep_alive, path);
     }
@@ -271,13 +290,19 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_duplicate_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_http11_missing_host.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_conflicting_content_length.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_lenient_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_chunked_with_parameters.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_empty_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_malformed_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_connection_close_wins.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_content_length_fixed.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http11_default_keep_alive.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http10_default_close.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_identical_duplicate_content_length.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http10_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_te_cl.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_conflicting_content_length.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_duplicate_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_chunked_with_parameters.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_empty_connection.case",
@@ -287,6 +312,11 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_101_ignores_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_304_ignores_te.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_304_ignores_cl.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_content_length_fixed.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_identical_duplicate_content_length.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http11_default_keep_alive.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http10_default_close.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http10_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http11_connection_close.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_eof_for_non_chunked_te.case",
     };
