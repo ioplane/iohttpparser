@@ -1,0 +1,6 @@
+kind=response
+mode=lenient
+expect=ok
+body_mode=chunked
+keep_alive=true
+wire=HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Length: 42\r\n\r\n

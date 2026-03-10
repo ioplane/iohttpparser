@@ -1,0 +1,6 @@
+kind=request
+mode=strict
+expect=ok
+body_mode=chunked
+keep_alive=true
+wire=POST /upload HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: ChUnKeD\r\n\r\n

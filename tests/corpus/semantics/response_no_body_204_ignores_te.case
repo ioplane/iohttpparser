@@ -1,0 +1,5 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=none
+wire=HTTP/1.1 204 No Content\r\nTransfer-Encoding: chunked\r\n\r\n

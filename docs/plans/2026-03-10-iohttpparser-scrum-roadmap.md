@@ -55,11 +55,51 @@
     - `cmake --build --preset clang-debug`
     - `ctest --preset clang-debug`
     - `./scripts/quality.sh`
+- Sprint 2 worktree is active at `.worktrees/sprint-2` on `feature/sprint-2-semantics-hardening`
+- current Sprint 2 semantics tasks completed:
+  - `TE + CL` strict reject / lenient accept coverage for requests and responses
+  - conflicting duplicate `Content-Length` rejected; identical duplicates accepted
+  - explicit `Connection` header decisions preserved over version defaults
+  - `Host` validation added for `HTTP/1.1` requests
+  - `Transfer-Encoding` parsing hardened for comma-separated codings and case-insensitive `chunked`
+  - requests with `Transfer-Encoding` not ending in `chunked` are reject-by-default
+  - malformed `Transfer-Encoding` and `Connection` token lists are rejected
+  - `Connection` token-list parsing is now case-insensitive and close-wins
+  - duplicate `chunked` codings are rejected both within one header and across multiple headers
+  - `chunked` transfer-coding parameters are rejected
+  - empty `Connection` values are rejected
+  - no-body response regressions are covered for `204` and `304`
+  - no-body response precedence is now regression-covered for `1xx`, `204`, and `304`
+  - semantics negative corpus has started under `tests/corpus/semantics/`
+  - corpus-driven regression runner is wired into `ctest`
+  - corpus assertions now cover `body_mode`, `content_length`, and `keep_alive`
+  - semantics corpus now covers malformed and empty `Connection` values
+  - semantics corpus now covers `chunked` transfer-coding parameters for requests and responses
+  - semantics corpus now covers additional no-body response precedence cases for `204` and `304`
+  - semantics corpus now covers fixed-length framing and identical/conflicting duplicate `Content-Length`
+  - semantics corpus now covers request/response keep-alive defaults for HTTP/1.0 and HTTP/1.1
+  - semantics corpus now covers request-side `Host` invariants for missing, duplicate, and empty `Host`
+  - semantics corpus now covers lenient response handling for `TE + CL`
+  - semantics corpus now covers positive `Transfer-Encoding` paths for request chains ending in `chunked` and case-insensitive `chunked`
+  - semantics corpus now covers malformed `Transfer-Encoding` lists and request-side rejection when `Transfer-Encoding` does not end in `chunked`
+  - semantics corpus now covers positive `Connection` paths for case-insensitive tokens and token-list `close wins`
+  - semantics corpus now covers `101` no-body precedence for both `Content-Length` and `Transfer-Encoding`
+  - semantics corpus now covers strict reject paths for `TE + CL` on `101`, `204`, and `304` responses
+  - full container quality checkpoint is green in Sprint 2:
+    - `cmake --preset clang-debug`
+    - `cmake --build --preset clang-debug`
+    - `ctest --preset clang-debug`
+    - `./scripts/quality.sh`
 
 **Current Sprint 1 focus:**
 - continue scalar edge-case coverage
 - expand malformed request/response corpus
 - keep full container quality baseline green as parser tasks land
+
+**Current Sprint 2 focus:**
+- continue semantics hardening around framing ambiguity
+- expand negative corpus for smuggling-sensitive cases
+- keep full container quality baseline green as semantics tasks land
 
 **Immediate execution queue:**
 1. Continue Sprint 1 parser-correctness tasks in `.worktrees/sprint-1`.

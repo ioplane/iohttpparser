@@ -1,0 +1,7 @@
+kind=request
+mode=strict
+expect=ok
+body_mode=fixed
+content_length=42
+keep_alive=true
+wire=POST /upload HTTP/1.1\r\nHost: example.com\r\nContent-Length: 42\r\n\r\n

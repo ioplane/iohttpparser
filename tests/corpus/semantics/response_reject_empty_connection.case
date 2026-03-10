@@ -1,0 +1,4 @@
+kind=response
+mode=strict
+expect=error
+wire=HTTP/1.1 200 OK\r\nConnection:\r\n\r\n

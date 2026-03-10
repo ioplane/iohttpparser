@@ -1,0 +1,5 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=none
+wire=HTTP/1.1 101 Switching Protocols\r\nContent-Length: 42\r\n\r\n

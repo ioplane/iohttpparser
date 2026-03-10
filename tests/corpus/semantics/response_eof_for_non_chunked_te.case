@@ -1,0 +1,6 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=eof
+keep_alive=true
+wire=HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip\r\n\r\n
