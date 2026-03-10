@@ -83,6 +83,8 @@
   - semantics corpus now covers positive `Transfer-Encoding` paths for request chains ending in `chunked` and case-insensitive `chunked`
   - semantics corpus now covers malformed `Transfer-Encoding` lists and request-side rejection when `Transfer-Encoding` does not end in `chunked`
   - semantics corpus now covers positive `Connection` paths for case-insensitive tokens and token-list `close wins`
+  - semantics corpus now covers `101` no-body precedence for both `Content-Length` and `Transfer-Encoding`
+  - semantics corpus now covers strict reject paths for `TE + CL` on `101`, `204`, and `304` responses
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`

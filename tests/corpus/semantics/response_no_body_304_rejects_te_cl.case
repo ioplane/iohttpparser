@@ -1,0 +1,4 @@
+kind=response
+mode=strict
+expect=error
+wire=HTTP/1.1 304 Not Modified\r\nTransfer-Encoding: chunked\r\nContent-Length: 42\r\n\r\n
