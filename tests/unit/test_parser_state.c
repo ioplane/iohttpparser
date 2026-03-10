@@ -7,7 +7,6 @@
 #include <unity/unity.h>
 
 #include <iohttpparser/ihtp_parser.h>
-#include "ihtp_internal.h"
 
 #include <string.h>
 
@@ -124,6 +123,56 @@ void test_request_state_latches_error_phase(void)
                                                                   nullptr, &consumed));
 }
 
+void test_parser_state_reset_preserves_mode_and_restarts_progress(void)
+{
+    static const char wire[] = "GET /alpha HTTP/1.1\r\nHost: example.com\r\n\r\n";
+    ihtp_request_t req;
+    ihtp_parser_state_t state;
+    size_t consumed = 0;
+
+    memset(&req, 0, sizeof(req));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE,
+                          ihtp_parse_request_stateful(&state, wire, 28, &req, nullptr, &consumed));
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_PHASE_HEADERS, state.phase);
+    TEST_ASSERT_EQUAL_UINT(21, state.cursor);
+
+    ihtp_parser_state_reset(&state);
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_MODE_REQUEST, state.mode);
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_PHASE_START_LINE, state.phase);
+    TEST_ASSERT_EQUAL_UINT(0, state.cursor);
+
+    memset(&req, 0, sizeof(req));
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_parse_request_stateful(&state, wire, strlen(wire), &req,
+                                                               nullptr, &consumed));
+    TEST_ASSERT_EQUAL_UINT(strlen(wire), consumed);
+    TEST_ASSERT_EQUAL_UINT(1, req.num_headers);
+}
+
+void test_headers_state_reset_restarts_in_header_phase(void)
+{
+    static const char wire[] = "Host: example.com\r\n\r\n";
+    ihtp_header_t headers[2];
+    ihtp_parser_state_t state;
+    size_t num_headers = 0;
+    size_t consumed = 0;
+
+    memset(headers, 0, sizeof(headers));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_HEADERS);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_INCOMPLETE,
+                          ihtp_parse_headers_stateful(&state, wire, 19, headers, &num_headers, 2,
+                                                      nullptr, &consumed));
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_PHASE_HEADERS, state.phase);
+    TEST_ASSERT_TRUE(state.cursor > 0);
+
+    ihtp_parser_state_reset(&state);
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_MODE_HEADERS, state.mode);
+    TEST_ASSERT_EQUAL_INT(IHTP_PARSER_PHASE_HEADERS, state.phase);
+    TEST_ASSERT_EQUAL_UINT(0, state.cursor);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -131,5 +180,7 @@ int main(void)
     RUN_TEST(test_response_state_advances_from_status_line_to_headers);
     RUN_TEST(test_headers_state_preserves_progress_across_calls);
     RUN_TEST(test_request_state_latches_error_phase);
+    RUN_TEST(test_parser_state_reset_preserves_mode_and_restarts_progress);
+    RUN_TEST(test_headers_state_reset_restarts_in_header_phase);
     return UNITY_END();
 }

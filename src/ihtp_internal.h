@@ -85,42 +85,6 @@ bool ihtp_scan_is_token_avx2(const char *buf, size_t len);
 ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_policy_t *policy);
 ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_policy_t *policy);
 
-/* ─── Internal parser state skeleton ──────────────────────────────────── */
-
-typedef enum {
-    IHTP_PARSER_MODE_REQUEST = 0,
-    IHTP_PARSER_MODE_RESPONSE = 1,
-    IHTP_PARSER_MODE_HEADERS = 2,
-} ihtp_parser_mode_t;
-
-typedef enum {
-    IHTP_PARSER_PHASE_START_LINE = 0,
-    IHTP_PARSER_PHASE_HEADERS = 1,
-    IHTP_PARSER_PHASE_DONE = 2,
-    IHTP_PARSER_PHASE_ERROR = 3,
-} ihtp_parser_phase_t;
-
-typedef struct {
-    ihtp_parser_mode_t mode;
-    ihtp_parser_phase_t phase;
-    size_t cursor;
-} ihtp_parser_state_t;
-
-void ihtp_parser_state_init(ihtp_parser_state_t *state, ihtp_parser_mode_t mode);
-
-ihtp_status_t ihtp_parse_request_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
-                                          ihtp_request_t *req, const ihtp_policy_t *policy,
-                                          size_t *bytes_consumed);
-
-ihtp_status_t ihtp_parse_response_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
-                                           ihtp_response_t *resp, const ihtp_policy_t *policy,
-                                           size_t *bytes_consumed);
-
-ihtp_status_t ihtp_parse_headers_stateful(ihtp_parser_state_t *state, const char *buf, size_t len,
-                                          ihtp_header_t *headers, size_t *num_headers,
-                                          size_t max_headers, const ihtp_policy_t *policy,
-                                          size_t *bytes_consumed);
-
 /* ─── Version ─────────────────────────────────────────────────────────── */
 
 const char *ihtp_version(void);

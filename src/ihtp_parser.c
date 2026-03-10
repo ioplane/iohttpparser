@@ -59,6 +59,17 @@ void ihtp_parser_state_init(ihtp_parser_state_t *state, ihtp_parser_mode_t mode)
     state->cursor = 0;
 }
 
+void ihtp_parser_state_reset(ihtp_parser_state_t *state)
+{
+    if (state == nullptr) {
+        return;
+    }
+
+    state->phase = state->mode == IHTP_PARSER_MODE_HEADERS ? IHTP_PARSER_PHASE_HEADERS
+                                                           : IHTP_PARSER_PHASE_START_LINE;
+    state->cursor = 0;
+}
+
 /* ─── Internal: find line ending ──────────────────────────────────────── */
 
 static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_policy_t *policy,
