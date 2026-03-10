@@ -18,11 +18,19 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     /* ihtp_decode_chunked modifies buffer in-place, so copy */
     char buf[65536];
-    memcpy(buf, data, size);
     size_t bufsz = size;
+    ihtp_status_t status;
 
+    memcpy(buf, data, size);
     ihtp_chunked_decoder_t dec = {0};
-    ihtp_decode_chunked(&dec, buf, &bufsz);
+    status = ihtp_decode_chunked(&dec, buf, &bufsz);
+    (void)status;
+
+    memcpy(buf, data, size);
+    bufsz = size;
+    dec = (ihtp_chunked_decoder_t){.consume_trailer = true};
+    status = ihtp_decode_chunked(&dec, buf, &bufsz);
+    (void)status;
 
     return 0;
 }

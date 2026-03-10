@@ -205,6 +205,9 @@ if(IOHTTPPARSER_BUILD_FUZZ AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
         target_include_directories(${FUZZ_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
         target_link_libraries(${FUZZ_NAME} PRIVATE -fsanitize=fuzzer iohttpparser ${ARGN})
         target_compile_options(${FUZZ_NAME} PRIVATE -fsanitize=fuzzer-no-link)
+        target_compile_options(${FUZZ_NAME} PRIVATE
+            -Wno-missing-prototypes -Wno-missing-declarations
+        )
     endmacro()
 
     ihtp_add_fuzz(fuzz_parser tests/fuzz/fuzz_parser.c)
