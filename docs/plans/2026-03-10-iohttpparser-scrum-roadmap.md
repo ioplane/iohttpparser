@@ -148,6 +148,7 @@
 - internal backend selection is now testable directly via explicit SIMD-level selection
 - SSE4.2 delimiter loading was hardened to avoid over-reading short delimiter strings
 - `scripts/run-scanner-bench.sh` now provides a reproducible container benchmark smoke-run
+- `scripts/check-scanner-bench.sh` now verifies machine-readable benchmark output shape for reproducible smoke checks
 - `fuzz_scanner` and `scripts/run-scanner-fuzz.sh` now provide differential scanner fuzzing against scalar truth
 - benchmark slices now include longer parser-like request and header inputs
 - full Sprint 4 checkpoint baseline is green:
@@ -285,12 +286,15 @@
 - `tests/fuzz/corpus/scanner/` and `scripts/run-scanner-fuzz.sh` provide a reproducible scanner-fuzz workflow in the container
 - `src/ihtp_scanner_sse42.c` now copies short delimiter strings into a fixed local buffer before `_mm_loadu_si128`
 - `bench/bench_parser.c` provides a first scanner benchmark harness for dispatch, scalar, SSE4.2, and AVX2 paths
+- `bench/bench_parser.c` now supports machine-readable `--tsv` output for reproducible smoke checks
 - `scripts/run-scanner-bench.sh` provides a reproducible container workflow for a release bench smoke-run
+- `scripts/check-scanner-bench.sh` verifies benchmark output shape and row count inside the container
 - container validation is green for:
   - `cmake --preset clang-debug`
   - `cmake --build --preset clang-debug`
   - `ctest --preset clang-debug`
   - `ITERATIONS=3000 bash scripts/run-scanner-bench.sh`
+  - `ITERATIONS=3000 bash scripts/check-scanner-bench.sh`
   - `RUNS=64 bash scripts/run-scanner-fuzz.sh`
   - `./scripts/quality.sh`
 
