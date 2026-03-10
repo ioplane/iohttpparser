@@ -9,9 +9,11 @@
 #include <iohttpparser/ihtp_scanner.h>
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 typedef struct {
@@ -30,6 +32,11 @@ typedef struct {
 static volatile size_t find_sink;
 static volatile unsigned token_sink;
 
+typedef enum {
+    OUTPUT_HUMAN,
+    OUTPUT_TSV,
+} output_mode_t;
+
 static uint64_t monotonic_ns(void)
 {
     struct timespec ts;
@@ -40,8 +47,23 @@ static uint64_t monotonic_ns(void)
     return (uint64_t)ts.tv_sec * UINT64_C(1000000000) + (uint64_t)ts.tv_nsec;
 }
 
+static void print_header(output_mode_t mode, size_t iterations, int simd_level)
+{
+    if (mode == OUTPUT_TSV) {
+        puts("format\ttsv\tv1");
+        printf("meta\titerations\t%zu\n", iterations);
+        printf("meta\tsimd_level\t0x%x\n", simd_level);
+        puts("columns\tbackend\toperation\tcase\tlen\telapsed_ns\tns_per_op");
+        return;
+    }
+
+    printf("iohttpparser scanner benchmark\n");
+    printf("iterations: %zu\n", iterations);
+    printf("simd-level: 0x%x\n\n", simd_level);
+}
+
 static void run_find_bench(const char *backend_name, ihtp_scan_find_fn fn,
-                           const find_case_t *test_case, size_t iterations)
+                           const find_case_t *test_case, size_t iterations, output_mode_t mode)
 {
     volatile uintptr_t fn_bits = (uintptr_t)(const void *)fn;
     ihtp_scan_find_fn bench_fn = (ihtp_scan_find_fn)(const void *)fn_bits;
@@ -55,12 +77,18 @@ static void run_find_bench(const char *backend_name, ihtp_scan_find_fn fn,
     uint64_t elapsed_ns = monotonic_ns() - start_ns;
     double ns_per_iter = iterations == 0 ? 0.0 : (double)elapsed_ns / (double)iterations;
 
+    if (mode == OUTPUT_TSV) {
+        printf("%s\tfind\t%s\t%zu\t%" PRIu64 "\t%.2f\n", backend_name, test_case->name,
+               test_case->len, elapsed_ns, ns_per_iter);
+        return;
+    }
+
     printf("%-8s find  %-18s len=%-3zu %12" PRIu64 " ns total  %10.2f ns/op\n", backend_name,
            test_case->name, test_case->len, elapsed_ns, ns_per_iter);
 }
 
 static void run_token_bench(const char *backend_name, ihtp_scan_token_fn fn,
-                            const token_case_t *test_case, size_t iterations)
+                            const token_case_t *test_case, size_t iterations, output_mode_t mode)
 {
     volatile uintptr_t fn_bits = (uintptr_t)(const void *)fn;
     ihtp_scan_token_fn bench_fn = (ihtp_scan_token_fn)(const void *)fn_bits;
@@ -73,6 +101,12 @@ static void run_token_bench(const char *backend_name, ihtp_scan_token_fn fn,
     uint64_t elapsed_ns = monotonic_ns() - start_ns;
     double ns_per_iter = iterations == 0 ? 0.0 : (double)elapsed_ns / (double)iterations;
 
+    if (mode == OUTPUT_TSV) {
+        printf("%s\ttoken\t%s\t%zu\t%" PRIu64 "\t%.2f\n", backend_name, test_case->name,
+               test_case->len, elapsed_ns, ns_per_iter);
+        return;
+    }
+
     printf("%-8s token %-18s len=%-3zu %12" PRIu64 " ns total  %10.2f ns/op\n", backend_name,
            test_case->name, test_case->len, elapsed_ns, ns_per_iter);
 }
@@ -80,14 +114,14 @@ static void run_token_bench(const char *backend_name, ihtp_scan_token_fn fn,
 static void run_backend_group(const char *backend_name, ihtp_scan_find_fn find_fn,
                               ihtp_scan_token_fn token_fn, const find_case_t *find_cases,
                               size_t find_case_count, const token_case_t *token_cases,
-                              size_t token_case_count, size_t iterations)
+                              size_t token_case_count, size_t iterations, output_mode_t mode)
 {
     for (size_t i = 0; i < find_case_count; i++) {
-        run_find_bench(backend_name, find_fn, &find_cases[i], iterations);
+        run_find_bench(backend_name, find_fn, &find_cases[i], iterations, mode);
     }
 
     for (size_t i = 0; i < token_case_count; i++) {
-        run_token_bench(backend_name, token_fn, &token_cases[i], iterations);
+        run_token_bench(backend_name, token_fn, &token_cases[i], iterations, mode);
     }
 }
 
@@ -124,38 +158,42 @@ int main(int argc, char **argv)
     };
     size_t iterations = 1000000;
     int simd_level = ihtp_scanner_simd_level();
+    output_mode_t mode = OUTPUT_HUMAN;
 
-    if (argc > 2) {
-        fprintf(stderr, "usage: %s [iterations]\n", argv[0]);
+    if (argc > 3) {
+        fprintf(stderr, "usage: %s [iterations] [--tsv]\n", argv[0]);
         return 2;
     }
 
-    if (argc == 2) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--tsv") == 0) {
+            mode = OUTPUT_TSV;
+            continue;
+        }
+
         char *end = nullptr;
-        unsigned long long parsed = strtoull(argv[1], &end, 10);
-        if (end == argv[1] || *end != '\0' || parsed == 0ULL) {
-            fprintf(stderr, "invalid iterations: %s\n", argv[1]);
+        unsigned long long parsed = strtoull(argv[i], &end, 10);
+        if (end == argv[i] || *end != '\0' || parsed == 0ULL) {
+            fprintf(stderr, "invalid iterations: %s\n", argv[i]);
             return 2;
         }
         iterations = (size_t)parsed;
     }
 
-    printf("iohttpparser scanner benchmark\n");
-    printf("iterations: %zu\n", iterations);
-    printf("simd-level: 0x%x\n\n", simd_level);
+    print_header(mode, iterations, simd_level);
 
     run_backend_group("dispatch", ihtp_scan_find_char, ihtp_scan_is_token, find_cases,
                       sizeof(find_cases) / sizeof(find_cases[0]), token_cases,
-                      sizeof(token_cases) / sizeof(token_cases[0]), iterations);
+                      sizeof(token_cases) / sizeof(token_cases[0]), iterations, mode);
     run_backend_group("scalar", ihtp_scan_find_char_scalar, ihtp_scan_is_token_scalar, find_cases,
                       sizeof(find_cases) / sizeof(find_cases[0]), token_cases,
-                      sizeof(token_cases) / sizeof(token_cases[0]), iterations);
+                      sizeof(token_cases) / sizeof(token_cases[0]), iterations, mode);
 
 #ifdef IOHTTPPARSER_HAVE_SSE42
     if ((simd_level & 0x01) != 0) {
         run_backend_group("sse42", ihtp_scan_find_char_sse42, ihtp_scan_is_token_sse42, find_cases,
                           sizeof(find_cases) / sizeof(find_cases[0]), token_cases,
-                          sizeof(token_cases) / sizeof(token_cases[0]), iterations);
+                          sizeof(token_cases) / sizeof(token_cases[0]), iterations, mode);
     }
 #endif
 
@@ -163,9 +201,14 @@ int main(int argc, char **argv)
     if ((simd_level & 0x02) != 0) {
         run_backend_group("avx2", ihtp_scan_find_char_avx2, ihtp_scan_is_token_avx2, find_cases,
                           sizeof(find_cases) / sizeof(find_cases[0]), token_cases,
-                          sizeof(token_cases) / sizeof(token_cases[0]), iterations);
+                          sizeof(token_cases) / sizeof(token_cases[0]), iterations, mode);
     }
 #endif
+
+    if (mode == OUTPUT_TSV) {
+        printf("meta\tsinks\t%zu:%u\n", find_sink, token_sink);
+        return 0;
+    }
 
     printf("\nsinks: %zu %u\n", find_sink, token_sink);
     return 0;

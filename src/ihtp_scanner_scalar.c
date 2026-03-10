@@ -58,31 +58,35 @@ const uint8_t ihtp_token_table[256] = {
 static ihtp_scanner_vtable_t scanner_vtable;
 static bool scanner_initialized = false;
 
+void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level)
+{
+    /* Start with scalar baseline */
+    vtable->find_char = ihtp_scan_find_char_scalar;
+    vtable->is_token = ihtp_scan_is_token_scalar;
+
+#ifdef IOHTTPPARSER_HAVE_AVX2
+    if ((simd_level & 0x02) != 0) {
+        vtable->find_char = ihtp_scan_find_char_avx2;
+        vtable->is_token = ihtp_scan_is_token_avx2;
+        return;
+    }
+#endif
+
+#ifdef IOHTTPPARSER_HAVE_SSE42
+    if ((simd_level & 0x01) != 0) {
+        vtable->find_char = ihtp_scan_find_char_sse42;
+        vtable->is_token = ihtp_scan_is_token_sse42;
+    }
+#endif
+}
+
 static void ihtp_scanner_init(void)
 {
     if (scanner_initialized) {
         return;
     }
 
-    /* Start with scalar baseline */
-    scanner_vtable.find_char = ihtp_scan_find_char_scalar;
-    scanner_vtable.is_token = ihtp_scan_is_token_scalar;
-
-#ifdef IOHTTPPARSER_HAVE_AVX2
-    if (__builtin_cpu_supports("avx2")) {
-        scanner_vtable.find_char = ihtp_scan_find_char_avx2;
-        scanner_vtable.is_token = ihtp_scan_is_token_avx2;
-        scanner_initialized = true;
-        return;
-    }
-#endif
-
-#ifdef IOHTTPPARSER_HAVE_SSE42
-    if (__builtin_cpu_supports("sse4.2")) {
-        scanner_vtable.find_char = ihtp_scan_find_char_sse42;
-        scanner_vtable.is_token = ihtp_scan_is_token_sse42;
-    }
-#endif
+    ihtp_scanner_select_vtable(&scanner_vtable, ihtp_scanner_simd_level());
 
     scanner_initialized = true;
 }
