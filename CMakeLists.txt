@@ -163,6 +163,24 @@ if(IOHTTPPARSER_BUILD_TESTS)
         message(WARNING "Unity test framework not found — tests disabled")
     endif()
 
+    add_library(picohttpparser_vendor STATIC tests/third_party/picohttpparser/picohttpparser.c)
+    target_include_directories(picohttpparser_vendor PUBLIC tests/third_party/picohttpparser)
+    target_compile_options(picohttpparser_vendor PRIVATE
+        -Wno-conversion -Wno-sign-conversion -Wno-shadow -Wno-undef -Wno-unused-function
+    )
+
+    add_library(llhttp_vendor STATIC
+        tests/third_party/llhttp/llhttp.c
+        tests/third_party/llhttp/api.c
+        tests/third_party/llhttp/http.c
+    )
+    target_include_directories(llhttp_vendor PUBLIC tests/third_party/llhttp)
+    target_compile_options(llhttp_vendor PRIVATE
+        -Wno-conversion -Wno-sign-conversion -Wno-shadow -Wno-unused-parameter
+        -Wno-missing-prototypes -Wno-missing-declarations -Wno-cast-qual
+        -Wno-pedantic -Wno-format-pedantic
+    )
+
     # Test helper macro
     macro(ihtp_add_test TEST_NAME TEST_SRC)
         if(TARGET unity)
@@ -207,6 +225,14 @@ if(IOHTTPPARSER_BUILD_TESTS)
     endif()
     ihtp_add_test(test_parser tests/unit/test_parser.c)
     ihtp_add_test(test_parser_state tests/unit/test_parser_state.c)
+    ihtp_add_test(test_differential_corpus tests/unit/test_differential_corpus.c
+        picohttpparser_vendor llhttp_vendor
+    )
+    if(TARGET test_differential_corpus)
+        target_compile_definitions(test_differential_corpus PRIVATE
+            IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+        )
+    endif()
     ihtp_add_test(test_semantics tests/unit/test_semantics.c)
     ihtp_add_test(test_semantics_corpus tests/unit/test_semantics_corpus.c)
     if(TARGET test_semantics_corpus)
@@ -289,6 +315,7 @@ if(CLANG_FORMAT)
         ${CMAKE_SOURCE_DIR}/include/*.h
         ${CMAKE_SOURCE_DIR}/tests/*.c
     )
+    list(FILTER ALL_C_SOURCES EXCLUDE REGEX ".*/tests/third_party/.*")
     add_custom_target(format
         COMMAND ${CLANG_FORMAT} -i ${ALL_C_SOURCES}
         COMMENT "Running clang-format"

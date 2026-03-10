@@ -1,0 +1,6 @@
+reference=pico
+kind=request
+expect=incomplete
+policy=strict
+version=1.1
+wire=GET / HTTP/1.1\r\nHost: exam

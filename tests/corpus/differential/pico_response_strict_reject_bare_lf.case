@@ -1,0 +1,7 @@
+reference=pico
+kind=response
+reference_expect=ok
+ihtp_expect=error
+policy=strict
+version=1.1
+wire=HTTP/1.1 200 OK\nContent-Length: 0\n\n

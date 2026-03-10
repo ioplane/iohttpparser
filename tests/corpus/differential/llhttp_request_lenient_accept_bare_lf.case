@@ -1,0 +1,10 @@
+reference=llhttp
+kind=request
+expect=ok
+policy=lenient
+version=1.1
+consumed=34
+method=GET
+path=/
+num_headers=1
+wire=GET / HTTP/1.1\nHost: example.com\n\n

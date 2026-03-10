@@ -102,6 +102,14 @@
             "CodeNext": 123,
             "CodePrev": 42,
             "ErrorCode": "V1042",
+            "FileName": "test_differential_corpus.c",
+            "Message": "This file is marked with copyleft license, which requires you to open the derived source code."
+        },
+        {
+            "CodeCurrent": 2667515708,
+            "CodeNext": 123,
+            "CodePrev": 42,
+            "ErrorCode": "V1042",
             "FileName": "ihtp_parser.c",
             "Message": "This file is marked with copyleft license, which requires you to open the derived source code."
         },
