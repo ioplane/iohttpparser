@@ -302,6 +302,8 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_empty_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_malformed_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_connection_close_wins.case",
+        IHTP_SOURCE_DIR
+        "/tests/corpus/semantics/request_connection_case_insensitive_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_content_length_fixed.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http11_default_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http10_default_close.case",
@@ -326,6 +328,8 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http11_default_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http10_default_close.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http10_keep_alive.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_connection_close_wins.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_connection_case_insensitive_close.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http11_connection_close.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_eof_for_non_chunked_te.case",
     };

@@ -1,0 +1,6 @@
+kind=request
+mode=strict
+expect=ok
+body_mode=none
+keep_alive=true
+wire=GET / HTTP/1.0\r\nConnection: KeEp-AlIvE\r\n\r\n
