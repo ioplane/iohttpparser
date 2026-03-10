@@ -72,6 +72,7 @@
   - no-body response precedence is now regression-covered for `1xx`, `204`, and `304`
   - semantics negative corpus has started under `tests/corpus/semantics/`
   - corpus-driven regression runner is wired into `ctest`
+  - corpus assertions now cover both `body_mode` and `keep_alive`
   - full container quality checkpoint is green in Sprint 2:
     - `cmake --preset clang-debug`
     - `cmake --build --preset clang-debug`

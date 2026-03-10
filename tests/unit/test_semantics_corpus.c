@@ -33,6 +33,8 @@ typedef struct {
     corpus_expect_t expect;
     ihtp_body_mode_t body_mode;
     bool has_body_mode;
+    bool keep_alive;
+    bool has_keep_alive;
 } corpus_case_t;
 
 static const char *kStrict = "strict";
@@ -45,6 +47,8 @@ static const char *kNone = "none";
 static const char *kFixed = "fixed";
 static const char *kChunked = "chunked";
 static const char *kEof = "eof";
+static const char *kTrue = "true";
+static const char *kFalse = "false";
 
 void setUp(void)
 {
@@ -115,6 +119,19 @@ static ihtp_body_mode_t parse_body_mode(const char *value)
     return IHTP_BODY_NONE;
 }
 
+static bool parse_bool_value(const char *value)
+{
+    if (str_eq(value, kTrue)) {
+        return true;
+    }
+    if (str_eq(value, kFalse)) {
+        return false;
+    }
+
+    TEST_FAIL_MESSAGE("unknown boolean in corpus");
+    return false;
+}
+
 static void run_corpus_case(const char *path)
 {
     char line[4096];
@@ -125,10 +142,12 @@ static void run_corpus_case(const char *path)
     const ihtp_policy_t *policy = nullptr;
     corpus_expect_t expect = CORPUS_EXPECT_OK;
     ihtp_body_mode_t body_mode = IHTP_BODY_NONE;
+    bool keep_alive = false;
     bool has_kind = false;
     bool has_mode = false;
     bool has_expect = false;
     bool has_body_mode = false;
+    bool has_keep_alive = false;
     bool has_wire = false;
 
     TEST_ASSERT_NOT_NULL_MESSAGE(fp, path);
@@ -179,6 +198,9 @@ static void run_corpus_case(const char *path)
         } else if (str_eq(key, "body_mode")) {
             body_mode = parse_body_mode(value);
             has_body_mode = true;
+        } else if (str_eq(key, "keep_alive")) {
+            keep_alive = parse_bool_value(value);
+            has_keep_alive = true;
         } else if (str_eq(key, "wire")) {
             TEST_ASSERT_EQUAL_CHAR_MESSAGE('\0', wire_line[0], path);
             strncpy(wire_line, value, sizeof(wire_line) - 1);
@@ -215,6 +237,9 @@ static void run_corpus_case(const char *path)
         if (has_body_mode) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(body_mode, req.body_mode, path);
         }
+        if (has_keep_alive) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, req.keep_alive, path);
+        }
         return;
     }
 
@@ -235,6 +260,9 @@ static void run_corpus_case(const char *path)
     if (has_body_mode) {
         TEST_ASSERT_EQUAL_INT_MESSAGE(body_mode, resp.body_mode, path);
     }
+    if (has_keep_alive) {
+        TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, resp.keep_alive, path);
+    }
 }
 
 void test_semantics_corpus_cases(void)
@@ -244,9 +272,13 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_duplicate_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_http11_missing_host.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_lenient_te_cl.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_connection_close_wins.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_http10_keep_alive.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_204_ignores_te.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_101_ignores_cl.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_http11_connection_close.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_eof_for_non_chunked_te.case",
     };
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
