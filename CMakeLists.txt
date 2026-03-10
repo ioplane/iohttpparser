@@ -186,6 +186,12 @@ if(IOHTTPPARSER_BUILD_TESTS)
     ihtp_add_test(test_scanner tests/unit/test_scanner.c)
     ihtp_add_test(test_parser tests/unit/test_parser.c)
     ihtp_add_test(test_semantics tests/unit/test_semantics.c)
+    ihtp_add_test(test_semantics_corpus tests/unit/test_semantics_corpus.c)
+    if(TARGET test_semantics_corpus)
+        target_compile_definitions(test_semantics_corpus PRIVATE
+            IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+        )
+    endif()
     ihtp_add_test(test_body_decoder tests/unit/test_body_decoder.c)
 endif()
 
