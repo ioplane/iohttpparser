@@ -453,6 +453,45 @@ Practical conclusion:
 - the next tuning wave should target `T_value`, not `T_name`
 - value-path optimization should focus on reducing repeated per-byte work without adding extra memory traffic
 - name-path work is still relevant, but it is now clearly a secondary priority
+
+## Sprint 13 Value-Path Batch 1 (Verified)
+
+The first successful `T_value` optimization in Sprint 13 was a small structural change in
+`trim_and_validate_field_value()`:
+
+- trim leading/trailing OWS first with tight boundary loops
+- validate the trimmed span with the existing field-text check
+
+This preserves the RFC-valid byte set while simplifying the hot loop over long values.
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- the patch was **not** accepted on the first median alone
+- a heavier confirmation run (`RUNS=7`, `ITERATIONS=150000`) was used before accepting it
+
+Confirmed 7-run median results:
+
+| Scenario | Baseline strict req/s | Tuned strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `5,805,903.54` | `6,208,113.34` | `+6.9%` |
+| `hdr-value-heavy` | `1,649,627.96` | `1,777,658.36` | `+7.8%` |
+| `req-pico-bench` | `1,598,296.19` | `1,804,671.87` | `+12.9%` |
+
+Confirmed 7-run median results for lenient mode:
+
+| Scenario | Baseline lenient req/s | Tuned lenient req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `5,167,224.03` | `6,450,862.11` | `+24.8%` |
+| `hdr-value-heavy` | `1,694,737.19` | `1,834,752.93` | `+8.3%` |
+| `req-pico-bench` | `1,593,251.83` | `1,788,810.72` | `+12.3%` |
+
+Interpretation:
+
+- this is the first Sprint 13 batch that cleanly improves the identified `T_value` bottleneck
+- the gain is strongest on the long mixed request from `pico`'s upstream benchmark
+- the optimization helps because it removes repeated trim bookkeeping from the full value scan
+  without introducing extra per-byte memory traffic
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 

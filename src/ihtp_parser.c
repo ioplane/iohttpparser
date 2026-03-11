@@ -216,24 +216,14 @@ static bool field_text_is_valid(const char *buf, size_t len)
 static bool trim_and_validate_field_value(const char *buf, size_t len, const char **trimmed_start,
                                           size_t *trimmed_len)
 {
-    size_t first = len;
-    size_t last = 0;
+    size_t first = 0;
+    size_t last = len;
 
-    for (size_t i = 0; i < len; i++) {
-        uint8_t c = (uint8_t)buf[i];
-
-        if (c == '\t' || c == ' ') {
-            continue;
-        }
-
-        if (c < 0x20 || c == 0x7f) {
-            return false;
-        }
-
-        if (first == len) {
-            first = i;
-        }
-        last = i + 1;
+    while (first < len && ihtp_is_lws((uint8_t)buf[first])) {
+        first++;
+    }
+    while (last > first && ihtp_is_lws((uint8_t)buf[last - 1])) {
+        last--;
     }
 
     if (first == len) {
@@ -244,7 +234,7 @@ static bool trim_and_validate_field_value(const char *buf, size_t len, const cha
 
     *trimmed_start = buf + first;
     *trimmed_len = last - first;
-    return true;
+    return field_text_is_valid(*trimmed_start, *trimmed_len);
 }
 
 static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_response_t *resp,
