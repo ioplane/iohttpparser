@@ -205,6 +205,7 @@ void test_chunked_returns_trailing_bytes_without_trailer_consumption(void)
     TEST_ASSERT_EQUAL_INT(5, status);
     TEST_ASSERT_EQUAL_UINT(5, bufsz);
     TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+    TEST_ASSERT_EQUAL_STRING_LEN("\r\nXYZ", buf + bufsz, (size_t)status);
 }
 
 void test_chunked_returns_trailing_bytes_after_trailer_consumption(void)
@@ -218,6 +219,7 @@ void test_chunked_returns_trailing_bytes_after_trailer_consumption(void)
     TEST_ASSERT_EQUAL_INT(3, status);
     TEST_ASSERT_EQUAL_UINT(5, bufsz);
     TEST_ASSERT_EQUAL_STRING_LEN("hello", buf, 5);
+    TEST_ASSERT_EQUAL_STRING_LEN("XYZ", buf + bufsz, (size_t)status);
 }
 
 void test_chunked_accepts_chunk_extension(void)

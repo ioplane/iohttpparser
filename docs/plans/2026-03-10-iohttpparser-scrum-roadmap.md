@@ -452,6 +452,11 @@
 
 **Goal:** validate the frozen library contract against real consumer-style workflows in `iohttp` and `ioguard`.
 
+**Current status:**
+- first `iohttp`-style integration harness is in place
+- chunked body decoder now preserves trailing bytes immediately after the decoded payload prefix, matching the documented embedder contract
+- next Sprint 10 batches should expand this baseline into `Expect: 100-continue`, response handoff, and strict-profile `ioguard` scenarios
+
 **Scope:**
 - `iohttp`-style request/response/body handoff
 - `ioguard`-style strict-profile and CONNECT flows
