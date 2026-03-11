@@ -133,6 +133,89 @@ Engineering conclusion:
 - do not force additional SIMD specialization simply because a SIMD backend exists
 - continue treating token-validation SIMD work as proof-driven, not benchmark-driven alone
 
+### Tuning Batch 1 (Executed)
+
+Low-risk parser hot-path changes were applied in `src/ihtp_parser.c`:
+
+- method lookup changed from table loop to length-based switch dispatch
+- scanner vtable pointer cached per parse function (`parse_request_line`, `parse_header_block`)
+- reverse-space search changed to `memrchr` in request-line parsing
+
+Verification:
+
+- full `./scripts/quality.sh` passed
+- differential and integration tests stayed green
+
+Standalone throughput rerun (`iterations=200000`, same isolated parser-only harness):
+
+| Parser | Avg req/s | Avg MiB/s | Avg ns/req |
+|---|---:|---:|---:|
+| `iohttpparser-lenient` | `8,107,738.12` | `677.89` | `132.43` |
+| `iohttpparser-strict` | `8,519,675.17` | `708.94` | `125.69` |
+| `llhttp` | `9,487,660.67` | `783.46` | `118.89` |
+| `picohttpparser` | `25,727,346.57` | `2,039.21` | `44.62` |
+
+CONNECT-focused rerun:
+
+| Parser | req/s | MiB/s | ns/req |
+|---|---:|---:|---:|
+| `iohttpparser-lenient` | `7,816,358.72` | `723.06` | `127.94` |
+| `iohttpparser-strict` | `7,334,469.37` | `678.49` | `136.34` |
+| `llhttp` | `9,929,785.49` | `918.57` | `100.71` |
+| `picohttpparser` | `21,839,604.48` | `2,020.30` | `45.79` |
+
+Result:
+
+- this batch did not show a clear throughput win for `iohttpparser`
+- changes are functionally safe, but they should not be treated as proven performance improvements on current evidence
+
+Tuning Batch 2 (common-header fast path + same safety gates):
+
+- added a header-name fast path for common names:
+  - `Host`
+  - `Connection`
+  - `Content-Length`
+  - `Transfer-Encoding`
+  - `Expect`
+  - `Trailer`
+  - `Upgrade`
+- fallback for all other names remains the original scanner token validation path
+- full quality gate stayed green
+
+Batch 2 standalone throughput rerun:
+
+| Parser | Avg req/s | Avg MiB/s | Avg ns/req |
+|---|---:|---:|---:|
+| `iohttpparser-lenient` | `8,858,610.31` | `725.51` | `123.83` |
+| `iohttpparser-strict` | `9,105,549.66` | `741.24` | `121.34` |
+| `llhttp` | `9,793,357.86` | `804.28` | `113.11` |
+| `picohttpparser` | `24,502,925.38` | `1,965.90` | `46.29` |
+
+Batch 2 CONNECT-focused rerun:
+
+| Parser | req/s | MiB/s | ns/req |
+|---|---:|---:|---:|
+| `iohttpparser-lenient` | `7,791,801.51` | `720.79` | `128.34` |
+| `iohttpparser-strict` | `8,215,341.18` | `759.97` | `121.72` |
+| `llhttp` | `9,719,908.68` | `899.15` | `102.88` |
+| `picohttpparser` | `25,135,082.22` | `2,325.16` | `39.79` |
+
+Observed impact vs Batch 1:
+
+- `iohttpparser-strict` avg req/s: `+6.9%` (`8.52M -> 9.11M`)
+- `iohttpparser-lenient` avg req/s: `+9.3%` (`8.11M -> 8.86M`)
+- strict `CONNECT` req/s: `+12.0%` (`7.33M -> 8.22M`)
+
+Conclusion:
+
+- Batch 2 is the first tuning step in this sequence that shows a consistent positive signal for `iohttpparser` while preserving behavior and test parity.
+
+Next optimization focus with higher expected payoff and no contract changes:
+
+1. fast path for frequent header names before generic token validation
+2. reduce repeated header-value trim overhead in the generic path
+3. evaluate each tuning patch using 5-run median results (to suppress run-to-run noise)
+
 ## Assessment
 
 The comparison posture is now materially stronger than before Sprint 11:
