@@ -129,6 +129,12 @@ Both currently map to the strict RFC profile. The separate names make consumer
 intent explicit and leave room for future divergence without changing
 integration call sites.
 
+That current alias contract is exact across the public policy surface:
+- `reject_obs_fold`
+- `reject_bare_lf`
+- `reject_te_cl`
+- `allow_spaces_in_uri`
+
 ---
 
 ## Immediate Follow-Up

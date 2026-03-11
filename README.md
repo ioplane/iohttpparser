@@ -137,6 +137,11 @@ See:
 - `IHTP_POLICY_IOGUARD` is the named fail-closed preset for `ioguard`
 - both currently map to the strict RFC profile and exist so consumer code can
   depend on explicit intent rather than anonymous `IHTP_POLICY_STRICT`
+- the current alias contract is exact across the public policy surface:
+  - `reject_obs_fold`
+  - `reject_bare_lf`
+  - `reject_te_cl`
+  - `allow_spaces_in_uri`
 
 ## Body Decoder Contracts
 

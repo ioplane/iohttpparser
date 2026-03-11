@@ -129,6 +129,12 @@ sequenceDiagram
 consumer code опирался на явный intent и мог пережить будущую дивергенцию без
 смены call site.
 
+Текущий alias-контракт точен по всей публичной policy surface:
+- `reject_obs_fold`
+- `reject_bare_lf`
+- `reject_te_cl`
+- `allow_spaces_in_uri`
+
 ---
 
 ## Ближайшие Шаги
