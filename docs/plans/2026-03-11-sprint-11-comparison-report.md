@@ -970,6 +970,40 @@ Interpretation:
 - therefore the next meaningful gains are more likely to come from reducing repeated line/value
   path work than from more method-lookup tweaks
 
+## External Profiling Stack For Sprint 13+
+
+The repository now treats external profilers/debuggers as complementary tools, not replacements for
+the built-in comparison harness:
+
+- `uftrace`
+  - primary external user-space function graph tracer
+  - use after a throughput delta is confirmed, to see which call paths dominate wall time
+  - do **not** use as the first signal; start from the repo throughput tables and parser trace mode
+- `valgrind`
+  - use `memcheck` for correctness and leak sanity on parser-only harnesses
+  - use `callgrind` / `cachegrind` only for instruction/cache cost modeling, not raw throughput
+  - SIMD-heavy absolute timings under Valgrind are not representative, but relative hot spots are
+- `gdb`
+  - use for control-flow debugging, watchpoints, and validating specific parser-state transitions
+  - not a profiler, but valuable once a suspicious helper or branch is already isolated
+- `ftracer`
+  - keep as an experimental GCC-only tracing option for dedicated instrumented builds
+  - not a default tool for this repository because it needs a special build and adds large call
+    overhead
+
+Repository helper:
+
+- [run-profiler-stack.sh](/opt/projects/repositories/iohttpparser/.worktrees/sprint-13/scripts/run-profiler-stack.sh)
+
+Recommended order of use:
+
+1. repo throughput comparison (`run-throughput-median.sh`)
+2. built-in parser trace mode (`run-profiler-stack.sh trace ...`)
+3. `uftrace` for function graph attribution
+4. `valgrind` for correctness or cache/call modeling
+5. `gdb` for targeted control-flow debugging
+6. `ftracer` only for one-off deep tracing experiments
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 

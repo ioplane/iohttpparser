@@ -53,6 +53,12 @@ Strongly recommended:
 - `yq`
 - `hyperfine`
 
+Optional but valuable for deep parser diagnostics:
+- `gdb`
+- `valgrind`
+- `uftrace`
+- `ftracer`
+
 ## Coding Style & Naming Conventions
 Target C23 only; C extensions are disabled. Follow `.clang-format`: 4-space indentation, Linux brace style, 100-column limit, and right-aligned pointer stars (`int *ptr`). Keep public and internal symbols consistent with the existing scheme: `ihtp_` for functions, `IHTP_` for macros and enum values, and `_t` for typedefs. Prefer small, single-purpose translation units and keep public headers stable.
 
