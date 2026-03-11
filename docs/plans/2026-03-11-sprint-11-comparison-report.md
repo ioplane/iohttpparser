@@ -1336,6 +1336,43 @@ It also explains why the remaining optimization space is now narrow:
 - request-line helpers are no longer the main problem
 - the remaining cost is dominated by repeated line/value work on realistic header-heavy inputs
 
+### Callgrind Cost Model on `req-pico-bench`
+
+`callgrind` was then used as an instruction-cost model on the same workload.
+
+For `iohttpparser-stateful-strict`:
+
+- total instructions: `259,659,108`
+- hottest functions:
+  - `field_text_is_valid`: `24.33%`
+  - benchmark-side `memset`: `17.36%`
+  - `find_header_name_colon`: `14.92%`
+  - `ihtp_is_token_char`: `9.78%`
+  - `parse_header_block`: `8.04%`
+  - `trim_and_validate_field_value`: `5.82%`
+  - `memchr`: `4.06%`
+  - `find_line_end`: `3.20%`
+
+For `llhttp`:
+
+- total instructions: `185,044,835`
+- dominant function:
+  - `llhttp__internal__run`: `68.49%`
+
+Interpretation:
+
+- `llhttp` still wins on raw instruction count because it keeps more of the parser core inside a
+  flatter generated state machine
+- `iohttpparser` still spreads work across more helpers because it exposes a richer pull-style
+  consumer contract
+- even this callgrind gap somewhat overstates the library gap, because the benchmark helper still
+  performs caller-side output clearing for the stateful path
+
+`picohttpparser` could not be cleanly profiled with the same AVX2-enabled callgrind run in this
+campaign because the valgrind process hit an illegal-instruction path before reaching a meaningful
+parser profile. For `picohttpparser`, throughput and the repository harness remain the primary
+signals until a separate scalar-only cost-model build is added.
+
 ### Are These Extra Responsibilities in the Right Layer?
 
 Mostly yes, with an important boundary.
