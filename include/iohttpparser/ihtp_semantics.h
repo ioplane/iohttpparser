@@ -9,8 +9,15 @@
 
 #include <iohttpparser/ihtp_types.h>
 
+/** @defgroup ihtp_semantics Semantics API
+ *  @ingroup ihtp_api
+ *  @brief RFC-driven framing, connection, and ownership decisions above syntax parsing.
+ *  @{
+ */
+
 /**
  * @brief Apply RFC-driven semantics to a parsed HTTP request.
+ * @ingroup ihtp_semantics
  *
  * This is the handoff between the syntax parser and the consumer.
  * The function resolves body framing, connection persistence, and request-side
@@ -29,6 +36,7 @@
 
 /**
  * @brief Apply RFC-driven semantics to a parsed HTTP response.
+ * @ingroup ihtp_semantics
  *
  * This resolves response body framing and connection persistence so the
  * consumer can hand the result to a body decoder or connection-management
@@ -41,5 +49,7 @@
  */
 [[nodiscard]] ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp,
                                                           const ihtp_policy_t *policy);
+
+/** @} */
 
 #endif /* IOHTTPPARSER_IHTP_SEMANTICS_H */

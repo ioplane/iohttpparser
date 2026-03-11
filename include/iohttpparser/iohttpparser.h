@@ -12,14 +12,21 @@
  * @file iohttpparser.h
  * @brief Main public API header — includes all parser components.
  *
+ * @defgroup ihtp_api Public API
+ * @brief Stable embedder-facing API for parser, semantics, body decoding, and scanner helpers.
+ *
  * Usage:
- *   #include <iohttpparser/iohttpparser.h>
+ * @code{.c}
+ * #include <iohttpparser/iohttpparser.h>
+ * @endcode
  *
  * Or include individual headers:
- *   #include <iohttpparser/ihtp_types.h>
- *   #include <iohttpparser/ihtp_parser.h>
- *   #include <iohttpparser/ihtp_semantics.h>
- *   #include <iohttpparser/ihtp_body.h>
+ * @code{.c}
+ * #include <iohttpparser/ihtp_types.h>
+ * #include <iohttpparser/ihtp_parser.h>
+ * #include <iohttpparser/ihtp_semantics.h>
+ * #include <iohttpparser/ihtp_body.h>
+ * @endcode
  */
 
 #include <iohttpparser/ihtp_body.h>
@@ -29,12 +36,14 @@
 
 /**
  * @brief Return library version string.
+ * @ingroup ihtp_api
  * @return NUL-terminated version string (e.g., "0.1.0").
  */
 [[nodiscard]] const char *ihtp_version(void);
 
 /**
  * @brief Return library version as packed integer.
+ * @ingroup ihtp_api
  * @return Version as (major << 16 | minor << 8 | patch).
  */
 [[nodiscard]] int ihtp_version_num(void);

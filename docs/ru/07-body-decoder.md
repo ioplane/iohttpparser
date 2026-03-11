@@ -18,6 +18,8 @@ flowchart LR
 - При завершении неотрицательное возвращаемое значение означает успех и равно числу undecoded trailing bytes.
 - Если `consume_trailer == false`, терминальный `CRLF` после zero chunk и все последующие байты остаются в trailing data.
 - Если `consume_trailer == true`, trailer lines потребляются до завершающей пустой строки, после чего возвращается число trailing bytes.
+- trailing bytes остаются в том же caller-owned buffer сразу после decoded payload prefix
+- decoder не аллоцирует память и не забирает ownership ни у payload, ни у trailer bytes
 
 ## Fixed-Length Decoder
 

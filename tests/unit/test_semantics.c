@@ -18,20 +18,26 @@ void tearDown(void)
 {
 }
 
-void test_policy_presets_default_to_strict_contracts(void)
+void test_policy_presets_are_currently_strict_aliases(void)
 {
+    const ihtp_policy_t strict = IHTP_POLICY_STRICT;
     const ihtp_policy_t iohttp = IHTP_POLICY_IOHTTP;
     const ihtp_policy_t ioguard = IHTP_POLICY_IOGUARD;
 
-    TEST_ASSERT_TRUE(iohttp.reject_obs_fold);
-    TEST_ASSERT_TRUE(iohttp.reject_bare_lf);
-    TEST_ASSERT_TRUE(iohttp.reject_te_cl);
-    TEST_ASSERT_FALSE(iohttp.allow_spaces_in_uri);
+    TEST_ASSERT_EQUAL_INT(strict.reject_obs_fold, iohttp.reject_obs_fold);
+    TEST_ASSERT_EQUAL_INT(strict.reject_bare_lf, iohttp.reject_bare_lf);
+    TEST_ASSERT_EQUAL_INT(strict.reject_te_cl, iohttp.reject_te_cl);
+    TEST_ASSERT_EQUAL_INT(strict.allow_spaces_in_uri, iohttp.allow_spaces_in_uri);
 
-    TEST_ASSERT_TRUE(ioguard.reject_obs_fold);
-    TEST_ASSERT_TRUE(ioguard.reject_bare_lf);
-    TEST_ASSERT_TRUE(ioguard.reject_te_cl);
-    TEST_ASSERT_FALSE(ioguard.allow_spaces_in_uri);
+    TEST_ASSERT_EQUAL_INT(strict.reject_obs_fold, ioguard.reject_obs_fold);
+    TEST_ASSERT_EQUAL_INT(strict.reject_bare_lf, ioguard.reject_bare_lf);
+    TEST_ASSERT_EQUAL_INT(strict.reject_te_cl, ioguard.reject_te_cl);
+    TEST_ASSERT_EQUAL_INT(strict.allow_spaces_in_uri, ioguard.allow_spaces_in_uri);
+
+    TEST_ASSERT_EQUAL_INT(iohttp.reject_obs_fold, ioguard.reject_obs_fold);
+    TEST_ASSERT_EQUAL_INT(iohttp.reject_bare_lf, ioguard.reject_bare_lf);
+    TEST_ASSERT_EQUAL_INT(iohttp.reject_te_cl, ioguard.reject_te_cl);
+    TEST_ASSERT_EQUAL_INT(iohttp.allow_spaces_in_uri, ioguard.allow_spaces_in_uri);
 }
 
 /* ─── Helper: parse + apply semantics ─────────────────────────────────── */
@@ -379,6 +385,30 @@ void test_semantics_response_sets_protocol_upgrade_for_switching_protocols(void)
     TEST_ASSERT_TRUE(resp.protocol_upgrade);
     TEST_ASSERT_FALSE(resp.keep_alive);
     TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+}
+
+void test_semantics_response_does_not_set_protocol_upgrade_without_connection_upgrade(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Upgrade: websocket\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_FALSE(resp.protocol_upgrade);
+}
+
+void test_semantics_response_does_not_set_protocol_upgrade_without_upgrade_header(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Connection: Upgrade\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_FALSE(resp.protocol_upgrade);
 }
 
 void test_semantics_response_sets_trailer_advertisement_for_chunked_body(void)
@@ -744,7 +774,7 @@ void test_semantics_response_rejects_empty_connection_value(void)
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_policy_presets_default_to_strict_contracts);
+    RUN_TEST(test_policy_presets_are_currently_strict_aliases);
     RUN_TEST(test_semantics_no_body);
     RUN_TEST(test_semantics_content_length);
     RUN_TEST(test_semantics_request_rejects_http11_without_host);
@@ -770,6 +800,8 @@ int main(void)
     RUN_TEST(test_semantics_response_rejects_te_cl_in_strict_mode);
     RUN_TEST(test_semantics_response_allows_te_cl_in_lenient_mode);
     RUN_TEST(test_semantics_response_sets_protocol_upgrade_for_switching_protocols);
+    RUN_TEST(test_semantics_response_does_not_set_protocol_upgrade_without_connection_upgrade);
+    RUN_TEST(test_semantics_response_does_not_set_protocol_upgrade_without_upgrade_header);
     RUN_TEST(test_semantics_response_sets_trailer_advertisement_for_chunked_body);
     RUN_TEST(test_semantics_response_rejects_trailer_without_chunked_body);
     RUN_TEST(test_semantics_response_uses_eof_for_transfer_encoding_not_ending_in_chunked);

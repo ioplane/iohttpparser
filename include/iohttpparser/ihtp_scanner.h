@@ -12,8 +12,15 @@
 
 #include <stddef.h>
 
+/** @defgroup ihtp_scanner Scanner API
+ *  @ingroup ihtp_api
+ *  @brief Low-level byte classification and delimiter search helpers.
+ *  @{
+ */
+
 /**
  * @brief Find first occurrence of a character from a character class.
+ * @ingroup ihtp_scanner
  *
  * SIMD-accelerated: uses SSE4.2 / AVX2 when available, with runtime dispatch.
  *
@@ -26,6 +33,7 @@
 
 /**
  * @brief Validate that a range contains only valid token characters (RFC 9110 token).
+ * @ingroup ihtp_scanner
  *
  * @param buf Input buffer.
  * @param len Length of input.
@@ -35,6 +43,7 @@
 
 /**
  * @brief Advance past linear whitespace (SP / HTAB).
+ * @ingroup ihtp_scanner
  *
  * @param buf Input buffer.
  * @param len Length of input.
@@ -44,9 +53,12 @@
 
 /**
  * @brief Detect SIMD support level at runtime.
+ * @ingroup ihtp_scanner
  *
  * @return Bitmask: 0x01 = SSE4.2, 0x02 = AVX2, 0x04 = AVX-512.
  */
 [[nodiscard]] int ihtp_scanner_simd_level(void);
+
+/** @} */
 
 #endif /* IOHTTPPARSER_IHTP_SCANNER_H */

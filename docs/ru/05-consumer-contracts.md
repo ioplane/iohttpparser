@@ -129,6 +129,12 @@ sequenceDiagram
 consumer code опирался на явный intent и мог пережить будущую дивергенцию без
 смены call site.
 
+Текущий alias-контракт точен по всей публичной policy surface:
+- `reject_obs_fold`
+- `reject_bare_lf`
+- `reject_te_cl`
+- `allow_spaces_in_uri`
+
 ---
 
 ## Ближайшие Шаги
@@ -175,6 +181,47 @@ Sprint 7 теперь должен зафиксировать:
   consumer layer, а не к parser core
 
 `examples/connect_tunnel.c` служит минимальным reference-example для этого handoff.
+
+### Ownership для response upgrade
+
+Для response-side upgrade контракт остаётся явным и минимальным:
+
+- `protocol_upgrade` выставляется только для `101 Switching Protocols` вместе с
+  `Connection: Upgrade` и непустым token в `Upgrade`
+- после этого флага `iohttpparser` заканчивает HTTP framing для данного response
+- все байты, которые следуют после header block, дальше принадлежат consumer'у
+
+`examples/response_upgrade.c` служит минимальным reference-example для этого handoff.
+
+### Ownership для `Expect: 100-continue` и trailer
+
+Для request-side handoff тела сообщения:
+
+- `expects_continue` сообщает consumer'у, что request явно запросил
+  `100 Continue`
+- сам parser не отправляет interim responses; приложение решает, слать ли
+  `100 Continue`, отклонять request или читать body сразу
+- `has_trailer_fields` означает, что request или response объявляет trailing fields
+- chunked decoder потребляет trailer section только если consumer явно включает
+  это через `ihtp_chunked_decoder_t.consume_trailer`
+
+То есть ownership trailer остаётся решением consumer'а:
+
+- `consume_trailer = true`: decoder сам потребляет trailer section
+- `consume_trailer = false`: decoder возвращает trailing bytes consumer'у
+
+`examples/expect_trailers.c` служит минимальным reference-example для этого handoff.
+
+### Текущий контракт preset-ов
+
+На текущей стадии проекта:
+
+- `IHTP_POLICY_IOHTTP` — именованный alias strict-profile
+- `IHTP_POLICY_IOGUARD` — тоже именованный alias strict-profile
+
+Эти preset-ы названы намеренно, хотя пока эквивалентны. Библиотека рассматривает
+их как стабильные consumer-facing имена конфигурации, и любое будущее расхождение
+должно быть узким, явным и закрытым regression-тестами.
 
 ## Рекомендация
 

@@ -32,6 +32,9 @@ flowchart LR
 - `state.cursor` tracks total consumed bytes inside the accumulated buffer.
 - `state.phase` reports whether parsing is still in the start line, header block, done, or error phase.
 - `ihtp_parser_state_reset()` preserves `state.mode` and rewinds progress for a fresh message.
+- Parsed request/response/header spans still point into the caller-owned input bytes.
+- `ihtp_parser_state_reset()` does not clear output structs; if the consumer
+  wants fresh zeroed storage it must do that itself.
 
 ## Example
 

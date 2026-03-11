@@ -18,6 +18,9 @@ flowchart LR
 - On completion, a non-negative return value means success and equals the number of undecoded trailing bytes.
 - If `consume_trailer` is `false`, the terminal `CRLF` after the zero chunk and any following bytes remain in trailing data.
 - If `consume_trailer` is `true`, trailer lines are consumed until the terminating empty line, then trailing bytes are reported.
+- Trailing bytes stay in the same caller-owned buffer immediately after the
+  decoded payload prefix.
+- The decoder never allocates or takes ownership of payload or trailer bytes.
 
 ## Fixed-Length Decoder
 
