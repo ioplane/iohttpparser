@@ -134,18 +134,6 @@ static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_polic
     return IHTP_OK;
 }
 
-static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset)
-{
-    const char *pos = memchr(buf, ch, len);
-
-    if (pos == nullptr) {
-        return false;
-    }
-
-    *offset = (size_t)(pos - buf);
-    return true;
-}
-
 static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_offset)
 {
     for (size_t i = 0; i < len; i++) {
@@ -156,6 +144,27 @@ static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_of
                 return false;
             }
             *colon_offset = i;
+            return true;
+        }
+
+        if (!ihtp_is_token_char(c)) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+static bool find_method_space(const char *buf, size_t len, size_t *space_offset)
+{
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (c == ' ') {
+            if (i == 0) {
+                return false;
+            }
+            *space_offset = i;
             return true;
         }
 
@@ -319,7 +328,6 @@ static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_respons
 static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_request_t *req,
                                         const ihtp_policy_t *policy, size_t *line_end)
 {
-    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
     const char *line_break = nullptr;
     size_t line_ending_len = 0;
 
@@ -342,21 +350,13 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
 
     /* Parse: METHOD SP request-target SP HTTP-version */
     size_t sp1_offset = 0;
-    if (!find_char_offset(buf, line_len, ' ', &sp1_offset)) {
+    if (!find_method_space(buf, line_len, &sp1_offset)) {
         return IHTP_ERROR;
     }
     const char *sp1 = buf + sp1_offset;
 
     req->method_str = buf;
     req->method_len = sp1_offset;
-    if (req->method_len == 0) {
-        return IHTP_ERROR;
-    }
-
-    /* Validate method is token */
-    if (!scanner->is_token(req->method_str, req->method_len)) {
-        return IHTP_ERROR;
-    }
     req->method = ihtp_method_from_str(req->method_str, req->method_len);
 
     /* Request-target */

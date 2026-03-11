@@ -623,10 +623,17 @@ Practical interpretation:
 - `iohttpparser-strict` now wins the header-heavy and response-side parser-only scenarios that are
   more relevant to `iohttp` / `ioguard`
 - the remaining story is no longer “`llhttp` is always faster”; it is:
-  - `picohttpparser` is fastest because it does the least
-  - `llhttp` is very cheap on short request parsing because of its generated state machine
-  - `iohttpparser` is now competitive or better on header-heavy and response-side scenarios while
-    preserving a stricter and richer pull-style contract
+- `picohttpparser` is fastest because it does the least
+- `llhttp` is very cheap on short request parsing because of its generated state machine
+- `iohttpparser` is now competitive or better on header-heavy and response-side scenarios while
+  preserving a stricter and richer pull-style contract
+
+The short-request picture is also now clearer:
+
+- `picohttpparser` still dominates `req-small` and `req-line-hot`
+- `llhttp` remains strong on those same cases, but no longer leads the header-heavy and
+  response-side parser-only cases
+- the remaining short-request gap is therefore primarily a `pico` gap, not just a `llhttp` gap
 
 ### Sprint 13 Micro-Localization Findings
 
@@ -760,6 +767,59 @@ Most plausible cost centers in `iohttpparser`:
   overhead.
 - that design is efficient, but it does not expose the same typed pull-style contract that
   `iohttp`/`ioguard` want from `iohttpparser`.
+
+6. `picohttpparser` is faster because it does materially less work
+- it is a tiny stateless parser that mostly finds token boundaries and returns spans
+- it does not carry the same parser-layer semantic contract, stateful API surface, or typed
+  integration-oriented outputs that `iohttpparser` exposes
+- its performance is therefore an upper bound for a much thinner parser contract, not a direct
+  target without changing scope
+
+## Sprint 13 Request-Line Batch 1 (Verified)
+
+The next safe step targeted the short request path by removing one redundant pass over the method
+token:
+
+- `find_method_space()` now finds the first space while validating `METHOD` as a token in the same pass
+- this removes the old sequence:
+  - find first space
+  - validate method token in a second scan
+
+This does not change semantics:
+
+- empty methods still reject
+- invalid token bytes still reject
+- method enum mapping still happens exactly as before
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Focused request-side interpretation:
+
+- the batch is a real win for the short request path
+- it does **not** close the `picohttpparser` gap, because `pico` still carries a much thinner
+  parser contract
+- it slightly improves the `llhttp` comparison on realistic request inputs, but `llhttp` still
+  wins the shortest request baselines
+
+Current 7-run median request-side table:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-hot` | `17,662,722.54` | `22,255,424.02` | `42,469,914.31` |
+| `req-small` | `17,887,212.54` | `24,368,173.87` | `41,152,895.63` |
+| `req-headers` | `8,018,050.66` | `7,733,194.48` | `13,909,296.92` |
+| `req-pico-bench` | `3,459,178.16` | `3,185,810.49` | `7,047,078.29` |
+
+Practical read:
+
+- on short request baselines, `iohttpparser` is still behind both references
+- on realistic header-heavy requests, `iohttpparser` now edges `llhttp` but still trails `pico`
+- this strongly suggests that:
+  - the remaining `llhttp` gap is now mostly concentrated in the shortest request path
+  - the remaining `pico` gap is largely the cost of richer parser work that we intentionally keep
 
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
