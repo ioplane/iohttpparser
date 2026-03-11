@@ -162,6 +162,18 @@ Sprint 7 should now lock down:
 4. call `ihtp_request_apply_semantics()`
 5. hand the remaining bytes to `ihtp_decode_chunked()` when framing is chunked
 
+### CONNECT ownership
+
+`CONNECT` remains intentionally method-driven:
+
+- parsing exposes it through `req.method == IHTP_METHOD_CONNECT`
+- `req.path` carries the authority-form target (`host:port`)
+- semantics do not add a redundant `is_connect_tunnel` boolean
+- tunnel setup, CONNECT-specific ACLs, and post-200 byte forwarding belong to the
+  consumer layer, not parser core
+
+`examples/connect_tunnel.c` is the minimal reference for this handoff model.
+
 ## Recommendation
 
 Treat `iohttp` and `ioguard` as policy consumers of one parser core, not as reasons to fork parser behavior into separate implementations.
