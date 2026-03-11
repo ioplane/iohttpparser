@@ -261,6 +261,53 @@ Per-scenario `req/s`:
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 
+### Sprint 13 Micro-Localization Findings
+
+To localize the remaining gap against `llhttp`, the harness was extended with focused request-side
+scenarios:
+
+- `req-line-hot`
+- `hdr-common-heavy`
+- `hdr-uncommon-valid`
+
+These scenarios separate:
+
+- mostly request-line cost
+- common-header fast-path cost
+- uncommon-header and value-validation cost
+
+Observed pattern:
+
+- the gap versus `llhttp` is present on request-line work, but it becomes materially larger on the
+  generic header path
+- `hdr-common-heavy` narrows the gap relative to `hdr-uncommon-valid`, which supports the earlier
+  conclusion that the common-header fast path is useful
+- `hdr-uncommon-valid` remains the clearest evidence that uncommon header-name handling plus value
+  validation is the hottest remaining parser cost center
+
+Sprint 13 safe tuning step:
+
+- non-continuation header values now use a single-pass trim+validate helper instead of:
+  - trim-left
+  - trim-right
+  - validate
+
+Initial signal after this change:
+
+- request/header-heavy cases improved materially:
+  - `req-headers`
+  - `hdr-common-heavy`
+  - `hdr-uncommon-valid`
+- response-side results were noisier on a single run, so the next acceptance step should be
+  5-run median reporting before treating this as a settled win
+
+Engineering read:
+
+- the next high-value safe optimization area is still the generic header path
+- request-line work matters, but it does not currently explain the whole remaining gap to `llhttp`
+- no evidence yet suggests hidden “cheating” by `llhttp`; the simpler explanation is still lower
+  parser-core cost plus a narrower embedding contract
+
 ### Why `iohttpparser` Still Trails `llhttp`
 
 The current evidence does not suggest hidden magic. The remaining gap is explainable by contract shape

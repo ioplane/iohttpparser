@@ -207,11 +207,21 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
 
 int main(int argc, char **argv)
 {
+    static const char req_line_hot[] =
+        "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
     static const char req_small[] = "GET /api/v1/ping HTTP/1.1\r\nHost: example.test\r\n\r\n";
     static const char req_headers[] =
         "GET /resource/alpha?x=1&y=2 HTTP/1.1\r\nHost: example.test\r\nConnection: keep-alive\r\n"
         "Accept: application/json\r\nUser-Agent: bench-client/1.0\r\nX-Forwarded-For: "
         "203.0.113.10, 198.51.100.42\r\n\r\n";
+    static const char hdr_common_heavy[] =
+        "GET /r HTTP/1.1\r\nHost: example.test\r\nConnection: keep-alive\r\nContent-Length: 0\r\n"
+        "Expect: 100-continue\r\nUpgrade: websocket\r\n\r\n";
+    static const char hdr_uncommon_valid[] =
+        "GET /r HTTP/1.1\r\nX-Custom-Alpha-Token: abcdef1234567890\r\n"
+        "X-Trace-Vector-Path: a,b,c,d,e,f,g\r\n"
+        "X-Long-Meta-Field: token1 token2 token3 token4 token5\r\n"
+        "X-Forwarded-Proto-Chain: https,http,https\r\n\r\n";
     static const char req_connect[] =
         "CONNECT vpn.example.test:443 HTTP/1.1\r\nHost: vpn.example.test:443\r\n"
         "Proxy-Connection: keep-alive\r\n\r\n";
@@ -225,8 +235,12 @@ int main(int argc, char **argv)
         "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n";
 
     static const scenario_t scenarios[] = {
+        {"req-line-hot", SCENARIO_REQUEST, req_line_hot, sizeof(req_line_hot) - 1, false},
         {"req-small", SCENARIO_REQUEST, req_small, sizeof(req_small) - 1, false},
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
+        {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1, false},
+        {"hdr-uncommon-valid", SCENARIO_REQUEST, hdr_uncommon_valid, sizeof(hdr_uncommon_valid) - 1,
+         false},
         {"req-connect", SCENARIO_REQUEST, req_connect, sizeof(req_connect) - 1, true},
         {"resp-small", SCENARIO_RESPONSE, resp_small, sizeof(resp_small) - 1, false},
         {"resp-headers", SCENARIO_RESPONSE, resp_headers, sizeof(resp_headers) - 1, false},

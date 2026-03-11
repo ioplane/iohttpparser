@@ -192,6 +192,40 @@ static bool field_text_is_valid(const char *buf, size_t len)
     return true;
 }
 
+static bool trim_and_validate_field_value(const char *buf, size_t len, const char **trimmed_start,
+                                          size_t *trimmed_len)
+{
+    size_t first = len;
+    size_t last = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (c == '\t' || c == ' ') {
+            continue;
+        }
+
+        if (c < 0x20 || c == 0x7f) {
+            return false;
+        }
+
+        if (first == len) {
+            first = i;
+        }
+        last = i + 1;
+    }
+
+    if (first == len) {
+        *trimmed_start = buf + len;
+        *trimmed_len = 0;
+        return true;
+    }
+
+    *trimmed_start = buf + first;
+    *trimmed_len = last - first;
+    return true;
+}
+
 static bool bytes_eq_ignore_case(const char *buf, size_t len, const char *lit, size_t lit_len)
 {
     if (len != lit_len) {
@@ -458,14 +492,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         /* Skip ": " and trim OWS from value */
         const char *val_start = colon + 1;
         size_t val_len = (size_t)(line_break - val_start);
-        while (val_len > 0 && ihtp_is_lws((uint8_t)*val_start)) {
-            val_start++;
-            val_len--;
-        }
-        while (val_len > 0 && ihtp_is_lws((uint8_t)val_start[val_len - 1])) {
-            val_len--;
-        }
-        if (!field_text_is_valid(val_start, val_len)) {
+        if (!trim_and_validate_field_value(val_start, val_len, &val_start, &val_len)) {
             return IHTP_ERROR;
         }
 
