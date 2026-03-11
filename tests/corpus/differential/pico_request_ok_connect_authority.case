@@ -1,0 +1,10 @@
+reference=pico
+kind=request
+expect=ok
+policy=strict
+version=1.1
+consumed=97
+method=CONNECT
+path=vpn.example.com:443
+num_headers=2
+wire=CONNECT vpn.example.com:443 HTTP/1.1\r\nHost: vpn.example.com:443\r\nProxy-Connection: keep-alive\r\n\r\n

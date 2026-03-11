@@ -29,6 +29,7 @@ typedef struct {
     ihtp_body_mode_t body_mode;
     uint64_t content_length;
     bool keep_alive;
+    bool protocol_upgrade;
     bool has_snapshot;
 } llhttp_semantics_result_t;
 
@@ -36,6 +37,7 @@ typedef struct {
     ihtp_body_mode_t body_mode;
     uint64_t content_length;
     bool keep_alive;
+    bool protocol_upgrade;
     bool has_snapshot;
 } llhttp_semantics_capture_t;
 
@@ -239,13 +241,14 @@ static int llhttp_on_headers_complete(llhttp_t *parser)
     capture->body_mode = classify_llhttp_body_mode(parser);
     capture->content_length = parser->content_length;
     capture->keep_alive = llhttp_should_keep_alive(parser) != 0;
+    capture->protocol_upgrade = llhttp_get_upgrade(parser) != 0;
     capture->has_snapshot = true;
     return 0;
 }
 
 static ihtp_status_t map_llhttp_semantics_status(llhttp_errno_t execute_err)
 {
-    return execute_err == HPE_OK ? IHTP_OK : IHTP_ERROR;
+    return (execute_err == HPE_OK || execute_err == HPE_PAUSED_UPGRADE) ? IHTP_OK : IHTP_ERROR;
 }
 
 static void run_llhttp_request_semantics(const char *buf, size_t len, const ihtp_policy_t *policy,
@@ -269,6 +272,7 @@ static void run_llhttp_request_semantics(const char *buf, size_t len, const ihtp
     result->body_mode = capture.body_mode;
     result->content_length = capture.content_length;
     result->keep_alive = capture.keep_alive;
+    result->protocol_upgrade = capture.protocol_upgrade;
     result->has_snapshot = capture.has_snapshot;
 }
 
@@ -293,6 +297,7 @@ static void run_llhttp_response_semantics(const char *buf, size_t len, const iht
     result->body_mode = capture.body_mode;
     result->content_length = capture.content_length;
     result->keep_alive = capture.keep_alive;
+    result->protocol_upgrade = capture.protocol_upgrade;
     result->has_snapshot = capture.has_snapshot;
 }
 
@@ -309,6 +314,9 @@ static void run_case(const char *path)
     ihtp_body_mode_t body_mode = IHTP_BODY_NONE;
     uint64_t content_length = 0;
     bool keep_alive = false;
+    bool reference_keep_alive = false;
+    bool ihtp_keep_alive = false;
+    bool protocol_upgrade = false;
     bool has_reference = false;
     bool has_kind = false;
     bool has_reference_expect = false;
@@ -318,6 +326,9 @@ static void run_case(const char *path)
     bool has_body_mode = false;
     bool has_content_length = false;
     bool has_keep_alive = false;
+    bool has_reference_keep_alive = false;
+    bool has_ihtp_keep_alive = false;
+    bool has_protocol_upgrade = false;
 
     TEST_ASSERT_NOT_NULL_MESSAGE(fp, path);
 
@@ -366,6 +377,15 @@ static void run_case(const char *path)
         } else if (str_eq(key, "keep_alive")) {
             keep_alive = parse_bool(value, path);
             has_keep_alive = true;
+        } else if (str_eq(key, "reference_keep_alive")) {
+            reference_keep_alive = parse_bool(value, path);
+            has_reference_keep_alive = true;
+        } else if (str_eq(key, "ihtp_keep_alive")) {
+            ihtp_keep_alive = parse_bool(value, path);
+            has_ihtp_keep_alive = true;
+        } else if (str_eq(key, "protocol_upgrade")) {
+            protocol_upgrade = parse_bool(value, path);
+            has_protocol_upgrade = true;
         } else {
             TEST_FAIL_MESSAGE(path);
         }
@@ -408,6 +428,12 @@ static void run_case(const char *path)
             if (has_keep_alive) {
                 TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, req.keep_alive, path);
             }
+            if (has_ihtp_keep_alive) {
+                TEST_ASSERT_EQUAL_INT_MESSAGE(ihtp_keep_alive, req.keep_alive, path);
+            }
+            if (has_protocol_upgrade) {
+                TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, req.protocol_upgrade, path);
+            }
         }
         if (reference_expect == DIFF_EXPECT_OK) {
             TEST_ASSERT_TRUE_MESSAGE(reference.has_snapshot, path);
@@ -419,6 +445,12 @@ static void run_case(const char *path)
             }
             if (has_keep_alive) {
                 TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, reference.keep_alive, path);
+            }
+            if (has_reference_keep_alive) {
+                TEST_ASSERT_EQUAL_INT_MESSAGE(reference_keep_alive, reference.keep_alive, path);
+            }
+            if (has_protocol_upgrade) {
+                TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, reference.protocol_upgrade, path);
             }
         }
         return;
@@ -450,6 +482,12 @@ static void run_case(const char *path)
         if (has_keep_alive) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, resp.keep_alive, path);
         }
+        if (has_ihtp_keep_alive) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(ihtp_keep_alive, resp.keep_alive, path);
+        }
+        if (has_protocol_upgrade) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, resp.protocol_upgrade, path);
+        }
     }
     if (reference_expect == DIFF_EXPECT_OK) {
         TEST_ASSERT_TRUE_MESSAGE(reference.has_snapshot, path);
@@ -461,6 +499,12 @@ static void run_case(const char *path)
         }
         if (has_keep_alive) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, reference.keep_alive, path);
+        }
+        if (has_reference_keep_alive) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(reference_keep_alive, reference.keep_alive, path);
+        }
+        if (has_protocol_upgrade) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, reference.protocol_upgrade, path);
         }
     }
 }
@@ -475,10 +519,12 @@ void test_semantics_differential_cases(void)
         "llhttp_request_reject_conflicting_content_length.case",
         "tests/corpus/semantics-differential/llhttp_request_reject_te_cl.case",
         "tests/corpus/semantics-differential/llhttp_request_lenient_te_cl.case",
+        "tests/corpus/semantics-differential/llhttp_request_upgrade.case",
         "tests/corpus/semantics-differential/llhttp_response_204_ignores_content_length.case",
         "tests/corpus/semantics-differential/llhttp_response_content_length_fixed.case",
         "tests/corpus/semantics-differential/llhttp_response_chunked.case",
         "tests/corpus/semantics-differential/llhttp_response_http11_eof_default_close.case",
+        "tests/corpus/semantics-differential/llhttp_response_switching_protocols_upgrade.case",
         "tests/corpus/semantics-differential/"
         "llhttp_response_identical_duplicate_content_length.case",
         "tests/corpus/semantics-differential/"

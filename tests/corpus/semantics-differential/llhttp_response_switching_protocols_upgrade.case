@@ -1,0 +1,9 @@
+reference=llhttp
+kind=response
+expect=ok
+policy=strict
+body_mode=none
+ihtp_keep_alive=false
+reference_keep_alive=true
+protocol_upgrade=true
+wire=HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n

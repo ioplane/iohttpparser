@@ -163,38 +163,29 @@
 - reference examples:
   - `examples/basic_parse.c`
   - `examples/connect_tunnel.c`
+  - `examples/response_upgrade.c`
+  - `examples/expect_trailers.c`
 
 **Readiness assessment:**
 - parser/scanner correctness: high
 - semantics and framing security: high
 - body decoding and incremental behavior: high
-- public API and consumer documentation: medium-high
+- public API and consumer documentation: high
+- consumer integration confidence: high
+- comparison posture against reference libraries: medium-high
 - release engineering and CI gating: medium
-- overall library readiness: late alpha / early beta candidate, approximately `80%`
+- overall library readiness: late beta candidate, approximately `88%`
 
 **Main remaining gaps before functional completeness:**
-- a few integration-oriented semantics cases still need explicit consumer-facing guidance and examples:
-  - response-side upgrade handoff
-  - `100 Continue` integration flow
-  - trailer consumption ownership beyond the current minimal contract
-- consumer presets exist, but the final contract still needs to be frozen:
-  - keep `IHTP_POLICY_IOHTTP` and `IHTP_POLICY_IOGUARD` equivalent for now with explicit rationale
-  - or make them intentionally distinct in a narrow, test-covered way
-- embedder-facing documentation still needs one final freeze pass on lifetime/ownership/reset guarantees
-- functional completion should be followed by real integration campaigns against `iohttp` and `ioguard`
-- only after functional completion and integration campaigns should CI/release gating be treated as the next priority
+- Sprint 11 comparison campaign still needs to be finalized and merged
+- the comparison report and divergence matrix need one maintained closeout pass after current results are committed
+- consumer presets intentionally remain strict aliases; any future divergence must stay out of the current completion scope
 - SSE4.2 token validation intentionally remains scalar-backed until a proven SIMD-equivalent implementation is justified
 
 **Immediate execution queue:**
-1. Start Sprint 8 for final functional completion:
-   - response upgrade handoff
-   - `100 Continue` flow
-   - trailer ownership examples
-   - final preset-contract decision
-2. Run Sprint 9 as a public API and documentation freeze pass.
-3. Run Sprint 10 as a consumer-style integration campaign for `iohttp` and `ioguard`.
-4. Run Sprint 11 as an expanded `picohttpparser` / `llhttp` comparison campaign.
-5. Only after those four phases start CI and release-gating work.
+1. Finish Sprint 11 comparison campaign and merge the maintained report/corpus updates.
+2. Review whether any additional consumer-visible divergence still needs classification for `iohttp` or `ioguard`.
+3. Only after comparison closeout start Sprint 12 CI and release-gating work.
 
 ---
 
@@ -481,6 +472,15 @@
 ## Sprint 11: Reference Comparison Expansion
 
 **Goal:** expand the maintained comparison posture against `picohttpparser` and `llhttp` after the library contract is frozen.
+
+**Current status:**
+- Sprint 10 consumer integration is merged and now supplies the concrete workflow cases to compare against references
+- differential corpus now includes parser-level `CONNECT` and `101 Switching Protocols` cases for both `picohttpparser` and `llhttp`
+- semantics differential now includes request-side `Upgrade` and response-side `101 Upgrade` coverage against `llhttp`
+- the campaign has already classified one real intentional divergence:
+  - `llhttp` keeps `keep_alive=true` on `101 Upgrade`
+  - `iohttpparser` sets `keep_alive=false` once upgraded protocol ownership transfers
+- current host comparison evidence confirms `sse4_2` and `avx2` availability and records dispatch/scalar/SSE4.2/AVX2 benchmark data under `docs/tmp/comparison/results/`
 
 **Scope:**
 - broader differential corpus
