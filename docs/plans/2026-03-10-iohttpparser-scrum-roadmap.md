@@ -214,10 +214,22 @@
   - release gating for the accumulated Sprint 7 work
 
 **Immediate execution queue:**
-1. Verify and publish the CONNECT-guidance batch.
-2. Decide whether Sprint 7 is complete enough to close.
-3. Clean up merged worktrees and stale branches.
-4. Keep full container quality and docs validation green as Sprint 7 lands.
+1. Freeze public API documentation structure and Doxygen entrypoints.
+2. Keep `cmake --build --target docs` green as part of the Sprint 9 sanity surface.
+3. Normalize public header grouping and embedder-facing API reference wording.
+4. Leave functional integration work to the next sprint after API/docs freeze.
+
+**Current Sprint 9 focus:**
+- `feature/sprint-9-api-freeze` is active from the Sprint 8 completion branch
+- `Doxyfile` now exists and `cmake --build --target docs` is a real validation step
+- public headers are now grouped into explicit Doxygen modules:
+  - `Public API`
+  - `Types and Policies`
+  - `Parser API`
+  - `Semantics API`
+  - `Body Decoder API`
+  - `Scanner API`
+- `docs/en/api-reference.md` now acts as a stable embedder-facing API entrypoint
 
 ---
 

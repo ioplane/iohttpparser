@@ -9,8 +9,15 @@
 
 #include <iohttpparser/ihtp_types.h>
 
+/** @defgroup ihtp_body Body Decoder API
+ *  @ingroup ihtp_api
+ *  @brief Incremental chunked and fixed-length body framing helpers.
+ *  @{
+ */
+
 /**
  * @brief Chunked transfer decoder state.
+ * @ingroup ihtp_body
  *
  * Zero-initialize before first use.
  *
@@ -32,6 +39,7 @@ typedef struct {
 
 /**
  * @brief Decode chunked transfer encoding (in-place).
+ * @ingroup ihtp_body
  *
  * Rewrites buf in-place, removing chunk framing.
  * On return, *bufsz is updated to decoded payload length retained in the
@@ -55,6 +63,7 @@ typedef struct {
 
 /**
  * @brief Fixed-length body decoder state.
+ * @ingroup ihtp_body
  *
  * Initialize with ihtp_fixed_decoder_init().
  */
@@ -65,6 +74,7 @@ typedef struct {
 
 /**
  * @brief Initialize fixed-length body decoder.
+ * @ingroup ihtp_body
  *
  * @param decoder        Decoder state.
  * @param content_length Expected body length from Content-Length header.
@@ -73,6 +83,7 @@ void ihtp_fixed_decoder_init(ihtp_fixed_decoder_t *decoder, uint64_t content_len
 
 /**
  * @brief Consume fixed-length body data.
+ * @ingroup ihtp_body
  *
  * @param decoder Decoder state.
  * @param len     Number of bytes received.
@@ -80,5 +91,7 @@ void ihtp_fixed_decoder_init(ihtp_fixed_decoder_t *decoder, uint64_t content_len
  *         data is needed, IHTP_ERROR if len exceeds remaining bytes.
  */
 [[nodiscard]] ihtp_status_t ihtp_decode_fixed(ihtp_fixed_decoder_t *decoder, size_t len);
+
+/** @} */
 
 #endif /* IOHTTPPARSER_IHTP_BODY_H */

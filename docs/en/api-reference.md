@@ -17,6 +17,21 @@ Public API headers:
 - `include/iohttpparser/ihtp_body.h`
 - `include/iohttpparser/ihtp_scanner.h`
 
+Module map:
+
+- `Public API`:
+  umbrella header and version helpers
+- `Types and Policies`:
+  public enums, structs, limits, and named policy presets
+- `Parser API`:
+  stateless and stateful request/response/header parsing
+- `Semantics API`:
+  framing, keep-alive, upgrade, `Expect`, and trailer handoff
+- `Body Decoder API`:
+  chunked and fixed-length decoder contracts
+- `Scanner API`:
+  low-level delimiter search and token validation helpers
+
 Key properties of the public contract:
 
 - strict-by-default HTTP/1.1 parsing
@@ -24,3 +39,10 @@ Key properties of the public contract:
 - explicit parser, semantics, and body-decoder separation
 - stateful and stateless parser entry points
 - consumer-owned handoff for upgrades, `Expect: 100-continue`, and trailers
+
+Embedder checklist:
+
+- keep the input buffer alive for as long as zero-copy spans are in use
+- treat parser, semantics, and body decoding as separate stages
+- use named policy presets instead of open-coded anonymous policies
+- reset parser state only when starting a new message on a fresh logical stream
