@@ -248,6 +248,7 @@ if(IOHTTPPARSER_BUILD_TESTS)
             IHTP_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
         )
     endif()
+    ihtp_add_test(test_iohttp_integration tests/unit/test_iohttp_integration.c)
     ihtp_add_test(test_body_decoder tests/unit/test_body_decoder.c)
     ihtp_add_test(test_body_decoder_corpus tests/unit/test_body_decoder_corpus.c)
     if(TARGET test_body_decoder_corpus)

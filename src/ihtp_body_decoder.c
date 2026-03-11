@@ -110,6 +110,9 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
                     decoder->state = CHUNK_TRAILER;
                 } else {
                     decoder->state = CHUNK_DONE;
+                    if (src < avail) {
+                        memmove(buf + dst, buf + src, avail - src);
+                    }
                     *bufsz = dst;
                     return (ihtp_status_t)(avail - src);
                 }
@@ -175,6 +178,9 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
                 }
                 src++;
                 decoder->state = CHUNK_DONE;
+                if (src < avail) {
+                    memmove(buf + dst, buf + src, avail - src);
+                }
                 *bufsz = dst;
                 return (ihtp_status_t)(avail - src);
             }
@@ -204,6 +210,9 @@ ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf, si
             return IHTP_ERROR;
 
         case CHUNK_DONE:
+            if (src < avail) {
+                memmove(buf + dst, buf + src, avail - src);
+            }
             *bufsz = dst;
             return (ihtp_status_t)(avail - src);
         }
