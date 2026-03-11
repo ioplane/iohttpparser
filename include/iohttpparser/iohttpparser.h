@@ -13,13 +13,17 @@
  * @brief Main public API header — includes all parser components.
  *
  * Usage:
- *   #include <iohttpparser/iohttpparser.h>
+ * @code{.c}
+ * #include <iohttpparser/iohttpparser.h>
+ * @endcode
  *
  * Or include individual headers:
- *   #include <iohttpparser/ihtp_types.h>
- *   #include <iohttpparser/ihtp_parser.h>
- *   #include <iohttpparser/ihtp_semantics.h>
- *   #include <iohttpparser/ihtp_body.h>
+ * @code{.c}
+ * #include <iohttpparser/ihtp_types.h>
+ * #include <iohttpparser/ihtp_parser.h>
+ * #include <iohttpparser/ihtp_semantics.h>
+ * #include <iohttpparser/ihtp_body.h>
+ * @endcode
  */
 
 #include <iohttpparser/ihtp_body.h>
