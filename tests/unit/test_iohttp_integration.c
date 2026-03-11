@@ -216,6 +216,96 @@ void test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes(void)
     TEST_ASSERT_EQUAL_STRING_LEN(upgraded_bytes, next, sizeof(upgraded_bytes) - 1U);
 }
 
+void test_iohttp_style_fixed_length_response_pipelines_next_response(void)
+{
+    static const char next_response[] = "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n";
+    static const char wire[] = "HTTP/1.1 200 OK\r\n"
+                               "Content-Length: 5\r\n"
+                               "\r\n"
+                               "hello"
+                               "HTTP/1.1 204 No Content\r\n"
+                               "Connection: close\r\n"
+                               "\r\n";
+    ihtp_policy_t policy = IHTP_POLICY_IOHTTP;
+    ihtp_response_t resp;
+    ihtp_parser_state_t state;
+    ihtp_fixed_decoder_t dec;
+    size_t consumed = 0;
+    const char *headers_end = strstr(wire, "\r\n\r\n");
+    const char *body = nullptr;
+    const char *next = nullptr;
+    ihtp_status_t status;
+
+    TEST_ASSERT_NOT_NULL(headers_end);
+
+    memset(&resp, 0, sizeof(resp));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_RESPONSE);
+
+    status = ihtp_parse_response_stateful(&state, wire, strlen(wire), &resp, &policy, &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT((size_t)(headers_end + 4 - wire), consumed);
+    TEST_ASSERT_EQUAL_INT(200, resp.status_code);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_response_apply_semantics(&resp, &policy));
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_FIXED, resp.body_mode);
+    TEST_ASSERT_EQUAL_UINT64(5, resp.content_length);
+    TEST_ASSERT_TRUE(resp.keep_alive);
+
+    body = wire + consumed;
+    TEST_ASSERT_EQUAL_STRING_LEN("hello", body, 5);
+
+    ihtp_fixed_decoder_init(&dec, resp.content_length);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_decode_fixed(&dec, 5));
+
+    next = body + 5;
+    TEST_ASSERT_EQUAL_STRING_LEN(next_response, next, strlen(next_response));
+
+    ihtp_parser_state_reset(&state);
+    memset(&resp, 0, sizeof(resp));
+    consumed = 0;
+
+    status = ihtp_parse_response_stateful(&state, next, strlen(next_response), &resp, &policy,
+                                          &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT(strlen(next_response), consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_response_apply_semantics(&resp, &policy));
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+    TEST_ASSERT_FALSE(resp.keep_alive);
+}
+
+void test_iohttp_style_eof_response_hands_remaining_bytes_to_consumer(void)
+{
+    static const char payload[] = "compressed-stream";
+    static const char wire[] = "HTTP/1.1 200 OK\r\n"
+                               "Transfer-Encoding: gzip\r\n"
+                               "\r\n"
+                               "compressed-stream";
+    ihtp_policy_t policy = IHTP_POLICY_IOHTTP;
+    ihtp_response_t resp;
+    ihtp_parser_state_t state;
+    size_t consumed = 0;
+    const char *headers_end = strstr(wire, "\r\n\r\n");
+    const char *body = nullptr;
+    ihtp_status_t status;
+
+    TEST_ASSERT_NOT_NULL(headers_end);
+
+    memset(&resp, 0, sizeof(resp));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_RESPONSE);
+
+    status = ihtp_parse_response_stateful(&state, wire, strlen(wire), &resp, &policy, &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT((size_t)(headers_end + 4 - wire), consumed);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_response_apply_semantics(&resp, &policy));
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_EOF, resp.body_mode);
+    TEST_ASSERT_FALSE(resp.keep_alive);
+    TEST_ASSERT_FALSE(resp.protocol_upgrade);
+
+    body = wire + consumed;
+    TEST_ASSERT_EQUAL_STRING_LEN(payload, body, strlen(payload));
+}
+
 void test_ioguard_style_rejects_ambiguous_te_cl_request(void)
 {
     static const char wire[] = "POST /blocked HTTP/1.1\r\n"
@@ -277,6 +367,8 @@ int main(void)
     RUN_TEST(test_iohttp_style_chunked_pipeline_reuses_parser_state);
     RUN_TEST(test_iohttp_style_expect_continue_leaves_trailers_to_consumer);
     RUN_TEST(test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes);
+    RUN_TEST(test_iohttp_style_fixed_length_response_pipelines_next_response);
+    RUN_TEST(test_iohttp_style_eof_response_hands_remaining_bytes_to_consumer);
     RUN_TEST(test_ioguard_style_rejects_ambiguous_te_cl_request);
     RUN_TEST(test_ioguard_style_connect_request_hands_authority_to_consumer);
     return UNITY_END();
