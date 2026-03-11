@@ -258,6 +258,148 @@ Per-scenario `req/s`:
 |---|---:|---:|---:|
 | `picohttpparser` | `24,034,125.57` | `2,269.15` | `41.61` |
 | `llhttp` | `10,930,685.57` | `1,032.01` | `91.49` |
+
+## Upstream Design Signals
+
+Official upstream documentation points in a consistent direction:
+
+- `llhttp` explicitly positions itself as a port of `http_parser` to `llparse`, with the output C parser
+  generated from a state-machine description instead of handwritten parser code.
+- The same `llhttp` README says that optimizations and multi-character matching are generated
+  automatically, which lowers maintenance cost while keeping the parser core flat and fast.
+- `picohttpparser` explicitly describes itself as a tiny, primitive, fast HTTP parser that is stateless,
+  allocates no memory, and only sets pointers into the caller-owned buffer.
+
+Practical interpretation for this comparison:
+
+- `llhttp` is not "cheating"; it wins part of its throughput from generated DFA-style structure and a
+  narrower embedder contract.
+- `picohttpparser` is faster still because it intentionally does less work and exposes a thinner API.
+- `iohttpparser` sits in a different design point: a pull-style parser with typed outputs, explicit
+  semantics/framing application, and consumer-facing ownership flags.
+
+## What `iohttpparser` Covers That The References Do Not
+
+`iohttpparser` intentionally covers more wire-level responsibility than `picohttpparser`, and packages
+that responsibility differently than `llhttp`.
+
+Meaningful extra scope already present in this repository:
+
+- typed request/response/header/body structures instead of callback-only or raw pointer-only output
+- explicit parser state API for incremental consumers
+- separate semantics layer for framing and ambiguity resolution
+- body decoder with chunked/fixed-length handoff contracts
+- named consumer presets for `iohttp` and `ioguard`
+- consumer-facing ownership flags:
+  - `protocol_upgrade`
+  - `expects_continue`
+  - `has_trailer_fields`
+- maintained differential and consumer-integration test layers
+
+These responsibilities are appropriate inside this library when they remain strictly wire-level:
+
+- request/status line parsing
+- header parsing and field-value validity
+- framing decisions
+- `Transfer-Encoding` / `Content-Length` ambiguity handling
+- `CONNECT` / `Upgrade` / `100 Continue` / trailer handoff metadata
+- chunked and fixed-length body decode
+
+These responsibilities do **not** belong here and should remain above the library:
+
+- URI normalization / decoding
+- routing
+- cookie parsing
+- auth policy
+- content decoding
+- WebSocket frame parsing
+- application-level upgrade protocols
+
+So the current scope is correct, but it must stay disciplined: secure wire semantics yes, HTTP application
+behavior no.
+
+## Why We Are Still Slower Than `llhttp`
+
+After the Sprint 13 localization passes, there is no evidence that the remaining gap comes from request-line
+handling or from SIMD dispatch.
+
+The strongest evidence points to the generic header path:
+
+- `hdr-common-heavy` improved materially once common header names got a fast path
+- `hdr-uncommon-valid` remains the most expensive header-focused scenario
+- `req-pico-bench` degrades in the same direction, which means long header-heavy requests amplify the same cost
+
+This is consistent with the implementation differences:
+
+- `llhttp` pays for a generated state machine and callback streaming model
+- `picohttpparser` pays for very little beyond structure detection and pointer slicing
+- `iohttpparser` pays extra constant factors for:
+  - richer typed output
+  - generic uncommon-header validation
+  - value trimming/validation
+  - explicit pull-style consumer contract
+
+There is no miracle left to discover here. The remaining gap is the sum of:
+
+- a flatter parser core in `llhttp`
+- a much thinner contract in `picohttpparser`
+- our own extra parser-layer work on every uncommon/long header path
+
+## Negative Result: Table-Driven Field-Value Validation
+
+One mathematically plausible optimization was tested in Sprint 13 and rejected:
+
+- replace per-byte field-value classification in `trim_and_validate_field_value()` with a table-driven lookup
+
+The rationale was sound on paper:
+
+- finite alphabet of `256` byte values
+- branch entropy on header-heavy workloads
+- membership test reducible to table lookup
+
+But the measured result was negative.
+
+Focused 5-run median comparison on the same host (`RUNS=5`, `ITERATIONS=100000`):
+
+| Scenario | Baseline strict req/s | Table strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `6,034,987.72` | `4,859,242.33` | `-19.5%` |
+| `req-headers` | `5,436,421.81` | `4,643,772.50` | `-14.6%` |
+| `req-pico-bench` | `1,632,850.95` | `1,221,283.53` | `-25.2%` |
+
+Why it likely regressed:
+
+- the original predicate is already simple and compiler-friendly
+- the table-driven version added an extra dependent memory load per byte
+- on these workloads, the added load cost dominated any branch-prediction win
+
+Engineering decision:
+
+- do not pursue table-driven field-value classification further
+- prefer optimizations that remove work, not optimizations that replace arithmetic with extra memory traffic
+
+## Tuning Directions That Still Look Safe
+
+The next safe directions should stay narrow and evidence-driven:
+
+1. keep using focused scenario groups:
+   - `hdr-uncommon-valid`
+   - `req-headers`
+   - `req-pico-bench`
+2. optimize only when the 5-run median improves on those scenarios
+3. reject changes that merely reshuffle work without reducing it
+
+Promising directions:
+
+- reduce generic uncommon-header overhead without adding table lookups
+- reduce repeated pointer arithmetic in long header lines
+- consider generated or semi-generated parser techniques only if they preserve the current public contract
+
+Unpromising directions based on current evidence:
+
+- branchless/table-driven field-value validation
+- wider SIMD in parser logic without proof that scanner cost is the limiting factor
+- moving wire-level ambiguity handling out of the library just to gain parser throughput
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 
