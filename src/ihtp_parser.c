@@ -12,37 +12,75 @@
 
 /* ─── Method lookup ───────────────────────────────────────────────────── */
 
-static const struct {
-    const char *name;
-    size_t len;
-    ihtp_method_t method;
-} method_table[] = {
-    {"GET", 3, IHTP_METHOD_GET},     {"POST", 4, IHTP_METHOD_POST},
-    {"PUT", 3, IHTP_METHOD_PUT},     {"DELETE", 6, IHTP_METHOD_DELETE},
-    {"HEAD", 4, IHTP_METHOD_HEAD},   {"OPTIONS", 7, IHTP_METHOD_OPTIONS},
-    {"PATCH", 5, IHTP_METHOD_PATCH}, {"CONNECT", 7, IHTP_METHOD_CONNECT},
-    {"TRACE", 5, IHTP_METHOD_TRACE},
-};
-
-#define METHOD_TABLE_SIZE (sizeof(method_table) / sizeof(method_table[0]))
-
 ihtp_method_t ihtp_method_from_str(const char *method, size_t method_len)
 {
-    for (size_t i = 0; i < METHOD_TABLE_SIZE; i++) {
-        if (method_len == method_table[i].len &&
-            memcmp(method, method_table[i].name, method_len) == 0) {
-            return method_table[i].method;
+    switch (method_len) {
+    case 3:
+        if (memcmp(method, "GET", 3) == 0) {
+            return IHTP_METHOD_GET;
         }
+        if (memcmp(method, "PUT", 3) == 0) {
+            return IHTP_METHOD_PUT;
+        }
+        break;
+    case 4:
+        if (memcmp(method, "POST", 4) == 0) {
+            return IHTP_METHOD_POST;
+        }
+        if (memcmp(method, "HEAD", 4) == 0) {
+            return IHTP_METHOD_HEAD;
+        }
+        break;
+    case 5:
+        if (memcmp(method, "PATCH", 5) == 0) {
+            return IHTP_METHOD_PATCH;
+        }
+        if (memcmp(method, "TRACE", 5) == 0) {
+            return IHTP_METHOD_TRACE;
+        }
+        break;
+    case 6:
+        if (memcmp(method, "DELETE", 6) == 0) {
+            return IHTP_METHOD_DELETE;
+        }
+        break;
+    case 7:
+        if (memcmp(method, "OPTIONS", 7) == 0) {
+            return IHTP_METHOD_OPTIONS;
+        }
+        if (memcmp(method, "CONNECT", 7) == 0) {
+            return IHTP_METHOD_CONNECT;
+        }
+        break;
+    default:
+        break;
     }
     return IHTP_METHOD_UNKNOWN;
 }
 
 const char *ihtp_method_to_str(ihtp_method_t method)
 {
-    for (size_t i = 0; i < METHOD_TABLE_SIZE; i++) {
-        if (method_table[i].method == method) {
-            return method_table[i].name;
-        }
+    switch (method) {
+    case IHTP_METHOD_GET:
+        return "GET";
+    case IHTP_METHOD_POST:
+        return "POST";
+    case IHTP_METHOD_PUT:
+        return "PUT";
+    case IHTP_METHOD_DELETE:
+        return "DELETE";
+    case IHTP_METHOD_HEAD:
+        return "HEAD";
+    case IHTP_METHOD_OPTIONS:
+        return "OPTIONS";
+    case IHTP_METHOD_PATCH:
+        return "PATCH";
+    case IHTP_METHOD_CONNECT:
+        return "CONNECT";
+    case IHTP_METHOD_TRACE:
+        return "TRACE";
+    default:
+        break;
     }
     return "UNKNOWN";
 }
@@ -110,14 +148,14 @@ static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset
 
 static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *offset)
 {
-    for (size_t i = len; i > 0; i--) {
-        if ((unsigned char)buf[i - 1] == (unsigned char)ch) {
-            *offset = i - 1;
-            return true;
-        }
+    const char *pos = memrchr(buf, ch, len);
+
+    if (pos == nullptr) {
+        return false;
     }
 
-    return false;
+    *offset = (size_t)(pos - buf);
+    return true;
 }
 
 static bool request_target_is_valid(const char *buf, size_t len, bool allow_spaces)
@@ -152,6 +190,51 @@ static bool field_text_is_valid(const char *buf, size_t len)
     }
 
     return true;
+}
+
+static bool bytes_eq_ignore_case(const char *buf, size_t len, const char *lit, size_t lit_len)
+{
+    if (len != lit_len) {
+        return false;
+    }
+
+    for (size_t i = 0; i < len; i++) {
+        char a = buf[i];
+        char b = lit[i];
+
+        if (a >= 'A' && a <= 'Z') {
+            a = (char)(a + ('a' - 'A'));
+        }
+        if (b >= 'A' && b <= 'Z') {
+            b = (char)(b + ('a' - 'A'));
+        }
+        if (a != b) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool is_common_header_name(const char *name, size_t name_len)
+{
+    switch (name_len) {
+    case 4:
+        return bytes_eq_ignore_case(name, name_len, "Host", 4);
+    case 6:
+        return bytes_eq_ignore_case(name, name_len, "Expect", 6);
+    case 7:
+        return bytes_eq_ignore_case(name, name_len, "Upgrade", 7) ||
+               bytes_eq_ignore_case(name, name_len, "Trailer", 7);
+    case 10:
+        return bytes_eq_ignore_case(name, name_len, "Connection", 10);
+    case 14:
+        return bytes_eq_ignore_case(name, name_len, "Content-Length", 14);
+    case 17:
+        return bytes_eq_ignore_case(name, name_len, "Transfer-Encoding", 17);
+    default:
+        return false;
+    }
 }
 
 static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_response_t *resp,
@@ -216,6 +299,7 @@ static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_respons
 static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_request_t *req,
                                         const ihtp_policy_t *policy, size_t *line_end)
 {
+    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
     const char *line_break = nullptr;
     size_t line_ending_len = 0;
 
@@ -250,7 +334,7 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
     }
 
     /* Validate method is token */
-    if (!ihtp_scanner_get()->is_token(req->method_str, req->method_len)) {
+    if (!scanner->is_token(req->method_str, req->method_len)) {
         return IHTP_ERROR;
     }
     req->method = ihtp_method_from_str(req->method_str, req->method_len);
@@ -299,6 +383,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
                                         size_t max_headers, const ihtp_policy_t *policy,
                                         size_t *block_end)
 {
+    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
     size_t count = initial_count;
     size_t pos = 0;
 
@@ -365,7 +450,8 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
 
         /* Validate header name is token */
         if (headers[count].name_len == 0 ||
-            !ihtp_scanner_get()->is_token(headers[count].name, headers[count].name_len)) {
+            (!is_common_header_name(headers[count].name, headers[count].name_len) &&
+             !scanner->is_token(headers[count].name, headers[count].name_len))) {
             return IHTP_ERROR;
         }
 
