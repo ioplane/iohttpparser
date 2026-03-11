@@ -456,8 +456,9 @@
 - first `iohttp`-style integration harness is in place
 - `Expect: 100-continue` plus consumer-owned trailer handoff is covered by the same integration harness
 - response-side `101 Upgrade` handoff is covered, including upgraded protocol bytes left to the consumer after the header block
+- strict-profile `ioguard` scenarios now cover both fail-closed ambiguity rejection and `CONNECT` authority-form handoff
 - chunked body decoder now preserves trailing bytes immediately after the decoded payload prefix, matching the documented embedder contract
-- next Sprint 10 batches should expand this baseline into strict-profile `ioguard` scenarios
+- next Sprint 10 batches should expand this baseline into any remaining consumer friction points before the comparison campaign
 
 **Scope:**
 - `iohttp`-style request/response/body handoff

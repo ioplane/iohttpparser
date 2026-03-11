@@ -216,11 +216,68 @@ void test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes(void)
     TEST_ASSERT_EQUAL_STRING_LEN(upgraded_bytes, next, sizeof(upgraded_bytes) - 1U);
 }
 
+void test_ioguard_style_rejects_ambiguous_te_cl_request(void)
+{
+    static const char wire[] = "POST /blocked HTTP/1.1\r\n"
+                               "Host: example.com\r\n"
+                               "Transfer-Encoding: chunked\r\n"
+                               "Content-Length: 12\r\n"
+                               "\r\n";
+    ihtp_policy_t policy = IHTP_POLICY_IOGUARD;
+    ihtp_request_t req;
+    ihtp_parser_state_t state;
+    size_t consumed = 0;
+    ihtp_status_t status;
+
+    memset(&req, 0, sizeof(req));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+
+    status = ihtp_parse_request_stateful(&state, wire, strlen(wire), &req, &policy, &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_INT(IHTP_METHOD_POST, req.method);
+    TEST_ASSERT_EQUAL_STRING_LEN("/blocked", req.path, req.path_len);
+
+    status = ihtp_request_apply_semantics(&req, &policy);
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, status);
+}
+
+void test_ioguard_style_connect_request_hands_authority_to_consumer(void)
+{
+    static const char wire[] = "CONNECT vpn.example.com:443 HTTP/1.1\r\n"
+                               "Host: vpn.example.com:443\r\n"
+                               "Proxy-Connection: keep-alive\r\n"
+                               "\r\n";
+    ihtp_policy_t policy = IHTP_POLICY_IOGUARD;
+    ihtp_request_t req;
+    ihtp_parser_state_t state;
+    size_t consumed = 0;
+    ihtp_status_t status;
+
+    memset(&req, 0, sizeof(req));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+
+    status = ihtp_parse_request_stateful(&state, wire, strlen(wire), &req, &policy, &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT(strlen(wire), consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_METHOD_CONNECT, req.method);
+    TEST_ASSERT_EQUAL_STRING_LEN("vpn.example.com:443", req.path, req.path_len);
+
+    status = ihtp_request_apply_semantics(&req, &policy);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, req.body_mode);
+    TEST_ASSERT_TRUE(req.keep_alive);
+    TEST_ASSERT_FALSE(req.protocol_upgrade);
+    TEST_ASSERT_FALSE(req.expects_continue);
+    TEST_ASSERT_FALSE(req.has_trailer_fields);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_iohttp_style_chunked_pipeline_reuses_parser_state);
     RUN_TEST(test_iohttp_style_expect_continue_leaves_trailers_to_consumer);
     RUN_TEST(test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes);
+    RUN_TEST(test_ioguard_style_rejects_ambiguous_te_cl_request);
+    RUN_TEST(test_ioguard_style_connect_request_hands_authority_to_consumer);
     return UNITY_END();
 }
