@@ -68,3 +68,7 @@ int main(void)
 ## Когда использовать
 
 Stateful API нужен там, где consumer уже держит connection state и хочет явно контролировать прогресс parser layer. Stateless API по-прежнему подходит для простого accumulated-buffer сценария, где отдельный state object не даёт выигрыша.
+
+Для throughput-sensitive consumer-ов stateful API также является предпочтительным hot path. По
+контракту stateless wrappers перед делегированием в тот же parser path каждый раз очищают output
+struct, поэтому они проще для использования, но немного дороже в tight loop.

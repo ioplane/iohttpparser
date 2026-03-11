@@ -1272,6 +1272,70 @@ The corresponding methodology fix is also kept:
 - `scripts/run-throughput-compare.sh` now forwards extra benchmark arguments such as `--scenario`
 - this prevents accidental “all-scenarios” runs when only one targeted median was intended
 
+### API Shape Cost: Stateful vs Stateless
+
+The throughput story also depends on **which public `iohttpparser` API shape is measured**.
+
+The stateless wrappers:
+
+- `ihtp_parse_request()`
+- `ihtp_parse_response()`
+
+clear the output struct on every call by contract before delegating to the stateful parser path.
+
+For throughput-sensitive consumers, the relevant hot path is therefore the stateful API:
+
+- `ihtp_parse_request_stateful()`
+- `ihtp_parse_response_stateful()`
+
+Five-run median comparison (`RUNS=5`, `ITERATIONS=150000`) showed:
+
+| Scenario | `iohttpparser` stateless | `iohttpparser` stateful | `llhttp` | `picohttpparser` |
+|---|---:|---:|---:|---:|
+| `req-small` | `17.91M req/s` | `19.73M req/s` | `23.32M` | `41.02M` |
+| `hdr-uncommon-valid` | `8.65M req/s` | `9.39M req/s` | `9.11M` | `17.05M` |
+| `hdr-value-heavy` | `4.66M req/s` | `5.00M req/s` | `3.53M` | `8.16M` |
+| `req-pico-bench` | `3.95M req/s` | `4.43M req/s` | `3.12M` | `7.16M` |
+
+Interpretation:
+
+- stateful parsing is already the right performance-oriented integration path for `iohttp` and
+  `ioguard`
+- once measured on that intended API shape, `iohttpparser` is already ahead of `llhttp` on the
+  realistic header-heavy scenarios in this campaign
+- `picohttpparser` still leads on raw parser throughput because it does materially less parser-layer
+  work and exposes a thinner contract
+
+### Byte-Amplification View of the Remaining Gap
+
+The built-in trace mode makes the remaining throughput gap easier to explain in plain arithmetic.
+
+On `req-pico-bench` with `40000` iterations:
+
+- input bytes processed: `703 * 40000 = 28,120,000`
+- observed helper byte counts:
+  - `find_line_end_bytes = 28,120,000`
+  - `find_header_name_colon_bytes = 3,960,000`
+  - `trim_field_value_bytes = 20,360,000`
+  - `field_text_bytes = 20,000,000`
+  - `request_target_bytes = 2,400,000`
+
+That means the parser hot path touches roughly:
+
+- `74,840,000` helper-attributed bytes
+- for `28,120,000` bytes of wire input
+- or about **2.66x byte amplification**
+
+This is the cleanest mechanical explanation for why `picohttpparser` still stays faster:
+
+- it performs fewer typed parser-layer obligations on the same wire bytes
+- its contract is thinner, so it can stay closer to one-pass slicing
+
+It also explains why the remaining optimization space is now narrow:
+
+- request-line helpers are no longer the main problem
+- the remaining cost is dominated by repeated line/value work on realistic header-heavy inputs
+
 ### Are These Extra Responsibilities in the Right Layer?
 
 Mostly yes, with an important boundary.
