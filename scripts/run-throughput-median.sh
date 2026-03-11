@@ -6,13 +6,15 @@ RUNS="${RUNS:-5}"
 ITERATIONS="${ITERATIONS:-100000}"
 CONNECT_ONLY="${CONNECT_ONLY:-0}"
 WORKDIR="${WORKDIR:-$ROOT_DIR/docs/tmp/throughput-median}"
+EXTRA_ARGS="${EXTRA_ARGS:-}"
 
 mkdir -p "$WORKDIR"
 
 for run in $(seq 1 "$RUNS"); do
     out="$WORKDIR/run-$run.tsv"
     FORMAT=tsv CONNECT_ONLY="$CONNECT_ONLY" ITERATIONS="$ITERATIONS" \
-        bash "$ROOT_DIR/scripts/run-throughput-compare.sh" | awk '/^format\t/ {found=1} found {print}' >"$out"
+        bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS |
+        awk '/^format\t/ {found=1} found {print}' >"$out"
 done
 
 python3 - "$WORKDIR" "$RUNS" <<'PY'

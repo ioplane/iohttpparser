@@ -309,6 +309,32 @@ stateful and stateless `iohttpparser` throughput stayed close:
 This means the current dominant cost is not the stateless wrapper itself. The real work still sits
 inside the generic header parsing path.
 
+#### Profiler-guided Batch: colon search via `memchr`
+
+Based on the new trace and `callgrind` runs, the next low-risk change replaced the manual byte loop
+in `find_header_name_colon()` with:
+
+1. `memchr` to find the first `:`
+2. token validation only on the prefix before the colon
+
+This keeps the same parser semantics while letting libc take the fast path for the common
+“valid name + one colon” shape.
+
+5-run median after this batch:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `4,622,722.94` | `4,551,522.97` | `9,189,382.51` |
+| `hdr-uncommon-valid` | `9,056,543.62` | `9,035,132.75` | `16,467,373.03` |
+| `req-pico-bench` | `4,107,066.63` | `3,113,414.98` | `7,187,104.04` |
+
+Interpretation:
+
+- this batch is a real three-way win for `iohttpparser` against `llhttp`
+- it does not erase the gap to `picohttpparser`
+- the remaining raw-throughput leader is still `picohttpparser`, so future tuning should continue
+  to benchmark against all three, but explain the residual gap primarily relative to `pico`
+
 Current reproducible results from the repository harness (`200000` iterations):
 
 Common 5-scenario matrix:

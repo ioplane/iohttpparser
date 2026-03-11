@@ -169,26 +169,31 @@ static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_polic
 
 static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_offset)
 {
+    const char *colon = nullptr;
+
     IHTP_PERF_ADD(find_header_name_colon_calls, 1);
+    colon = memchr(buf, ':', len);
+    if (colon == nullptr) {
+        IHTP_PERF_ADD(find_header_name_colon_bytes, len);
+        return false;
+    }
 
-    for (size_t i = 0; i < len; i++) {
+    *colon_offset = (size_t)(colon - buf);
+    IHTP_PERF_ADD(find_header_name_colon_bytes, *colon_offset + 1);
+
+    if (*colon_offset == 0) {
+        return false;
+    }
+
+    for (size_t i = 0; i < *colon_offset; i++) {
         uint8_t c = (uint8_t)buf[i];
-        IHTP_PERF_ADD(find_header_name_colon_bytes, 1);
-
-        if (c == ':') {
-            if (i == 0) {
-                return false;
-            }
-            *colon_offset = i;
-            return true;
-        }
 
         if (!ihtp_is_token_char(c)) {
             return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 static bool find_method_space(const char *buf, size_t len, size_t *space_offset)
