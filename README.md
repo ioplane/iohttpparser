@@ -128,8 +128,8 @@ if (ihtp_parse_request_stateful(&st, wire, partial_len, &req, nullptr, &consumed
 ```
 
 See:
-- [`docs/en/parser-state.md`](docs/en/parser-state.md)
-- [`docs/ru/parser-state.md`](docs/ru/parser-state.md)
+- [`docs/en/06-parser-state.md`](docs/en/06-parser-state.md)
+- [`docs/ru/06-parser-state.md`](docs/ru/06-parser-state.md)
 
 ## Consumer Policy Presets
 

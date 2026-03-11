@@ -7,6 +7,14 @@
 
 The stateful API keeps the project on the same pull-based model as the original stateless functions. It does not introduce callbacks, hidden allocation, or parser-owned buffers.
 
+```mermaid
+flowchart LR
+    A[caller-owned accumulated buffer] --> B[ihtp_parser_state_t]
+    B --> C[ihtp_parse_*_stateful]
+    C --> D[zero-copy spans]
+    C --> E[state.phase and state.cursor]
+```
+
 ## Available API
 
 - `ihtp_parser_state_t`

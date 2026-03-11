@@ -2,6 +2,14 @@
 
 Layer 4 в `iohttpparser` отвечает только за framing тела сообщения. Этот слой не владеет транспортными буферами, не делает скрытых аллокаций и не декодирует application-level content codings.
 
+```mermaid
+flowchart LR
+    A[wire bytes] --> B[ihtp_decode_chunked или ihtp_decode_fixed]
+    B --> C[payload bytes в буфере caller]
+    B --> D[состояние decoder accounting]
+    B --> E[trailing bytes для handoff caller]
+```
+
 ## Chunked Decoder
 
 - `ihtp_decode_chunked()` работает инкрементально. Один и тот же `ihtp_chunked_decoder_t` нужно переиспользовать между вызовами по мере прихода новых байтов.

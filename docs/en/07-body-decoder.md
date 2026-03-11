@@ -2,6 +2,14 @@
 
 `iohttpparser` layer 4 handles body framing only. It does not own transport buffers, allocate hidden state, or decode application-level content codings.
 
+```mermaid
+flowchart LR
+    A[wire bytes] --> B[ihtp_decode_chunked or ihtp_decode_fixed]
+    B --> C[payload bytes in caller buffer]
+    B --> D[decoder accounting state]
+    B --> E[trailing bytes for caller handoff]
+```
+
 ## Chunked Decoder
 
 - `ihtp_decode_chunked()` is incremental. Reuse the same `ihtp_chunked_decoder_t` across calls as more bytes arrive.

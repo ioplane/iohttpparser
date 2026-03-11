@@ -14,7 +14,7 @@
 
 **MCP note:** no MCP resources are currently configured for this repository, so planning relies on local docs, repo skills, and `gh api graphql`.
 
-## Current Status (2026-03-10)
+## Current Status (2026-03-11)
 
 **Completed:**
 - dev image `localhost/iohttpparser-dev:latest` builds successfully
@@ -111,7 +111,7 @@
   - both `fuzz_chunked` and `fuzz_parser` have been executed successfully in the container against local seed corpora
   - body decoder corpus now exists under `tests/corpus/body/`
   - `test_body_decoder_corpus` is wired into `ctest` for representative valid and invalid chunked and fixed-length cases
-  - decoder contracts are now documented in `include/iohttpparser/ihtp_body.h`, `README.md`, `docs/en/body-decoder.md`, and `docs/ru/body-decoder.md`
+- decoder contracts are now documented in `include/iohttpparser/ihtp_body.h`, `README.md`, `docs/en/07-body-decoder.md`, and `docs/ru/07-body-decoder.md`
   - `scripts/run-body-fuzz.sh` now provides a reproducible in-container body-fuzz workflow using temporary corpus copies
   - Sprint 3 closeout verification is green on this branch:
     - `cmake --preset clang-debug`
@@ -125,99 +125,76 @@
     - `ctest --preset clang-debug`
     - `./scripts/quality.sh`
 
-**Current Sprint 1 focus:**
-- continue scalar edge-case coverage
-- expand malformed request/response corpus
-- keep full container quality baseline green as parser tasks land
+**Merged sprint summary:**
+- Sprint 1: scalar request/status/header correctness is merged on `main`
+- Sprint 2: framing and semantics hardening is merged on `main`
+- Sprint 3: body decoder completion, body corpus, and body-fuzz workflow are merged on `main`
+- Sprint 4: SIMD/scanner equivalence, fuzzing, and benchmark smoke tooling are merged on `main`
+- Sprint 5: public stateful parser API is merged on `main`
+- Sprint 6: parser-level and semantics-level differential validation against `picohttpparser` and `llhttp` is merged on `main`
+- Sprint 7: consumer contracts, public semantics API, ownership flags, named consumer presets, and `CONNECT` guidance are merged on `main`
 
-**Current Sprint 2 focus:**
-- continue semantics hardening around framing ambiguity
-- expand negative corpus for smuggling-sensitive cases
-- keep full container quality baseline green as semantics tasks land
+**Quality evidence on current `main` (2026-03-11):**
+- `./scripts/quality.sh` passes in the dev container
+- regression surface is currently green for:
+  - scalar/scanner/unit tests
+  - parser-state tests
+  - parser and semantics differential tests
+  - semantics corpus tests
+  - body decoder and body corpus tests
+  - `clang-format`
+  - `cppcheck`
+  - `PVS-Studio`
+  - `CodeChecker`
 
-**Current Sprint 3 focus:**
-- closeout branch is ready for review and merge
-- next implementation focus after merge is Sprint 4 SIMD scalar-equivalence and benchmarks
-
-**Current Sprint 4 focus:**
-- `feature/sprint-4-simd-equivalence` is active from the Sprint 3 closeout branch
-- scanner backend equivalence is now covered in `test_scanner_backends`
-- scanner corpus coverage now exists under `tests/corpus/scanner/` with `test_scanner_corpus`
-- runtime dispatch invariants are now covered for active backend selection and public scanner delegation
-- exhaustive single-byte scanner invariants now cover all 256 byte values for token classification and delimiter search
-- internal backend selection is now testable directly via explicit SIMD-level selection
-- internal backend naming is now exposed for deterministic diagnostics without changing public API
-- SSE4.2 delimiter loading was hardened to avoid over-reading short delimiter strings
-- `scripts/run-scanner-bench.sh` now provides a reproducible container benchmark smoke-run
-- `scripts/check-scanner-bench.sh` now verifies machine-readable benchmark output shape for reproducible smoke checks
-- `fuzz_scanner` and `scripts/run-scanner-fuzz.sh` now provide differential scanner fuzzing against scalar truth
-- benchmark slices now include longer parser-like request and header inputs
-- full Sprint 4 checkpoint baseline is green:
-  - `cmake --preset clang-debug`
-  - `cmake --build --preset clang-debug`
-  - `ctest --preset clang-debug`
-  - `ITERATIONS=3000 bash scripts/run-scanner-bench.sh`
-  - `./scripts/quality.sh`
-- next implementation focus is verifying fallback behavior more explicitly and deciding whether SIMD token validation should remain scalar-backed
-
-**Current Sprint 5 focus:**
-- `feature/sprint-5-parser-state` is active from `origin/main`
-- `ihtp_parser_state_t` now exists as a public parser-state API for request, response, and headers-only parsing
-- public stateful entry points now exist:
-  - `ihtp_parse_request_stateful()`
-  - `ihtp_parse_response_stateful()`
-  - `ihtp_parse_headers_stateful()`
-- `ihtp_parser_state_init()` and `ihtp_parser_state_reset()` are now public helpers
-- existing stateless public API remains unchanged and is now layered on top of the stateful path
-- request/status line progress and header-block progress can now survive repeated calls on the same accumulated buffer without restarting from byte zero
-- new `test_parser_state` covers:
-  - request start-line to headers transition
-  - response status-line to headers transition
-  - headers-only incremental progress
-  - sticky error phase behavior
-  - public state reset behavior
-- full Sprint 5 checkpoint baseline is green:
-  - `cmake --preset clang-debug`
-  - `cmake --build --preset clang-debug`
-  - `ctest --preset clang-debug`
-  - `./scripts/quality.sh`
-- next implementation focus is documenting the public stateful API in user-facing docs and deciding whether parser-state consumers need finer-grained completion metadata beyond `phase` and `cursor`
-
-**Current Sprint 6 focus:**
-- Sprint 6 differential work is merged on `main`
-- differential corpus infrastructure exists under `tests/corpus/differential/`
-- `test_differential_corpus` and `test_semantics_differential` are part of the current regression surface
-- real `picohttpparser` and `llhttp` references are vendored under `tests/third_party/`
-- parser-level and semantics-level divergence against `llhttp` and `picohttpparser` is now explicit enough to support consumer-contract work
-
-**Current Sprint 7 focus:**
-- `feature/sprint-7-consumer-contracts` is active from `main`
-- the primary contract consumers are now:
-  - `iohttp`
-  - `ioguard` (formerly `ringwall`)
-- consumer contract docs now exist in `docs/en/05-consumer-contracts.md` and `docs/ru/05-consumer-contracts.md`
-- public semantics handoff is now formalized in `include/iohttpparser/ihtp_semantics.h`
-- current Sprint 7 semantics batch is green for:
-  - `protocol_upgrade`
-  - `Expect: 100-continue` ownership via `expects_continue`
-  - trailer advertisement ownership via `has_trailer_fields`
-  - strict rejection of `Trailer` on non-chunked framing
-- named policy presets now exist:
+**Current functionality baseline:**
+- strict-by-default HTTP/1.1 request, response, and headers-only parsing
+- public stateless and stateful parser APIs
+- hardened semantics for framing, keep-alive, `Host`, `Transfer-Encoding`, and `Content-Length`
+- incremental fixed-length and chunked body decoding with trailer handling
+- explicit consumer handoff for:
+  - protocol upgrades
+  - `Expect: 100-continue`
+  - trailer ownership
+  - `CONNECT` tunneling decisions
+- consumer presets:
   - `IHTP_POLICY_IOHTTP`
   - `IHTP_POLICY_IOGUARD`
-- `examples/basic_parse.c` now demonstrates stateful parsing plus semantics/body handoff
-- `examples/connect_tunnel.c` now demonstrates CONNECT authority-form handoff for `ioguard`
-- unit and corpus coverage now pin these semantics contracts before broader integration examples land
-- next implementation focus:
-  - decide whether Sprint 7 needs any more examples beyond basic request + CONNECT
-  - branch cleanup for older merged worktrees
-  - release gating for the accumulated Sprint 7 work
+- reference examples:
+  - `examples/basic_parse.c`
+  - `examples/connect_tunnel.c`
+
+**Readiness assessment:**
+- parser/scanner correctness: high
+- semantics and framing security: high
+- body decoding and incremental behavior: high
+- public API and consumer documentation: medium-high
+- release engineering and CI gating: medium
+- overall library readiness: late alpha / early beta candidate, approximately `80%`
+
+**Main remaining gaps before functional completeness:**
+- a few integration-oriented semantics cases still need explicit consumer-facing guidance and examples:
+  - response-side upgrade handoff
+  - `100 Continue` integration flow
+  - trailer consumption ownership beyond the current minimal contract
+- consumer presets exist, but the final contract still needs to be frozen:
+  - keep `IHTP_POLICY_IOHTTP` and `IHTP_POLICY_IOGUARD` equivalent for now with explicit rationale
+  - or make them intentionally distinct in a narrow, test-covered way
+- embedder-facing documentation still needs one final freeze pass on lifetime/ownership/reset guarantees
+- functional completion should be followed by real integration campaigns against `iohttp` and `ioguard`
+- only after functional completion and integration campaigns should CI/release gating be treated as the next priority
+- SSE4.2 token validation intentionally remains scalar-backed until a proven SIMD-equivalent implementation is justified
 
 **Immediate execution queue:**
-1. Verify and publish the CONNECT-guidance batch.
-2. Decide whether Sprint 7 is complete enough to close.
-3. Clean up merged worktrees and stale branches.
-4. Keep full container quality and docs validation green as Sprint 7 lands.
+1. Start Sprint 8 for final functional completion:
+   - response upgrade handoff
+   - `100 Continue` flow
+   - trailer ownership examples
+   - final preset-contract decision
+2. Run Sprint 9 as a public API and documentation freeze pass.
+3. Run Sprint 10 as a consumer-style integration campaign for `iohttp` and `ioguard`.
+4. Run Sprint 11 as an expanded `picohttpparser` / `llhttp` comparison campaign.
+5. Only after those four phases start CI and release-gating work.
 
 ---
 
@@ -360,26 +337,24 @@
 
 ---
 
-## Sprint 5: Fuzzing, Sanitizers, and Static Analysis
+## Sprint 5: Public Stateful Parser API
 
-**Goal:** Raise confidence before consumer integration.
+**Goal:** Make incremental parser use explicit in the public API without abandoning the existing stateless surface.
 
 **Scope:**
-- fuzz targets
-- ASan/UBSan
-- MSan where practical
-- cppcheck
-- PVS-Studio
-- CodeChecker
+- `ihtp_parser_state_t`
+- stateful request, response, and headers-only entry points
+- reset/init lifecycle
+- consumer-facing parser-state docs
 
 **Tasks:**
-- integrate fuzz scripts
-- curate malformed corpus from `docs/tmp/draft`
-- baseline and fix analyzer findings
+- expose parser-state lifecycle in public headers
+- preserve existing stateless API as a compatibility layer over the stateful path
+- document parser-state behavior and incremental expectations
 
 **Exit criteria:**
-- quality pipeline passes for touched code
-- corpus and fuzz harness are documented in repo
+- stateful parser APIs are public and regression-covered
+- parser-state lifecycle is documented in `README` and docs
 
 ---
 
@@ -406,40 +381,135 @@
 
 ---
 
-## Sprint 7: ioguard Strict-Profile Integration
+## Sprint 7: Consumer Contracts and Integration Guidance
 
-**Goal:** Provide a stricter consumer profile for `ioguard`.
+**Goal:** Make `iohttpparser` usable as a documented integration surface for `iohttp` and `ioguard`.
 
 **Scope:**
-- fail-closed policy profile
-- tighter limits
-- minimal leniency
-- proxy/control-plane assumptions
+- public semantics API
+- ownership flags
+- named consumer policy presets
+- consumer-oriented examples and docs
 
 **Tasks:**
-- codify `strict-proxy` behavior
-- define migration path from current `llhttp`-oriented assumptions
-- add security regression tests for proxy-sensitive cases
+- expose public semantics helpers and ownership flags
+- document `iohttp` and `ioguard` handoff rules
+- add examples for generic request flow and `CONNECT` tunnel flow
 
 **Exit criteria:**
-- `ioguard` integration contract is explicit
-- strict profile behavior is separate from `iohttp` general profile
+- `iohttp` and `ioguard` integration contracts are explicit
+- public semantics ownership is documented and regression-covered
 
 ---
 
-## Sprint 8: Publication and Release Preparation
+## Sprint 8: Functional Contract Completion
 
-**Goal:** Publish the repository into GitHub organization `ioplane` and cut the first usable release.
+**Goal:** finish the remaining core-library functionality before external integration campaigns.
+
+**Scope:**
+- response-side upgrade handoff
+- `100 Continue` flow
+- trailer ownership after chunked decode
+- final policy-preset contract
 
 **Tasks:**
-- create or confirm target repository with `gh api graphql`
-- push canonical branches with `git`
-- add release checklist and changelog entry
-- validate install, pkg-config, and docs layout
+- add explicit response-upgrade semantics coverage and guidance
+- add `Expect: 100-continue` consumer flow guidance and/or example
+- add trailer ownership guidance and/or example after chunked decode
+- decide whether `IHTP_POLICY_IOHTTP` and `IHTP_POLICY_IOGUARD` stay equivalent or diverge
+- regression-cover the final contract
 
 **Exit criteria:**
-- repository published under `https://github.com/ioplane`
-- first tagged release candidate prepared
+- no important integration-sensitive HTTP/1.1 handoff case remains undocumented
+- policy preset behavior is explicit and test-covered
+- the remaining product gaps are no longer inside the core library contract
+
+---
+
+## Sprint 9: Public API and Documentation Freeze
+
+**Goal:** freeze the public embedder contract before integration testing at the consumer level.
+
+**Scope:**
+- public headers
+- `README`
+- consumer docs
+- ownership/lifetime/reset guarantees
+
+**Tasks:**
+- audit and normalize public header comments and guarantees
+- ensure `README` matches actual API and examples
+- keep `docs/en` authoritative and sync `docs/ru`
+- write a final embedder-facing checklist for parser, semantics, and decoder handoff
+
+**Exit criteria:**
+- public API and docs no longer contradict implementation
+- the repository is ready for real integration campaigns without hidden tribal knowledge
+
+---
+
+## Sprint 10: Consumer Integration Campaign
+
+**Goal:** validate the frozen library contract against real consumer-style workflows in `iohttp` and `ioguard`.
+
+**Scope:**
+- `iohttp`-style request/response/body handoff
+- `ioguard`-style strict-profile and CONNECT flows
+- accumulated-buffer and incremental-call integration loops
+
+**Tasks:**
+- build consumer-style fixtures and integration scenarios
+- validate partial parse loops and semantics/body ownership handoff
+- validate CONNECT, upgrade, and `100 Continue` flows in consumer terms
+- record any remaining API friction as library defects
+
+**Exit criteria:**
+- the library can be embedded in both target consumers without undocumented workarounds
+- remaining issues are narrow defects, not missing functional surface
+
+---
+
+## Sprint 11: Reference Comparison Expansion
+
+**Goal:** expand the maintained comparison posture against `picohttpparser` and `llhttp` after the library contract is frozen.
+
+**Scope:**
+- broader differential corpus
+- explicit divergence classification
+- parser and semantics comparison matrix
+
+**Tasks:**
+- expand differential corpus for remaining request/response edge cases
+- classify expected strict-vs-lenient divergence explicitly
+- separate accepted divergence from unexpected regressions
+- produce a concise maintained comparison report
+
+**Exit criteria:**
+- the repository has an explicit documented comparison posture against `picohttpparser` and `llhttp`
+- no important unclassified divergence remains in the maintained corpus
+
+---
+
+## Sprint 12: CI and Release Gating
+
+**Goal:** turn the now functionally-complete and integration-validated repository into a repeatable release gate.
+
+**Scope:**
+- CI-required commands
+- sanitizer presets
+- fuzz smoke
+- differential smoke
+- docs lint and example validation
+
+**Tasks:**
+- define the mandatory CI/release validation matrix
+- encode short-running smoke jobs for fuzz and differential coverage
+- document which analyzer and sanitizer jobs are required vs advisory
+- prepare release-candidate checklist and versioning policy
+
+**Exit criteria:**
+- release candidate gate is explicit and reproducible
+- `main` has a documented minimum CI matrix for parser, semantics, decoder, docs, and quality checks
 
 ---
 
@@ -468,8 +538,15 @@ A sprint is done only if:
 
 ## Revised Near-Term Order
 
-1. Finish Sprint 0:
-   - create the first real commit on `main`
-2. Start worktree-based Sprint 1 branch:
-   - `feature/sprint-1-scalar-correctness`
-3. Defer new feature work in semantics/SIMD until the scalar and tooling baseline is commit-clean.
+1. Sprint 8:
+   - finish the remaining functional semantics and examples
+2. Sprint 9:
+   - freeze public API and documentation
+3. Sprint 10:
+   - run consumer-style integration campaigns for `iohttp` and `ioguard`
+4. Sprint 11:
+   - expand maintained comparison coverage against `picohttpparser` and `llhttp`
+5. After Sprint 11:
+   - start CI and release gating work
+6. Long-tail technical decision:
+   - decide whether SIMD token validation remains scalar-backed or earns a dedicated SIMD implementation with proof obligations
