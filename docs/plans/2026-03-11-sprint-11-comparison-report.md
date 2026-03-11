@@ -308,6 +308,30 @@ Engineering read:
 - no evidence yet suggests hidden “cheating” by `llhttp`; the simpler explanation is still lower
   parser-core cost plus a narrower embedding contract
 
+### `picohttpparser bench.c` Workload Check
+
+The repository harness now also includes the long request shape used by upstream
+`picohttpparser/bench.c` as `req-pico-bench`.
+
+5-run median (`ITERATIONS=100000`):
+
+| Parser | Median req/s | Median MiB/s | Median ns/req |
+|---|---:|---:|---:|
+| `picohttpparser` | `7,600,239.56` | `5,095.45` | `131.57` |
+| `llhttp` | `3,173,277.25` | `2,127.47` | `315.13` |
+| `iohttpparser-lenient` | `1,556,839.11` | `1,043.76` | `642.33` |
+| `iohttpparser-strict` | `1,545,166.32` | `1,035.93` | `647.18` |
+
+Interpretation:
+
+- this workload is heavily request-header dominated, so it amplifies the cost of generic header
+  parsing and validation
+- the result is consistent with the earlier micro-localization:
+  - request-line cost is not the main problem
+  - generic header-name and header-value handling are the larger remaining cost center
+- the tiny gap between strict and lenient here also suggests that the dominant cost is not mainly
+  strict-policy branching; it is the always-on structural work in the parser path
+
 ### Why `iohttpparser` Still Trails `llhttp`
 
 The current evidence does not suggest hidden magic. The remaining gap is explainable by contract shape

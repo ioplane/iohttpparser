@@ -207,6 +207,22 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
 
 int main(int argc, char **argv)
 {
+    static const char req_pico_bench[] =
+        "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n"
+        "Host: www.kittyhell.com\r\n"
+        "User-Agent: Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; ja-JP-mac; rv:1.9.2.3) "
+        "Gecko/20100401 Firefox/3.6.3 Pathtraq/0.9\r\n"
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        "Accept-Language: ja,en-us;q=0.7,en;q=0.3\r\n"
+        "Accept-Encoding: gzip,deflate\r\n"
+        "Accept-Charset: Shift_JIS,utf-8;q=0.7,*;q=0.7\r\n"
+        "Keep-Alive: 115\r\n"
+        "Connection: keep-alive\r\n"
+        "Cookie: wp_ozh_wsa_visits=2; wp_ozh_wsa_visit_lasttime=xxxxxxxxxx; "
+        "__utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; "
+        "__utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|"
+        "utmcct=/reader/|utmcmd=referral\r\n"
+        "\r\n";
     static const char req_line_hot[] =
         "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
     static const char req_small[] = "GET /api/v1/ping HTTP/1.1\r\nHost: example.test\r\n\r\n";
@@ -235,6 +251,7 @@ int main(int argc, char **argv)
         "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n";
 
     static const scenario_t scenarios[] = {
+        {"req-pico-bench", SCENARIO_REQUEST, req_pico_bench, sizeof(req_pico_bench) - 1, false},
         {"req-line-hot", SCENARIO_REQUEST, req_line_hot, sizeof(req_line_hot) - 1, false},
         {"req-small", SCENARIO_REQUEST, req_small, sizeof(req_small) - 1, false},
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
