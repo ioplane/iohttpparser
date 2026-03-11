@@ -180,10 +180,47 @@ void test_iohttp_style_expect_continue_leaves_trailers_to_consumer(void)
     TEST_ASSERT_FALSE(req.has_trailer_fields);
 }
 
+void test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes(void)
+{
+    static const char upgraded_bytes[] = "\x81\x05hello";
+    static const char wire[] = "HTTP/1.1 101 Switching Protocols\r\n"
+                               "Connection: Upgrade\r\n"
+                               "Upgrade: websocket\r\n"
+                               "\r\n"
+                               "\x81\x05hello";
+    ihtp_policy_t policy = IHTP_POLICY_IOHTTP;
+    ihtp_response_t resp;
+    ihtp_parser_state_t state;
+    size_t consumed = 99;
+    const char *headers_end = strstr(wire, "\r\n\r\n");
+    const char *next = nullptr;
+    ihtp_status_t status;
+
+    TEST_ASSERT_NOT_NULL(headers_end);
+
+    memset(&resp, 0, sizeof(resp));
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_RESPONSE);
+
+    status = ihtp_parse_response_stateful(&state, wire, strlen(wire), &resp, &policy, &consumed);
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, status);
+    TEST_ASSERT_EQUAL_UINT((size_t)(headers_end + 4 - wire), consumed);
+    TEST_ASSERT_EQUAL_INT(101, resp.status_code);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, ihtp_response_apply_semantics(&resp, &policy));
+    TEST_ASSERT_TRUE(resp.protocol_upgrade);
+    TEST_ASSERT_FALSE(resp.keep_alive);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+    TEST_ASSERT_FALSE(resp.has_trailer_fields);
+
+    next = wire + consumed;
+    TEST_ASSERT_EQUAL_STRING_LEN(upgraded_bytes, next, sizeof(upgraded_bytes) - 1U);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_iohttp_style_chunked_pipeline_reuses_parser_state);
     RUN_TEST(test_iohttp_style_expect_continue_leaves_trailers_to_consumer);
+    RUN_TEST(test_iohttp_style_response_upgrade_handoff_leaves_protocol_bytes);
     return UNITY_END();
 }
