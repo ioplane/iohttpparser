@@ -187,4 +187,21 @@ typedef struct {
  */
 #define IHTP_POLICY_LENIENT ((ihtp_policy_t){false, false, false, true})
 
+/**
+ * @brief Default interoperable server-side preset for iohttp.
+ *
+ * This currently maps to the strict RFC profile. The named preset makes the
+ * intended consumer contract explicit and allows future divergence without
+ * changing integration call sites.
+ */
+#define IHTP_POLICY_IOHTTP IHTP_POLICY_STRICT
+
+/**
+ * @brief Default fail-closed preset for ioguard.
+ *
+ * This currently maps to the strict RFC profile and is named separately so
+ * higher-layer integrations can depend on an explicit security-oriented preset.
+ */
+#define IHTP_POLICY_IOGUARD IHTP_POLICY_STRICT
+
 #endif /* IOHTTPPARSER_IHTP_TYPES_H */

@@ -202,16 +202,20 @@
   - `Expect: 100-continue` ownership via `expects_continue`
   - trailer advertisement ownership via `has_trailer_fields`
   - strict rejection of `Trailer` on non-chunked framing
-- unit and corpus coverage now pin these semantics contracts before integration examples land
+- named policy presets now exist:
+  - `IHTP_POLICY_IOHTTP`
+  - `IHTP_POLICY_IOGUARD`
+- `examples/basic_parse.c` now demonstrates stateful parsing plus semantics/body handoff
+- unit and corpus coverage now pin these semantics contracts before broader integration examples land
 - next implementation focus:
-  - integration-oriented examples for stateful parsing + semantics/body handoff
   - `CONNECT`-specific consumer guidance
-  - policy presets for `iohttp` and `ioguard`
+  - additional integration-oriented examples beyond the basic request flow
+  - branch cleanup and release gating for the accumulated Sprint 7 work
 
 **Immediate execution queue:**
-1. Finish Sprint 7 verification and publish the consumer-contract branch.
-2. Add integration-oriented examples for stateful parsing plus semantics/body handoff.
-3. Add policy presets for `iohttp` and `ioguard`.
+1. Verify and publish the preset/example batch.
+2. Add `CONNECT`-specific consumer guidance.
+3. Decide whether Sprint 7 needs another example batch before calling the sprint complete.
 4. Keep full container quality and docs validation green as Sprint 7 lands.
 
 ---

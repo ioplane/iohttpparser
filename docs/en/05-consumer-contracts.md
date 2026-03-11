@@ -121,6 +121,14 @@ sequenceDiagram
 | Bare `LF` support | Only via explicit lenient policy | Off |
 | `obs-fold` support | Only via explicit lenient policy | Off |
 
+Named presets now exist in the public API:
+- `IHTP_POLICY_IOHTTP`
+- `IHTP_POLICY_IOGUARD`
+
+Both currently map to the strict RFC profile. The separate names make consumer
+intent explicit and leave room for future divergence without changing
+integration call sites.
+
 ---
 
 ## Immediate Follow-Up
@@ -143,6 +151,16 @@ Sprint 7 should now lock down:
   consumer should hand off chunked body completion to the trailer-aware path
 - `CONNECT` remains visible primarily through `req.method == IHTP_METHOD_CONNECT`;
   Sprint 7 does not add a redundant boolean for that case
+
+### Integration example baseline
+
+`examples/basic_parse.c` now shows the preferred consumer flow:
+
+1. accumulate bytes into one caller-owned buffer
+2. reuse `ihtp_parser_state_t`
+3. parse with `IHTP_POLICY_IOHTTP`
+4. call `ihtp_request_apply_semantics()`
+5. hand the remaining bytes to `ihtp_decode_chunked()` when framing is chunked
 
 ## Recommendation
 
