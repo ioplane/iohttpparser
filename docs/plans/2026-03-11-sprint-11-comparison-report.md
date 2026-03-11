@@ -529,6 +529,42 @@ Interpretation:
   - long mixed real-world request from `pico`'s benchmark
 - the smaller gain on `hdr-value-heavy` suggests that the next remaining cost is no longer just the
   validation loop body, but the combined generic header path around it
+
+## Header-Count Scaling: Is The Generic Loop Itself Too Expensive?
+
+To test whether the remaining gap comes from fixed per-header bookkeeping rather than long values,
+the harness was extended with minimal repeated-header scenarios:
+
+- `hdr-count-04-minimal`
+- `hdr-count-16-minimal`
+- `hdr-count-32-minimal`
+
+Each scenario keeps headers intentionally small (`X: 1`) so the measured cost is dominated by:
+
+- line-end search
+- colon search
+- header array bookkeeping
+- loop overhead per header
+
+Focused 5-run median results:
+
+| Scenario | `iohttpparser-strict` ns/req | `llhttp` ns/req | `picohttpparser` ns/req |
+|---|---:|---:|---:|
+| `hdr-count-04-minimal` | `66.62` | `71.59` | `45.87` |
+| `hdr-count-16-minimal` | `178.73` | `259.23` | `172.73` |
+| `hdr-count-32-minimal` | `277.76` | `524.80` | `348.21` |
+
+Interpretation:
+
+- on minimal repeated headers, `iohttpparser` is already competitive with `llhttp`
+- the generic per-header loop is **not** the dominant remaining bottleneck
+- `llhttp` likely pays more fixed per-header overhead here because of its callback-oriented parser core
+- therefore the remaining gap on real workloads is not explained by `β·N` alone
+
+Practical conclusion:
+
+- do not spend the next batch on generic loop bookkeeping
+- the remaining payoff is still in long, realistic header values and mixed header-heavy requests
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 

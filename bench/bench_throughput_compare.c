@@ -244,6 +244,67 @@ int main(int argc, char **argv)
         "X-Extremely-Long-Eta-Header-Name-0007: 1\r\n"
         "X-Extremely-Long-Theta-Header-Name-0008: 1\r\n"
         "\r\n";
+    static const char hdr_count_04_minimal[] =
+        "GET /r HTTP/1.1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "\r\n";
+    static const char hdr_count_16_minimal[] =
+        "GET /r HTTP/1.1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "\r\n";
+    static const char hdr_count_32_minimal[] =
+        "GET /r HTTP/1.1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "X: 1\r\n"
+        "\r\n";
     static const char hdr_value_heavy[] =
         "GET /r HTTP/1.1\r\n"
         "A: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
@@ -308,6 +369,12 @@ int main(int argc, char **argv)
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
         {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1, false},
         {"hdr-name-heavy", SCENARIO_REQUEST, hdr_name_heavy, sizeof(hdr_name_heavy) - 1, false},
+        {"hdr-count-04-minimal", SCENARIO_REQUEST, hdr_count_04_minimal,
+         sizeof(hdr_count_04_minimal) - 1, false},
+        {"hdr-count-16-minimal", SCENARIO_REQUEST, hdr_count_16_minimal,
+         sizeof(hdr_count_16_minimal) - 1, false},
+        {"hdr-count-32-minimal", SCENARIO_REQUEST, hdr_count_32_minimal,
+         sizeof(hdr_count_32_minimal) - 1, false},
         {"hdr-value-heavy", SCENARIO_REQUEST, hdr_value_heavy, sizeof(hdr_value_heavy) - 1, false},
         {"hdr-value-ascii-clean", SCENARIO_REQUEST, hdr_value_ascii_clean,
          sizeof(hdr_value_ascii_clean) - 1, false},
