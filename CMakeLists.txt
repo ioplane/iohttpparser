@@ -310,6 +310,10 @@ if(IOHTTPPARSER_BUILD_EXAMPLES)
     target_link_libraries(example_basic PRIVATE iohttpparser)
     add_executable(example_connect examples/connect_tunnel.c)
     target_link_libraries(example_connect PRIVATE iohttpparser)
+    add_executable(example_expect_trailers examples/expect_trailers.c)
+    target_link_libraries(example_expect_trailers PRIVATE iohttpparser)
+    add_executable(example_response_upgrade examples/response_upgrade.c)
+    target_link_libraries(example_response_upgrade PRIVATE iohttpparser)
 endif()
 
 # ============================================================================

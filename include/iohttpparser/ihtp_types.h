@@ -13,6 +13,7 @@
 
 /**
  * @brief Maximum number of headers per request/response.
+ * @ingroup ihtp_types
  *
  * Configurable at compile time via -DHP_MAX_HEADERS=N.
  */
@@ -22,6 +23,7 @@
 
 /**
  * @brief Maximum length of a single header line (name + ": " + value).
+ * @ingroup ihtp_types
  */
 #ifndef IHTP_MAX_HEADER_LINE
 #    define IHTP_MAX_HEADER_LINE 8192
@@ -29,13 +31,21 @@
 
 /**
  * @brief Maximum length of the request-line (method + SP + target + SP + version + CRLF).
+ * @ingroup ihtp_types
  */
 #ifndef IHTP_MAX_REQUEST_LINE
 #    define IHTP_MAX_REQUEST_LINE 8192
 #endif
 
+/** @defgroup ihtp_types Types and Policies
+ *  @ingroup ihtp_api
+ *  @brief Public enums, structs, limits, and named parser policies.
+ *  @{
+ */
+
 /**
  * @brief Parser return status.
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_OK = 0,                      /**< Parsing complete, result available */
@@ -47,6 +57,7 @@ typedef enum {
 
 /**
  * @brief HTTP method enum (common methods for fast comparison).
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_METHOD_UNKNOWN = 0,
@@ -63,6 +74,7 @@ typedef enum {
 
 /**
  * @brief HTTP version.
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_HTTP_10 = 0,
@@ -71,6 +83,7 @@ typedef enum {
 
 /**
  * @brief Stateful parser mode.
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_PARSER_MODE_REQUEST = 0,
@@ -80,6 +93,7 @@ typedef enum {
 
 /**
  * @brief Public parser phase for stateful incremental parsing.
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_PARSER_PHASE_START_LINE = 0,
@@ -90,6 +104,7 @@ typedef enum {
 
 /**
  * @brief Stateful parser object for incremental request/response/header parsing.
+ * @ingroup ihtp_types
  *
  * Zero-initialize before first use or call ihtp_parser_state_init().
  */
@@ -101,19 +116,21 @@ typedef struct {
 
 /**
  * @brief A single HTTP header (name-value pair).
+ * @ingroup ihtp_types
  *
  * Pointers reference the original input buffer (zero-copy).
  * Valid only while the input buffer is alive.
  */
 typedef struct {
-    const char *name;  /**< Header name (not NUL-terminated) */
+    const char *name;  /**< Header name (not NUL-terminated, points into caller-owned input) */
     size_t name_len;   /**< Length of name */
-    const char *value; /**< Header value (not NUL-terminated) */
+    const char *value; /**< Header value (not NUL-terminated, points into caller-owned input) */
     size_t value_len;  /**< Length of value */
 } ihtp_header_t;
 
 /**
  * @brief Body transfer mode (determined by semantics layer).
+ * @ingroup ihtp_types
  */
 typedef enum {
     IHTP_BODY_NONE = 0,    /**< No body (HEAD response, 204, 304, etc.) */
@@ -124,15 +141,16 @@ typedef enum {
 
 /**
  * @brief Parsed HTTP request (Layer 2 output).
+ * @ingroup ihtp_types
  *
  * All string pointers reference the original input buffer.
  */
 typedef struct {
     ihtp_method_t method;   /**< Parsed method enum */
-    const char *method_str; /**< Raw method string */
+    const char *method_str; /**< Raw method string (points into caller-owned input) */
     size_t method_len;      /**< Length of method string */
 
-    const char *path; /**< Request target (path) */
+    const char *path; /**< Request target (points into caller-owned input) */
     size_t path_len;  /**< Length of path */
 
     ihtp_http_version_t version; /**< HTTP version (1.0 or 1.1) */
@@ -150,11 +168,12 @@ typedef struct {
 
 /**
  * @brief Parsed HTTP response (Layer 2 output).
+ * @ingroup ihtp_types
  */
 typedef struct {
     ihtp_http_version_t version; /**< HTTP version */
     int status_code;             /**< Status code (100-599) */
-    const char *reason;          /**< Reason phrase */
+    const char *reason;          /**< Reason phrase (points into caller-owned input) */
     size_t reason_len;           /**< Length of reason phrase */
 
     ihtp_header_t headers[IHTP_MAX_HEADERS]; /**< Parsed headers */
@@ -169,6 +188,7 @@ typedef struct {
 
 /**
  * @brief Parser policy (strict vs lenient).
+ * @ingroup ihtp_types
  */
 typedef struct {
     bool reject_obs_fold;     /**< Reject obs-fold in header values (default: true) */
@@ -179,29 +199,39 @@ typedef struct {
 
 /**
  * @brief Default strict policy (RFC 9112 compliant).
+ * @ingroup ihtp_types
  */
 #define IHTP_POLICY_STRICT ((ihtp_policy_t){true, true, true, false})
 
 /**
  * @brief Lenient policy (for proxying legacy clients).
+ * @ingroup ihtp_types
  */
 #define IHTP_POLICY_LENIENT ((ihtp_policy_t){false, false, false, true})
 
 /**
  * @brief Default interoperable server-side preset for iohttp.
+ * @ingroup ihtp_types
  *
  * This currently maps to the strict RFC profile. The named preset makes the
  * intended consumer contract explicit and allows future divergence without
  * changing integration call sites.
  */
+/* Named consumer preset for iohttp. Currently kept equivalent to strict until
+ * consumer requirements force a narrower behavioral split. */
 #define IHTP_POLICY_IOHTTP IHTP_POLICY_STRICT
 
 /**
  * @brief Default fail-closed preset for ioguard.
+ * @ingroup ihtp_types
  *
  * This currently maps to the strict RFC profile and is named separately so
  * higher-layer integrations can depend on an explicit security-oriented preset.
  */
+/* Named consumer preset for ioguard. Currently kept equivalent to strict and
+ * treated as a stable named contract rather than an unfinished TODO. */
 #define IHTP_POLICY_IOGUARD IHTP_POLICY_STRICT
+
+/** @} */
 
 #endif /* IOHTTPPARSER_IHTP_TYPES_H */

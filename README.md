@@ -109,6 +109,12 @@ pkg-config --cflags --libs iohttpparser
 
 ## Stateful Parser API
 
+- all parsed spans in request, response, and header structs point into the
+  caller-owned input buffer
+- for stateful parsing, keep reusing the same accumulated buffer while new
+  bytes are appended
+- `ihtp_parser_state_reset()` rewinds parser progress for a new message but does
+  not clear caller-owned output structs for you
 - `ihtp_parser_state_t` exposes explicit progress for request, response, and headers-only parsing
 - `state.cursor` tracks consumed bytes inside the accumulated buffer
 - `state.phase` exposes `start-line`, `headers`, `done`, or `error`
@@ -130,6 +136,7 @@ if (ihtp_parse_request_stateful(&st, wire, partial_len, &req, nullptr, &consumed
 See:
 - [`docs/en/parser-state.md`](docs/en/parser-state.md)
 - [`docs/ru/parser-state.md`](docs/ru/parser-state.md)
+- generated API reference via `cmake --build --preset clang-debug --target docs`
 
 ## Consumer Policy Presets
 
@@ -137,6 +144,11 @@ See:
 - `IHTP_POLICY_IOGUARD` is the named fail-closed preset for `ioguard`
 - both currently map to the strict RFC profile and exist so consumer code can
   depend on explicit intent rather than anonymous `IHTP_POLICY_STRICT`
+- the current alias contract is exact across the public policy surface:
+  - `reject_obs_fold`
+  - `reject_bare_lf`
+  - `reject_te_cl`
+  - `allow_spaces_in_uri`
 
 ## Body Decoder Contracts
 
@@ -146,6 +158,8 @@ See:
 - with `consume_trailer = false`, the terminal chunk trailer section stays in trailing bytes
 - with `consume_trailer = true`, trailer lines are consumed through the terminating empty line before completion
 - `ihtp_fixed_decoder_t` tracks only payload accounting: `remaining`, `total_decoded`, and overflow rejection
+- trailing bytes remain caller-owned in the same buffer immediately after the
+  decoded payload prefix
 
 ## Semantics Contracts
 
@@ -172,6 +186,22 @@ See:
 - tunnel handoff using `req.method == IHTP_METHOD_CONNECT`
 - the fact that `CONNECT` stays a method-driven integration decision, not a
   separate parser boolean
+
+## Additional Examples
+
+`examples/response_upgrade.c` demonstrates:
+- stateful parsing of a `101 Switching Protocols` response
+- response-side `protocol_upgrade` handoff
+- the point where upgraded bytes become consumer-owned rather than HTTP-owned
+
+`examples/expect_trailers.c` demonstrates:
+- `Expect: 100-continue` handoff
+- chunked request-body decoding with `consume_trailer = false`
+- the fact that trailer bytes can remain consumer-owned after chunked decode
+
+At the moment `IHTP_POLICY_IOHTTP` and `IHTP_POLICY_IOGUARD` are intentional
+named aliases of the strict profile. They exist to stabilize consumer-facing
+configuration names before a narrower policy split is justified and test-covered.
 
 ## Status Codes
 
