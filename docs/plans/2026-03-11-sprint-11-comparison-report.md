@@ -886,6 +886,15 @@ Interpretation:
 - that points the next request-line investigation toward method classification and general
   short-line parser overhead, not back toward target validation
 
+Negative result:
+
+- a follow-up attempt to replace short fixed-length `memcmp` calls inside `ihtp_method_from_str()`
+  with direct character-by-character comparisons was **not accepted**
+- 7-run confirmation showed a small gain on `req-small`, but a meaningful regression on
+  `req-line-long-target`
+- practical conclusion: the remaining short-request cost is not explained well enough by the
+  current method-classification helper alone
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 
