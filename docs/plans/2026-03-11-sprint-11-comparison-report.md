@@ -216,6 +216,147 @@ Next optimization focus with higher expected payoff and no contract changes:
 2. reduce repeated header-value trim overhead in the generic path
 3. evaluate each tuning patch using 5-run median results (to suppress run-to-run noise)
 
+### Standalone Throughput Harness
+
+The standalone parser-only throughput comparison is now captured in a repository benchmark target:
+
+- `bench/bench_throughput_compare.c`
+- `scripts/run-throughput-compare.sh`
+
+This harness is intentionally independent from `iohttp` / `ioguard` so parser cost can be measured
+without consumer-side buffering, scheduling, or TLS overhead.
+
+Recommended runs:
+
+- common matrix: `FORMAT=tsv ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
+- `CONNECT`-focused: `FORMAT=tsv CONNECT_ONLY=1 ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
+
+Current reproducible results from the repository harness (`200000` iterations):
+
+Common 5-scenario matrix:
+
+| Parser | Avg req/s | Avg MiB/s | Avg ns/req |
+|---|---:|---:|---:|
+| `picohttpparser` | `27,516,765.75` | `2,005.68` | `44.27` |
+| `llhttp` | `13,928,436.53` | `1,053.44` | `82.50` |
+| `iohttpparser-strict` | `12,029,852.83` | `893.12` | `99.50` |
+| `iohttpparser-lenient` | `9,918,687.37` | `737.93` | `119.70` |
+
+Per-scenario `req/s`:
+
+| Scenario | `iohttpparser-strict` | `iohttpparser-lenient` | `llhttp` | `picohttpparser` |
+|---|---:|---:|---:|---:|
+| `req-small` | `14,133,141.97` | `13,810,868.99` | `21,230,327.18` | `41,119,587.69` |
+| `req-headers` | `5,517,044.44` | `5,466,941.00` | `7,407,958.07` | `13,398,946.19` |
+| `resp-small` | `19,183,402.83` | `15,936,007.37` | `16,935,235.51` | `41,272,301.23` |
+| `resp-headers` | `8,825,395.46` | `6,547,334.73` | `9,946,674.88` | `17,578,092.21` |
+| `resp-upgrade` | `12,490,279.44` | `7,832,284.78` | `14,121,986.99` | `24,214,901.44` |
+
+`CONNECT`-focused matrix:
+
+| Parser | req/s | MiB/s | ns/req |
+|---|---:|---:|---:|
+| `picohttpparser` | `24,034,125.57` | `2,269.15` | `41.61` |
+| `llhttp` | `10,930,685.57` | `1,032.01` | `91.49` |
+| `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
+| `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
+
+### Why `iohttpparser` Still Trails `llhttp`
+
+The current evidence does not suggest hidden magic. The remaining gap is explainable by contract shape
+and hot-path cost.
+
+Most plausible cost centers in `iohttpparser`:
+
+1. Multi-pass header parsing
+- one header line currently goes through separate scans for line ending, colon, common-name/token
+  validation, OWS trimming, and field-text validation.
+- `llhttp` is closer to a single-pass state machine on the same bytes.
+
+2. Always-on field-value validation
+- `field_text_is_valid` walks every header value and continuation span.
+- this is safety work that minimal parsers often defer or omit.
+
+3. Non-common header names still use generic token validation
+- the common-header fast path reduced cost for popular names, but uncommon headers still fall back to
+  generic validation.
+
+4. Richer parser-layer contract
+- `iohttpparser` does more than “find token boundaries”.
+- it fills typed request/response structures, preserves zero-copy spans, enforces stricter line and
+  token rules, and keeps a cleaner consumer-facing pull API.
+
+5. `llhttp` is optimized for a different embedding model
+- `llhttp` is a generated callback-oriented state machine with very low parser-core abstraction
+  overhead.
+- that design is efficient, but it does not expose the same typed pull-style contract that
+  `iohttp`/`ioguard` want from `iohttpparser`.
+
+In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
+broader parser-layer contract plus a hotter multi-pass header path.
+
+### Where `iohttpparser` Is Better Than `picohttpparser` and `llhttp`
+
+`iohttpparser` is not trying to be only a byte scanner. Its differentiator is the consumer contract.
+
+What it provides beyond the raw parser baselines:
+
+- explicit split contract:
+  - `parse -> apply_semantics -> decode_body`
+- typed outputs for consumer decisions:
+  - `body_mode`
+  - `content_length`
+  - `keep_alive`
+  - `protocol_upgrade`
+  - `expects_continue`
+  - `has_trailer_fields`
+- public stateful pull API for accumulated-buffer incremental parsing
+- named policy presets:
+  - `IHTP_POLICY_IOHTTP`
+  - `IHTP_POLICY_IOGUARD`
+- maintained differential corpus against `picohttpparser` and `llhttp`
+- explicit ownership and zero-copy handoff rules for:
+  - upgraded protocol bytes
+  - trailers
+  - body-decoder leftovers
+
+Where the competitors cover less or differently:
+
+- `picohttpparser`
+  - excellent minimal parsing baseline
+  - much lighter API
+  - fewer typed semantics outputs
+  - less consumer-facing contract surface
+- `llhttp`
+  - very strong parser state machine
+  - efficient callback-based embedding
+  - different integration model than a stateful pull-style parser with typed semantic handoff
+
+### Are These Extra Responsibilities in the Right Layer?
+
+Mostly yes, with an important boundary.
+
+Responsibilities that are appropriate for `iohttpparser`:
+
+- HTTP/1.1 wire parsing
+- framing resolution
+- `Content-Length` / `Transfer-Encoding` interpretation
+- strict-vs-lenient policy enforcement
+- incremental chunked decoding
+- parser-adjacent semantic flags needed immediately by transport consumers
+
+Responsibilities that should stay outside this library:
+
+- URI normalization and routing
+- cookie/session policy
+- multipart parsing
+- content-coding decompression
+- application auth/business rules
+- server policy about how to act on `100 Continue`
+
+That boundary is important: `iohttpparser` should expose enough structured semantics to make
+`iohttp`/`ioguard` simple and safe, but it should not grow into a full application-layer HTTP stack.
+
 ## Assessment
 
 The comparison posture is now materially stronger than before Sprint 11:
