@@ -366,6 +366,9 @@ static int llhttp_on_message_complete(llhttp_t *parser)
 static ihtp_status_t map_llhttp_status(llhttp_errno_t execute_err, llhttp_errno_t finish_err,
                                        bool message_complete)
 {
+    if (execute_err == HPE_PAUSED_UPGRADE) {
+        return IHTP_OK;
+    }
     if (execute_err != HPE_OK) {
         return IHTP_ERROR;
     }
@@ -417,7 +420,12 @@ static void run_llhttp_request(const char *buf, size_t len, const ihtp_policy_t 
     }
 
     result->status = map_llhttp_status(execute_err, finish_err, capture.message_complete);
-    result->consumed = result->status == IHTP_OK ? len : 0;
+    if (result->status == IHTP_OK) {
+        result->consumed =
+            execute_err == HPE_PAUSED_UPGRADE ? (size_t)(llhttp_get_error_pos(&parser) - buf) : len;
+    } else {
+        result->consumed = 0;
+    }
     result->method = capture.method;
     result->method_len = capture.method_len;
     result->path = capture.path;
@@ -450,7 +458,12 @@ static void run_llhttp_response(const char *buf, size_t len, const ihtp_policy_t
     }
 
     result->status = map_llhttp_status(execute_err, finish_err, capture.message_complete);
-    result->consumed = result->status == IHTP_OK ? len : 0;
+    if (result->status == IHTP_OK) {
+        result->consumed =
+            execute_err == HPE_PAUSED_UPGRADE ? (size_t)(llhttp_get_error_pos(&parser) - buf) : len;
+    } else {
+        result->consumed = 0;
+    }
     result->status_code = llhttp_get_status_code(&parser);
     result->reason = capture.reason;
     result->reason_len = capture.reason_len;
@@ -693,18 +706,22 @@ void test_differential_corpus_cases(void)
 {
     static const char *cases[] = {
         "tests/corpus/differential/pico_request_ok_simple_get.case",
+        "tests/corpus/differential/pico_request_ok_connect_authority.case",
         "tests/corpus/differential/pico_request_incomplete_headers.case",
         "tests/corpus/differential/pico_request_strict_reject_bare_lf.case",
         "tests/corpus/differential/pico_request_lenient_accept_bare_lf.case",
         "tests/corpus/differential/pico_response_ok_simple.case",
+        "tests/corpus/differential/pico_response_ok_switching_protocols.case",
         "tests/corpus/differential/pico_response_incomplete_headers.case",
         "tests/corpus/differential/pico_response_strict_reject_bare_lf.case",
         "tests/corpus/differential/pico_response_lenient_accept_bare_lf.case",
         "tests/corpus/differential/llhttp_request_ok_simple_get.case",
+        "tests/corpus/differential/llhttp_request_ok_connect_authority.case",
         "tests/corpus/differential/llhttp_request_incomplete_headers.case",
         "tests/corpus/differential/llhttp_request_strict_reject_bare_lf.case",
         "tests/corpus/differential/llhttp_request_lenient_accept_bare_lf.case",
         "tests/corpus/differential/llhttp_response_ok_simple.case",
+        "tests/corpus/differential/llhttp_response_ok_switching_protocols.case",
         "tests/corpus/differential/llhttp_response_incomplete_headers.case",
         "tests/corpus/differential/llhttp_response_strict_reject_bare_lf.case",
         "tests/corpus/differential/llhttp_response_lenient_accept_bare_lf.case",

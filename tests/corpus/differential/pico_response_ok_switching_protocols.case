@@ -1,0 +1,10 @@
+reference=pico
+kind=response
+expect=ok
+policy=strict
+version=1.1
+consumed=77
+status_code=101
+reason=Switching Protocols
+num_headers=2
+wire=HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n
