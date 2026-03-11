@@ -7,6 +7,14 @@
 
 Новый API сохраняет базовую модель библиотеки: pull-based parsing, zero-copy spans, без callback-ов, без скрытых аллокаций и без внутренних буферов парсера.
 
+```mermaid
+flowchart LR
+    A[caller-owned accumulated buffer] --> B[ihtp_parser_state_t]
+    B --> C[ihtp_parse_*_stateful]
+    C --> D[zero-copy spans]
+    C --> E[state.phase и state.cursor]
+```
+
 ## Доступный API
 
 - `ihtp_parser_state_t`
