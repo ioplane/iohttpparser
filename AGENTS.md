@@ -17,6 +17,26 @@ ctest --preset clang-debug
 ```
 Use `cmake --build --preset clang-debug --target format` to rewrite formatting and `--target format-check` to verify it. Run `./scripts/quality.sh` before submitting changes; it builds, tests, checks formatting, and runs static analysis tools when installed.
 
+## Profiling Toolchain
+The development image also carries profiling/debug tools for parser hot-path work:
+- `gdb`
+- `valgrind`
+- `uftrace`
+- `ftracer` helpers (`frun`, `fresolve`, `/usr/local/lib/ftracer/ftracer.o`)
+
+Use them inside the dev container after a normal debug build. Recommended order:
+```bash
+cmake --preset clang-debug
+cmake --build --preset clang-debug
+```
+Then:
+```bash
+uftrace record -- ./build/clang-debug/bench/bench_throughput_compare --scenario req-pico-bench
+valgrind --tool=callgrind ./build/clang-debug/bench/bench_throughput_compare --scenario req-pico-bench
+gdb --args ./build/clang-debug/bench/bench_throughput_compare --scenario req-pico-bench
+```
+Treat `ftracer` as an advanced helper stack rather than a standalone binary: use `frun`/`fresolve` with `/usr/local/lib/ftracer/ftracer.o` when a lightweight trace is more useful than full `uftrace` or `callgrind`.
+
 ## Required Host Utilities
 Keep these available on the host for effective agent and contributor workflows:
 - `git`

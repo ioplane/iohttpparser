@@ -174,6 +174,21 @@ That later phase should cover:
 - docs lint
 - release candidate automation
 
+## Supporting Tooling
+
+The dev container should carry the profiling/debug stack needed for throughput and bottleneck campaigns so that comparisons remain reproducible across maintainers. Keep these available in the image:
+- `gdb`
+- `valgrind`
+- `uftrace`
+- `ftracer` helper components
+
+Use them in this order during performance work:
+1. repo-level benchmark/throughput scripts for coarse deltas
+2. optional parser trace mode for per-layer counters
+3. `uftrace` for function-level hot-path confirmation
+4. `valgrind` (`callgrind`/`cachegrind`) for cost-model confirmation
+5. `gdb` and `ftracer` for focused control-flow/debug investigations
+
 ## Recommended execution order
 
 1. Sprint 8: finish remaining functional semantics and examples
