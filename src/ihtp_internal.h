@@ -12,6 +12,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ─── Version ─────────────────────────────────────────────────────────── */
 
@@ -62,6 +63,38 @@ const char *ihtp_scanner_backend_name_for_level(int simd_level);
  * @brief Report the currently active scanner backend name.
  */
 const char *ihtp_scanner_active_backend_name(void);
+
+/* ─── Optional parser perf tracing (benchmark/debug only) ─────────────── */
+
+typedef struct {
+    uint64_t find_line_end_calls;
+    uint64_t find_line_end_bytes;
+
+    uint64_t find_method_space_calls;
+    uint64_t find_method_space_bytes;
+
+    uint64_t request_target_calls;
+    uint64_t request_target_bytes;
+    uint64_t request_target_fast_bytes;
+    uint64_t request_target_slow_bytes;
+
+    uint64_t find_header_name_colon_calls;
+    uint64_t find_header_name_colon_bytes;
+
+    uint64_t trim_field_value_calls;
+    uint64_t trim_field_value_bytes;
+
+    uint64_t field_text_calls;
+    uint64_t field_text_bytes;
+    uint64_t field_text_fast_bytes;
+    uint64_t field_text_slow_bytes;
+
+    uint64_t parse_request_line_calls;
+    uint64_t parse_header_block_calls;
+} ihtp_perf_counters_t;
+
+void ihtp_perf_counters_reset(void);
+void ihtp_perf_counters_snapshot(ihtp_perf_counters_t *out);
 
 /* ─── Scanner backends ────────────────────────────────────────────────── */
 

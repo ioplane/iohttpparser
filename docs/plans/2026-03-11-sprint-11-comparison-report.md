@@ -895,6 +895,81 @@ Negative result:
 - practical conclusion: the remaining short-request cost is not explained well enough by the
   current method-classification helper alone
 
+## Optional Layer Trace: What The Parser Actually Touches
+
+To avoid guessing, Sprint 13 added an optional benchmark-only trace mode:
+
+- build with `IOHTTPPARSER_PERF_TRACE=ON`
+- run `bench_throughput_compare --trace-parser iohttpparser-strict --trace-scenario <name>`
+
+This mode does **not** try to time every helper call. Instead it records structural counters:
+
+- calls per helper
+- bytes actually examined by that helper
+- fast-path bytes vs slow-path bytes for request-target and field-value validation
+
+That approach is better for parser diagnosis because:
+
+- it does not distort tiny hot helpers as much as per-call timers
+- it makes layer ownership visible immediately
+- it shows whether an optimization is reducing real work or only moving branches around
+
+### Trace Snapshot: `req-line-only`
+
+Trace run (`50000` iterations, `iohttpparser-strict`):
+
+- `find_line_end_calls = 100000`
+- `find_line_end_bytes = 1650000`
+- `find_method_space_calls = 50000`
+- `find_method_space_bytes = 200000`
+- `request_target_calls = 50000`
+- `request_target_bytes = 800000`
+- `request_target_fast_bytes = 800000`
+- `request_target_slow_bytes = 0`
+
+Interpretation:
+
+- even the simplest request still pays for:
+  - request-line end detection
+  - terminating empty-line detection
+  - request-target validation
+- method scan is relatively small here
+- the target validator is already entirely on the fast path for clean ASCII input
+
+### Trace Snapshot: `req-pico-bench`
+
+Trace run (`50000` iterations, `iohttpparser-strict`):
+
+- `find_line_end_calls = 550000`
+- `find_line_end_bytes = 35150000`
+- `find_method_space_calls = 50000`
+- `find_method_space_bytes = 200000`
+- `request_target_calls = 50000`
+- `request_target_bytes = 3000000`
+- `request_target_fast_bytes = 2800000`
+- `request_target_slow_bytes = 200000`
+- `find_header_name_colon_calls = 450000`
+- `find_header_name_colon_bytes = 4950000`
+- `trim_field_value_calls = 450000`
+- `trim_field_value_bytes = 25450000`
+- `field_text_calls = 450000`
+- `field_text_bytes = 25000000`
+- `field_text_fast_bytes = 23200000`
+- `field_text_slow_bytes = 1800000`
+
+Interpretation:
+
+- request-line method scanning is basically noise on this workload
+- the dominant parser work is now clearly:
+  - line-ending search
+  - value trimming
+  - field-text validation
+- the accepted fast paths are already doing useful work:
+  - most request-target bytes are handled in the fast path
+  - most field-text bytes are handled in the fast path
+- therefore the next meaningful gains are more likely to come from reducing repeated line/value
+  path work than from more method-lookup tweaks
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 

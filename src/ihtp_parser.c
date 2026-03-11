@@ -10,6 +10,34 @@
 
 #include <string.h>
 
+#ifdef IHTP_PERF_TRACE
+static ihtp_perf_counters_t g_ihtp_perf_counters;
+
+void ihtp_perf_counters_reset(void)
+{
+    memset(&g_ihtp_perf_counters, 0, sizeof(g_ihtp_perf_counters));
+}
+
+void ihtp_perf_counters_snapshot(ihtp_perf_counters_t *out)
+{
+    if (out != nullptr) {
+        *out = g_ihtp_perf_counters;
+    }
+}
+
+#    define IHTP_PERF_ADD(field, value) g_ihtp_perf_counters.field += (uint64_t)(value)
+#else
+void ihtp_perf_counters_reset(void)
+{
+}
+void ihtp_perf_counters_snapshot(ihtp_perf_counters_t *out)
+{
+    (void)out;
+}
+
+#    define IHTP_PERF_ADD(field, value) ((void)0)
+#endif
+
 /* ─── Method lookup ───────────────────────────────────────────────────── */
 
 ihtp_method_t ihtp_method_from_str(const char *method, size_t method_len)
@@ -113,11 +141,16 @@ void ihtp_parser_state_reset(ihtp_parser_state_t *state)
 static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_policy_t *policy,
                                    const char **line_end, size_t *line_ending_len)
 {
+    IHTP_PERF_ADD(find_line_end_calls, 1);
+
     const char *lf = memchr(buf, '\n', len);
 
     if (lf == nullptr) {
+        IHTP_PERF_ADD(find_line_end_bytes, len);
         return IHTP_INCOMPLETE;
     }
+
+    IHTP_PERF_ADD(find_line_end_bytes, (size_t)(lf - buf) + 1);
 
     if (lf > buf && lf[-1] == '\r') {
         *line_end = lf - 1;
@@ -136,8 +169,11 @@ static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_polic
 
 static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_offset)
 {
+    IHTP_PERF_ADD(find_header_name_colon_calls, 1);
+
     for (size_t i = 0; i < len; i++) {
         uint8_t c = (uint8_t)buf[i];
+        IHTP_PERF_ADD(find_header_name_colon_bytes, 1);
 
         if (c == ':') {
             if (i == 0) {
@@ -157,8 +193,11 @@ static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_of
 
 static bool find_method_space(const char *buf, size_t len, size_t *space_offset)
 {
+    IHTP_PERF_ADD(find_method_space_calls, 1);
+
     for (size_t i = 0; i < len; i++) {
         uint8_t c = (uint8_t)buf[i];
+        IHTP_PERF_ADD(find_method_space_bytes, 1);
 
         if (c == ' ') {
             if (i == 0) {
@@ -195,6 +234,9 @@ static bool request_target_is_valid(const char *buf, size_t len, bool allow_spac
     static const uint64_t ones = UINT64_C(0x0101010101010101);
     static const uint64_t highs = UINT64_C(0x8080808080808080);
 
+    IHTP_PERF_ADD(request_target_calls, 1);
+    IHTP_PERF_ADD(request_target_bytes, len);
+
     if (!allow_spaces) {
         while ((size_t)(end - p) >= sizeof(uint64_t)) {
             uint64_t chunk = 0;
@@ -209,11 +251,13 @@ static bool request_target_is_valid(const char *buf, size_t len, bool allow_spac
             }
 
             p += sizeof(uint64_t);
+            IHTP_PERF_ADD(request_target_fast_bytes, sizeof(uint64_t));
         }
     }
 
     while (p < end) {
         uint8_t c = *p++;
+        IHTP_PERF_ADD(request_target_slow_bytes, 1);
 
         if (c == ' ' && allow_spaces) {
             continue;
@@ -234,6 +278,9 @@ static bool field_text_is_valid(const char *buf, size_t len)
     static const uint64_t ones = UINT64_C(0x0101010101010101);
     static const uint64_t highs = UINT64_C(0x8080808080808080);
 
+    IHTP_PERF_ADD(field_text_calls, 1);
+    IHTP_PERF_ADD(field_text_bytes, len);
+
     while ((size_t)(end - p) >= sizeof(uint64_t)) {
         uint64_t chunk = 0;
         memcpy(&chunk, p, sizeof(chunk));
@@ -247,10 +294,12 @@ static bool field_text_is_valid(const char *buf, size_t len)
         }
 
         p += sizeof(uint64_t);
+        IHTP_PERF_ADD(field_text_fast_bytes, sizeof(uint64_t));
     }
 
     while (p < end) {
         uint8_t c = *p++;
+        IHTP_PERF_ADD(field_text_slow_bytes, 1);
 
         if (c == '\t') {
             continue;
@@ -267,6 +316,9 @@ static bool field_text_is_valid(const char *buf, size_t len)
 static bool trim_and_validate_field_value(const char *buf, size_t len, const char **trimmed_start,
                                           size_t *trimmed_len)
 {
+    IHTP_PERF_ADD(trim_field_value_calls, 1);
+    IHTP_PERF_ADD(trim_field_value_bytes, len);
+
     size_t first = 0;
     size_t last = len;
 
@@ -350,6 +402,8 @@ static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_respons
 static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_request_t *req,
                                         const ihtp_policy_t *policy, size_t *line_end)
 {
+    IHTP_PERF_ADD(parse_request_line_calls, 1);
+
     const char *line_break = nullptr;
     size_t line_ending_len = 0;
 
@@ -425,6 +479,8 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
                                         size_t max_headers, const ihtp_policy_t *policy,
                                         size_t *block_end)
 {
+    IHTP_PERF_ADD(parse_header_block_calls, 1);
+
     size_t count = initial_count;
     size_t pos = 0;
 

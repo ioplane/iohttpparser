@@ -5,6 +5,9 @@
  */
 
 #include <iohttpparser/ihtp_parser.h>
+#ifdef IHTP_PERF_TRACE
+#    include "ihtp_internal.h"
+#endif
 #include <llhttp.h>
 #include <picohttpparser.h>
 
@@ -38,9 +41,15 @@ typedef enum {
     OUTPUT_TSV = 1,
 } output_mode_t;
 
-typedef bool (*parser_fn_t)(const char *buf, size_t len, scenario_kind_t kind, size_t *consumed_out);
+typedef bool (*parser_fn_t)(const char *buf, size_t len, scenario_kind_t kind,
+                            size_t *consumed_out);
 
 static volatile uint64_t g_sink;
+
+typedef struct {
+    const char *name;
+    parser_fn_t fn;
+} parser_entry_t;
 
 static uint64_t monotonic_ns(void)
 {
@@ -82,13 +91,15 @@ static bool parse_ihtp_with_policy(const char *buf, size_t len, scenario_kind_t 
     return true;
 }
 
-static bool parse_ihtp_strict(const char *buf, size_t len, scenario_kind_t kind, size_t *consumed_out)
+static bool parse_ihtp_strict(const char *buf, size_t len, scenario_kind_t kind,
+                              size_t *consumed_out)
 {
     static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
     return parse_ihtp_with_policy(buf, len, kind, &strict, consumed_out);
 }
 
-static bool parse_ihtp_lenient(const char *buf, size_t len, scenario_kind_t kind, size_t *consumed_out)
+static bool parse_ihtp_lenient(const char *buf, size_t len, scenario_kind_t kind,
+                               size_t *consumed_out)
 {
     static const ihtp_policy_t lenient = IHTP_POLICY_LENIENT;
     return parse_ihtp_with_policy(buf, len, kind, &lenient, consumed_out);
@@ -147,7 +158,8 @@ static bool parse_llhttp(const char *buf, size_t len, scenario_kind_t kind, size
     if (finish_err != HPE_OK && finish_err != HPE_PAUSED_UPGRADE) {
         return false;
     }
-    if (!capture.complete && execute_err != HPE_PAUSED_UPGRADE && finish_err != HPE_PAUSED_UPGRADE) {
+    if (!capture.complete && execute_err != HPE_PAUSED_UPGRADE &&
+        finish_err != HPE_PAUSED_UPGRADE) {
         return false;
     }
 
@@ -187,10 +199,10 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
         uint64_t elapsed_ns = monotonic_ns() - start_ns;
         double elapsed_s = (double)elapsed_ns / 1e9;
         double req_per_s = elapsed_s > 0.0 ? (double)iterations / elapsed_s : 0.0;
-        double mib_per_s = elapsed_s > 0.0 ? (((double)iterations * (double)sc->len) /
-                                              (1024.0 * 1024.0)) /
-                                                 elapsed_s
-                                           : 0.0;
+        double mib_per_s =
+            elapsed_s > 0.0
+                ? (((double)iterations * (double)sc->len) / (1024.0 * 1024.0)) / elapsed_s
+                : 0.0;
         double ns_per_req = iterations > 0 ? (double)elapsed_ns / (double)iterations : 0.0;
 
         if (mode == OUTPUT_TSV) {
@@ -204,6 +216,81 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
         }
     }
 }
+
+#ifdef IHTP_PERF_TRACE
+static void print_perf_trace(const ihtp_perf_counters_t *counters)
+{
+    printf("trace\tfind_line_end_calls\t%" PRIu64 "\n", counters->find_line_end_calls);
+    printf("trace\tfind_line_end_bytes\t%" PRIu64 "\n", counters->find_line_end_bytes);
+    printf("trace\tfind_method_space_calls\t%" PRIu64 "\n", counters->find_method_space_calls);
+    printf("trace\tfind_method_space_bytes\t%" PRIu64 "\n", counters->find_method_space_bytes);
+    printf("trace\trequest_target_calls\t%" PRIu64 "\n", counters->request_target_calls);
+    printf("trace\trequest_target_bytes\t%" PRIu64 "\n", counters->request_target_bytes);
+    printf("trace\trequest_target_fast_bytes\t%" PRIu64 "\n", counters->request_target_fast_bytes);
+    printf("trace\trequest_target_slow_bytes\t%" PRIu64 "\n", counters->request_target_slow_bytes);
+    printf("trace\tfind_header_name_colon_calls\t%" PRIu64 "\n",
+           counters->find_header_name_colon_calls);
+    printf("trace\tfind_header_name_colon_bytes\t%" PRIu64 "\n",
+           counters->find_header_name_colon_bytes);
+    printf("trace\ttrim_field_value_calls\t%" PRIu64 "\n", counters->trim_field_value_calls);
+    printf("trace\ttrim_field_value_bytes\t%" PRIu64 "\n", counters->trim_field_value_bytes);
+    printf("trace\tfield_text_calls\t%" PRIu64 "\n", counters->field_text_calls);
+    printf("trace\tfield_text_bytes\t%" PRIu64 "\n", counters->field_text_bytes);
+    printf("trace\tfield_text_fast_bytes\t%" PRIu64 "\n", counters->field_text_fast_bytes);
+    printf("trace\tfield_text_slow_bytes\t%" PRIu64 "\n", counters->field_text_slow_bytes);
+    printf("trace\tparse_request_line_calls\t%" PRIu64 "\n", counters->parse_request_line_calls);
+    printf("trace\tparse_header_block_calls\t%" PRIu64 "\n", counters->parse_header_block_calls);
+}
+
+static int run_trace_mode(const char *parser_name, const char *scenario_name,
+                          const parser_entry_t *parsers, size_t parser_count,
+                          const scenario_t *scenarios, size_t scenario_count, size_t iterations)
+{
+    parser_fn_t parse_fn = nullptr;
+    const scenario_t *scenario = nullptr;
+    size_t consumed = 0;
+    ihtp_perf_counters_t counters = {0};
+
+    for (size_t i = 0; i < parser_count; i++) {
+        if (strcmp(parsers[i].name, parser_name) == 0) {
+            parse_fn = parsers[i].fn;
+            break;
+        }
+    }
+    for (size_t i = 0; i < scenario_count; i++) {
+        if (strcmp(scenarios[i].name, scenario_name) == 0) {
+            scenario = &scenarios[i];
+            break;
+        }
+    }
+
+    if (parse_fn == nullptr || scenario == nullptr) {
+        fprintf(stderr, "trace mode requires known parser and scenario\n");
+        return 2;
+    }
+    if (strncmp(parser_name, "iohttpparser", 12) != 0) {
+        fprintf(stderr, "trace mode currently supports only iohttpparser parsers\n");
+        return 2;
+    }
+
+    ihtp_perf_counters_reset();
+    for (size_t iter = 0; iter < iterations; iter++) {
+        if (!parse_fn(scenario->wire, scenario->len, scenario->kind, &consumed)) {
+            fprintf(stderr, "trace parse failed: parser=%s scenario=%s iter=%zu\n", parser_name,
+                    scenario_name, iter);
+            return 2;
+        }
+        g_sink += (uint64_t)consumed;
+    }
+    ihtp_perf_counters_snapshot(&counters);
+
+    printf("trace\tparser\t%s\n", parser_name);
+    printf("trace\tscenario\t%s\n", scenario_name);
+    printf("trace\titerations\t%zu\n", iterations);
+    print_perf_trace(&counters);
+    return 0;
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -224,8 +311,7 @@ int main(int argc, char **argv)
         "utmcct=/reader/|utmcmd=referral\r\n"
         "\r\n";
     static const char req_line_only[] = "GET /v1/ping?x=1&y=2 HTTP/1.1\r\n\r\n";
-    static const char req_line_hot[] =
-        "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
+    static const char req_line_hot[] = "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
     static const char req_line_connect[] = "CONNECT example.test:443 HTTP/1.1\r\n\r\n";
     static const char req_line_options[] = "OPTIONS /v1/ping?x=1&y=2 HTTP/1.1\r\n\r\n";
     static const char req_line_long_target[] =
@@ -238,78 +324,74 @@ int main(int argc, char **argv)
     static const char hdr_common_heavy[] =
         "GET /r HTTP/1.1\r\nHost: example.test\r\nConnection: keep-alive\r\nContent-Length: 0\r\n"
         "Expect: 100-continue\r\nUpgrade: websocket\r\n\r\n";
-    static const char hdr_name_heavy[] =
-        "GET /r HTTP/1.1\r\n"
-        "X-Extremely-Long-Alpha-Header-Name-0001: 1\r\n"
-        "X-Extremely-Long-Beta-Header-Name-0002: 1\r\n"
-        "X-Extremely-Long-Gamma-Header-Name-0003: 1\r\n"
-        "X-Extremely-Long-Delta-Header-Name-0004: 1\r\n"
-        "X-Extremely-Long-Epsilon-Header-Name-0005: 1\r\n"
-        "X-Extremely-Long-Zeta-Header-Name-0006: 1\r\n"
-        "X-Extremely-Long-Eta-Header-Name-0007: 1\r\n"
-        "X-Extremely-Long-Theta-Header-Name-0008: 1\r\n"
-        "\r\n";
-    static const char hdr_count_04_minimal[] =
-        "GET /r HTTP/1.1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "\r\n";
-    static const char hdr_count_16_minimal[] =
-        "GET /r HTTP/1.1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "\r\n";
-    static const char hdr_count_32_minimal[] =
-        "GET /r HTTP/1.1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "X: 1\r\n"
-        "\r\n";
+    static const char hdr_name_heavy[] = "GET /r HTTP/1.1\r\n"
+                                         "X-Extremely-Long-Alpha-Header-Name-0001: 1\r\n"
+                                         "X-Extremely-Long-Beta-Header-Name-0002: 1\r\n"
+                                         "X-Extremely-Long-Gamma-Header-Name-0003: 1\r\n"
+                                         "X-Extremely-Long-Delta-Header-Name-0004: 1\r\n"
+                                         "X-Extremely-Long-Epsilon-Header-Name-0005: 1\r\n"
+                                         "X-Extremely-Long-Zeta-Header-Name-0006: 1\r\n"
+                                         "X-Extremely-Long-Eta-Header-Name-0007: 1\r\n"
+                                         "X-Extremely-Long-Theta-Header-Name-0008: 1\r\n"
+                                         "\r\n";
+    static const char hdr_count_04_minimal[] = "GET /r HTTP/1.1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "\r\n";
+    static const char hdr_count_16_minimal[] = "GET /r HTTP/1.1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "\r\n";
+    static const char hdr_count_32_minimal[] = "GET /r HTTP/1.1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "X: 1\r\n"
+                                               "\r\n";
     static const char hdr_value_heavy[] =
         "GET /r HTTP/1.1\r\n"
         "A: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
@@ -359,8 +441,7 @@ int main(int argc, char **argv)
         "CONNECT vpn.example.test:443 HTTP/1.1\r\nHost: vpn.example.test:443\r\n"
         "Proxy-Connection: keep-alive\r\n\r\n";
 
-    static const char resp_small[] =
-        "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
+    static const char resp_small[] = "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
     static const char resp_headers[] =
         "HTTP/1.1 304 Not Modified\r\nConnection: keep-alive\r\nCache-Control: max-age=60\r\n"
         "ETag: \"abc123\"\r\nServer: iohttp/1.0\r\n\r\n";
@@ -379,7 +460,8 @@ int main(int argc, char **argv)
          sizeof(req_line_long_target) - 1, false},
         {"req-small", SCENARIO_REQUEST, req_small, sizeof(req_small) - 1, false},
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
-        {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1, false},
+        {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1,
+         false},
         {"hdr-name-heavy", SCENARIO_REQUEST, hdr_name_heavy, sizeof(hdr_name_heavy) - 1, false},
         {"hdr-count-04-minimal", SCENARIO_REQUEST, hdr_count_04_minimal,
          sizeof(hdr_count_04_minimal) - 1, false},
@@ -401,13 +483,24 @@ int main(int argc, char **argv)
         {"resp-headers", SCENARIO_RESPONSE, resp_headers, sizeof(resp_headers) - 1, false},
         {"resp-upgrade", SCENARIO_RESPONSE, resp_upgrade, sizeof(resp_upgrade) - 1, false},
     };
+    static const parser_entry_t parsers[] = {
+        {"iohttpparser-strict", parse_ihtp_strict},
+        {"iohttpparser-lenient", parse_ihtp_lenient},
+        {"picohttpparser", parse_pico},
+        {"llhttp", parse_llhttp},
+    };
 
     size_t iterations = 200000;
     output_mode_t mode = OUTPUT_HUMAN;
     bool connect_only = false;
+    const char *trace_parser = nullptr;
+    const char *trace_scenario = nullptr;
 
-    if (argc > 4) {
-        fprintf(stderr, "usage: %s [iterations] [--tsv] [--connect-only]\n", argv[0]);
+    if (argc > 8) {
+        fprintf(stderr,
+                "usage: %s [iterations] [--tsv] [--connect-only] [--trace-parser NAME "
+                "--trace-scenario NAME]\n",
+                argv[0]);
         return 2;
     }
     for (int i = 1; i < argc; i++) {
@@ -419,6 +512,14 @@ int main(int argc, char **argv)
             connect_only = true;
             continue;
         }
+        if (strcmp(argv[i], "--trace-parser") == 0 && i + 1 < argc) {
+            trace_parser = argv[++i];
+            continue;
+        }
+        if (strcmp(argv[i], "--trace-scenario") == 0 && i + 1 < argc) {
+            trace_scenario = argv[++i];
+            continue;
+        }
         char *end = nullptr;
         unsigned long long parsed = strtoull(argv[i], &end, 10);
         if (end == argv[i] || *end != '\0' || parsed == 0ULL) {
@@ -427,6 +528,23 @@ int main(int argc, char **argv)
         }
         iterations = (size_t)parsed;
     }
+
+#ifdef IHTP_PERF_TRACE
+    if (trace_parser != nullptr || trace_scenario != nullptr) {
+        if (trace_parser == nullptr || trace_scenario == nullptr) {
+            fprintf(stderr, "trace mode requires both --trace-parser and --trace-scenario\n");
+            return 2;
+        }
+        return run_trace_mode(trace_parser, trace_scenario, parsers,
+                              sizeof(parsers) / sizeof(parsers[0]), scenarios,
+                              sizeof(scenarios) / sizeof(scenarios[0]), iterations);
+    }
+#else
+    if (trace_parser != nullptr || trace_scenario != nullptr) {
+        fprintf(stderr, "trace mode requires IOHTTPPARSER_PERF_TRACE=ON at build time\n");
+        return 2;
+    }
+#endif
 
     if (mode == OUTPUT_TSV) {
         puts("format\ttsv\tv1");
@@ -441,14 +559,10 @@ int main(int argc, char **argv)
                "len", "elapsed_ns", "req/s", "MiB/s", "ns/req");
     }
 
-    bench_parser(mode, "iohttpparser-strict", parse_ihtp_strict, scenarios,
-                 sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only);
-    bench_parser(mode, "iohttpparser-lenient", parse_ihtp_lenient, scenarios,
-                 sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only);
-    bench_parser(mode, "picohttpparser", parse_pico, scenarios,
-                 sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only);
-    bench_parser(mode, "llhttp", parse_llhttp, scenarios, sizeof(scenarios) / sizeof(scenarios[0]),
-                 iterations, connect_only);
+    for (size_t i = 0; i < sizeof(parsers) / sizeof(parsers[0]); i++) {
+        bench_parser(mode, parsers[i].name, parsers[i].fn, scenarios,
+                     sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only);
+    }
 
     if (mode == OUTPUT_TSV) {
         printf("meta\tsink\t%" PRIu64 "\n", g_sink);
