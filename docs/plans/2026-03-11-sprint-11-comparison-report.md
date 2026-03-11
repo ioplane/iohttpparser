@@ -291,6 +291,10 @@ Interpretation:
   “where do we still pay more than `picohttpparser`, and which part of that is intentional contract
   cost versus implementation cost?”
 
+For the next tuning steps, `picohttpparser` is the primary raw-throughput baseline and `llhttp`
+becomes the secondary reference. `llhttp` is still useful as a generated-parser comparison point,
+but it is no longer the main explanation target for the remaining gap.
+
 #### Stateful vs stateless benchmark view
 
 The follow-up also added stateful parser entries to the benchmark harness. On the same scenarios,
