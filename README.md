@@ -115,7 +115,6 @@ pkg-config --cflags --libs iohttpparser
   bytes are appended
 - `ihtp_parser_state_reset()` rewinds parser progress for a new message but does
   not clear caller-owned output structs for you
-
 - `ihtp_parser_state_t` exposes explicit progress for request, response, and headers-only parsing
 - `state.cursor` tracks consumed bytes inside the accumulated buffer
 - `state.phase` exposes `start-line`, `headers`, `done`, or `error`
@@ -137,6 +136,7 @@ if (ihtp_parse_request_stateful(&st, wire, partial_len, &req, nullptr, &consumed
 See:
 - [`docs/en/parser-state.md`](docs/en/parser-state.md)
 - [`docs/ru/parser-state.md`](docs/ru/parser-state.md)
+- generated API reference via `cmake --build --preset clang-debug --target docs`
 
 ## Consumer Policy Presets
 
@@ -187,7 +187,7 @@ See:
 - the fact that `CONNECT` stays a method-driven integration decision, not a
   separate parser boolean
 
-## Status Codes
+## Additional Examples
 
 `examples/response_upgrade.c` demonstrates:
 - stateful parsing of a `101 Switching Protocols` response
