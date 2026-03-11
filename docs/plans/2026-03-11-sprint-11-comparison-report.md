@@ -1373,6 +1373,28 @@ campaign because the valgrind process hit an illegal-instruction path before rea
 parser profile. For `picohttpparser`, throughput and the repository harness remain the primary
 signals until a separate scalar-only cost-model build is added.
 
+That scalar-only build was then added for the same workload (`req-pico-bench`) with:
+
+- `IOHTTPPARSER_SIMD_SSE42=OFF`
+- `IOHTTPPARSER_SIMD_AVX2=OFF`
+
+Instruction totals on that equalized scalar-only build:
+
+| Parser | Total instructions (`Ir`) |
+|---|---:|
+| `iohttpparser-stateful-strict` | `38,841,616` |
+| `llhttp` | `40,561,711` |
+| `picohttpparser` | `30,517,599` |
+
+Interpretation:
+
+- once SIMD side effects are removed from the profiling environment, `iohttpparser` is already
+  slightly cheaper than `llhttp` on this parser-only cost model
+- `picohttpparser` still stays far ahead because its parser contract is materially thinner
+- the remaining real optimization target is therefore not “catch `llhttp` at any price”, but
+  deciding how much of the remaining gap to `picohttpparser` is worth closing without weakening the
+  current consumer contract
+
 ### Are These Extra Responsibilities in the Right Layer?
 
 Mostly yes, with an important boundary.
