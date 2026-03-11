@@ -300,6 +300,46 @@ if(IOHTTPPARSER_BUILD_BENCH)
     if(IOHTTPPARSER_SIMD_AVX2)
         target_compile_definitions(bench_parser PRIVATE IOHTTPPARSER_HAVE_AVX2)
     endif()
+
+    add_executable(
+        bench_throughput_compare
+        bench/bench_throughput_compare.c
+        tests/third_party/picohttpparser/picohttpparser.c
+        tests/third_party/llhttp/api.c
+        tests/third_party/llhttp/http.c
+        tests/third_party/llhttp/llhttp.c
+    )
+    target_include_directories(
+        bench_throughput_compare
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+            ${CMAKE_SOURCE_DIR}/tests/third_party/picohttpparser
+            ${CMAKE_SOURCE_DIR}/tests/third_party/llhttp
+    )
+    target_link_libraries(bench_throughput_compare PRIVATE iohttpparser)
+    target_compile_options(
+        bench_throughput_compare
+        PRIVATE
+            -Wno-conversion
+            -Wno-sign-conversion
+            -Wno-shadow
+            -Wno-undef
+            -Wno-unused-function
+            -Wno-unused-parameter
+            -Wno-missing-prototypes
+            -Wno-missing-declarations
+            -Wno-cast-qual
+            -Wno-pedantic
+            -Wno-format-pedantic
+    )
+    if(IOHTTPPARSER_SIMD_SSE42)
+        target_compile_definitions(bench_throughput_compare PRIVATE IOHTTPPARSER_HAVE_SSE42)
+        target_compile_options(bench_throughput_compare PRIVATE -msse4.2)
+    endif()
+    if(IOHTTPPARSER_SIMD_AVX2)
+        target_compile_definitions(bench_throughput_compare PRIVATE IOHTTPPARSER_HAVE_AVX2)
+        target_compile_options(bench_throughput_compare PRIVATE -mavx2)
+    endif()
 endif()
 
 # ============================================================================
