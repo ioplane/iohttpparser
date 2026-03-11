@@ -482,6 +482,74 @@ Engineering decision:
 - do not pursue table-driven field-value classification further
 - prefer optimizations that remove work, not optimizations that replace arithmetic with extra memory traffic
 
+## Negative Result: No-Edge-OWS Trim Fast Path
+
+Another apparently safe idea was tested and rejected:
+
+- short-circuit `trim_and_validate_field_value()` when the first and last bytes are not `SP`/`HTAB`
+
+The expectation was that many realistic values are already edge-trimmed, so skipping the two trim
+loops would reduce `T_value`.
+
+In practice, the extra branch hurt the mixed realistic path more than it helped the clean path.
+
+Five-run median comparison on the same host (`RUNS=5`, `ITERATIONS=150000`):
+
+| Scenario | Baseline strict req/s | Fast-path strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-heavy` | `4.79M` | `4.84M` | `+1.1%` |
+| `hdr-uncommon-valid` | `8.76M` | `8.65M` | `-1.3%` |
+| `req-pico-bench` | `4.29M` | `3.06M` | `-28.6%` |
+| `hdr-value-ascii-clean` | `6.85M` | `7.88M` | `+15.0%` |
+
+Why it likely regressed:
+
+- the extra edge-check branch runs on every header value
+- realistic request mixes do not spend all of their time in the clean ASCII-only subcase
+- the helper already pays for `field_text_is_valid()` immediately after trimming, so the branch did
+  not remove enough total work on mixed workloads
+
+Engineering decision:
+
+- do not keep the no-edge-OWS trim fast path
+- prefer optimizations that help mixed realistic values, not only clean synthetic ones
+
+## Negative Result: Early `:` Search Before Full Line-End Resolution
+
+Another header-loop idea was tested and rejected:
+
+- search `:` first for non-continuation lines
+- then resolve `LF` only from `colon + 1`
+- fall back to the old logic only for malformed or incomplete cases
+
+The theory was attractive:
+
+- on valid lines, save one pass over the header-name prefix
+- reduce `memchr` work in the common `name:value...CRLF` case
+
+In practice, it made the hot header loop more expensive on realistic inputs.
+
+Single-run confirmation on the same host (`ITERATIONS=150000`) showed:
+
+| Scenario | Baseline strict req/s | Early-`:` strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `4.46M` | `3.28M` | `-26.4%` |
+| `hdr-value-heavy` | `4.79M` | `4.43M` | `-7.6%` |
+| `hdr-uncommon-valid` | `8.76M` | `7.80M` | `-10.9%` |
+| `req-pico-bench` | `4.29M` | `4.01M` | `-6.7%` |
+
+Why it likely regressed:
+
+- the extra control-flow in `parse_header_block` ran on every normal header line
+- malformed/incomplete fallback paths became more complex, not simpler
+- the saved `memchr` bytes were not enough to pay for the added branch and helper overhead
+
+Engineering decision:
+
+- keep the simpler `find_line_end()` -> `find_header_name_colon()` structure
+- continue optimization through smaller local improvements, not by making the main header loop
+  structurally more complex
+
 ## Tuning Directions That Still Look Safe
 
 The next safe directions should stay narrow and evidence-driven:

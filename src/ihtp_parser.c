@@ -519,11 +519,12 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
             return IHTP_ERROR;
         }
 
-        /* Find line ending for this header line */
         const char *line_break = nullptr;
         size_t line_ending_len = 0;
+        const char *line_start = buf + pos;
         ihtp_status_t line_status =
-            find_line_end(buf + pos, len - pos, policy, &line_break, &line_ending_len);
+            find_line_end(line_start, len - pos, policy, &line_break, &line_ending_len);
+
         if (line_status == IHTP_INCOMPLETE) {
             if (len - pos > IHTP_MAX_HEADER_LINE) {
                 return IHTP_ERROR_TOO_LONG;
@@ -536,7 +537,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
             return line_status;
         }
 
-        size_t line_len = (size_t)(line_break - (buf + pos));
+        size_t line_len = (size_t)(line_break - line_start);
         if (line_len > IHTP_MAX_HEADER_LINE) {
             return IHTP_ERROR_TOO_LONG;
         }
@@ -560,7 +561,6 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         }
 
         /* Parse: field-name ":" OWS field-value OWS */
-        const char *line_start = buf + pos;
         size_t colon_offset = 0;
         if (!find_header_name_colon(line_start, line_len, &colon_offset)) {
             return IHTP_ERROR;
