@@ -143,6 +143,9 @@ typedef struct {
     ihtp_body_mode_t body_mode; /**< Body mode (set by semantics layer) */
     uint64_t content_length;    /**< Content-Length value (if body_mode == IHTP_BODY_FIXED) */
     bool keep_alive;            /**< Connection persistence */
+    bool protocol_upgrade;      /**< Connection switches protocols after headers */
+    bool expects_continue;      /**< Request carries Expect: 100-continue */
+    bool has_trailer_fields;    /**< Trailer header advertises trailing fields */
 } ihtp_request_t;
 
 /**
@@ -160,6 +163,8 @@ typedef struct {
     ihtp_body_mode_t body_mode; /**< Body mode (set by semantics layer) */
     uint64_t content_length;    /**< Content-Length value (if body_mode == IHTP_BODY_FIXED) */
     bool keep_alive;            /**< Connection persistence */
+    bool protocol_upgrade;      /**< Response switches protocols after headers */
+    bool has_trailer_fields;    /**< Trailer header advertises trailing fields */
 } ihtp_response_t;
 
 /**

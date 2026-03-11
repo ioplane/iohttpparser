@@ -1,0 +1,7 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=chunked
+keep_alive=true
+has_trailer_fields=true
+wire=HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: Digest\r\n\r\n

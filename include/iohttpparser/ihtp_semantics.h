@@ -15,6 +15,10 @@
  * This is the handoff between the syntax parser and the consumer.
  * The function resolves body framing, connection persistence, and request-side
  * rejection rules such as invalid Host handling or TE/CL ambiguity.
+ * It also exposes consumer-facing ownership flags:
+ * - protocol upgrades (`protocol_upgrade`)
+ * - `Expect: 100-continue` (`expects_continue`)
+ * - advertised trailer fields (`has_trailer_fields`)
  *
  * @param req    Parsed request from the parser layer.
  * @param policy Parsing policy. NULL = strict.
@@ -28,7 +32,8 @@
  *
  * This resolves response body framing and connection persistence so the
  * consumer can hand the result to a body decoder or connection-management
- * layer without re-parsing headers manually.
+ * layer without re-parsing headers manually. It also marks protocol switches
+ * and advertised trailer fields for higher layers.
  *
  * @param resp   Parsed response from the parser layer.
  * @param policy Parsing policy. NULL = strict.

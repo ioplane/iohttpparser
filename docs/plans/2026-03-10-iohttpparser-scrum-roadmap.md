@@ -195,21 +195,23 @@
 - the primary contract consumers are now:
   - `iohttp`
   - `ioguard` (formerly `ringwall`)
-- current Sprint 7 batch is documentation-first:
-  - publish consumer contracts
-  - turn differential results into ownership boundaries
-  - define the remaining semantics queue for integration-sensitive cases
-- public semantics handoff is now being formalized in `include/iohttpparser/ihtp_semantics.h`
-- next implementation focus after the docs baseline:
-  - `Upgrade`
-  - `CONNECT`
-  - `Expect: 100-continue`
-  - trailer ownership and handoff
+- consumer contract docs now exist in `docs/en/05-consumer-contracts.md` and `docs/ru/05-consumer-contracts.md`
+- public semantics handoff is now formalized in `include/iohttpparser/ihtp_semantics.h`
+- current Sprint 7 semantics batch is green for:
+  - `protocol_upgrade`
+  - `Expect: 100-continue` ownership via `expects_continue`
+  - trailer advertisement ownership via `has_trailer_fields`
+  - strict rejection of `Trailer` on non-chunked framing
+- unit and corpus coverage now pin these semantics contracts before integration examples land
+- next implementation focus:
+  - integration-oriented examples for stateful parsing + semantics/body handoff
+  - `CONNECT`-specific consumer guidance
+  - policy presets for `iohttp` and `ioguard`
 
 **Immediate execution queue:**
-1. Publish the Sprint 7 consumer-contract baseline for `iohttp` and `ioguard`.
-2. Turn the contract into explicit ownership work for `Upgrade`, `CONNECT`, `Expect: 100-continue`, and trailer handling.
-3. Add integration-oriented examples and tests for stateful parsing plus semantics/body handoff.
+1. Finish Sprint 7 verification and publish the consumer-contract branch.
+2. Add integration-oriented examples for stateful parsing plus semantics/body handoff.
+3. Add policy presets for `iohttp` and `ioguard`.
 4. Keep full container quality and docs validation green as Sprint 7 lands.
 
 ---
@@ -399,9 +401,9 @@
 
 ---
 
-## Sprint 7: ringwall Strict-Profile Integration
+## Sprint 7: ioguard Strict-Profile Integration
 
-**Goal:** Provide a stricter consumer profile for `ringwall`.
+**Goal:** Provide a stricter consumer profile for `ioguard`.
 
 **Scope:**
 - fail-closed policy profile
@@ -415,7 +417,7 @@
 - add security regression tests for proxy-sensitive cases
 
 **Exit criteria:**
-- `ringwall` integration contract is explicit
+- `ioguard` integration contract is explicit
 - strict profile behavior is separate from `iohttp` general profile
 
 ---

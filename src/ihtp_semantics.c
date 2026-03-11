@@ -159,7 +159,7 @@ static bool parse_transfer_encoding(const char *value, size_t len, bool *ends_wi
 }
 
 static bool parse_connection_header(const char *value, size_t len, bool *has_close,
-                                    bool *has_keep_alive)
+                                    bool *has_keep_alive, bool *has_upgrade)
 {
     size_t pos = 0;
     bool saw_token = false;
@@ -189,7 +189,68 @@ static bool parse_connection_header(const char *value, size_t len, bool *has_clo
             *has_close = true;
         } else if (bytes_eq_ignore_case(part, part_len, "keep-alive", 10)) {
             *has_keep_alive = true;
+        } else if (bytes_eq_ignore_case(part, part_len, "upgrade", 7)) {
+            *has_upgrade = true;
         }
+        saw_token = true;
+
+        if (pos < len && value[pos] == ',') {
+            pos++;
+            if (pos == len) {
+                return false;
+            }
+        }
+    }
+
+    return saw_token;
+}
+
+static bool parse_expect_header(const char *value, size_t len, bool *expects_continue)
+{
+    const char *part = value;
+    size_t part_len = len;
+
+    while (part_len > 0 && ihtp_is_lws((uint8_t)*part)) {
+        part++;
+        part_len--;
+    }
+    while (part_len > 0 && ihtp_is_lws((uint8_t)part[part_len - 1])) {
+        part_len--;
+    }
+    if (part_len == 0) {
+        return false;
+    }
+
+    *expects_continue = bytes_eq_ignore_case(part, part_len, "100-continue", 12);
+    return true;
+}
+
+static bool parse_trailer_header(const char *value, size_t len)
+{
+    size_t pos = 0;
+    bool saw_token = false;
+
+    while (pos < len) {
+        size_t part_start = pos;
+
+        while (pos < len && value[pos] != ',') {
+            pos++;
+        }
+
+        size_t part_len = pos - part_start;
+        const char *part = value + part_start;
+
+        while (part_len > 0 && ihtp_is_lws((uint8_t)*part)) {
+            part++;
+            part_len--;
+        }
+        while (part_len > 0 && ihtp_is_lws((uint8_t)part[part_len - 1])) {
+            part_len--;
+        }
+        if (part_len == 0 || !ihtp_scanner_get()->is_token(part, part_len)) {
+            return false;
+        }
+
         saw_token = true;
 
         if (pos < len && value[pos] == ',') {
@@ -221,8 +282,12 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
     bool chunked = false;
     bool has_connection = false;
     bool has_host = false;
+    bool has_upgrade = false;
+    bool has_expect = false;
+    bool has_trailer = false;
     bool connection_close = false;
     bool connection_keep_alive = false;
+    bool connection_upgrade = false;
     size_t chunked_count = 0;
     uint64_t content_length = 0;
 
@@ -253,14 +318,29 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
             content_length = parsed_content_length;
         } else if (header_name_eq(h, "connection", 10)) {
             if (!parse_connection_header(h->value, h->value_len, &connection_close,
-                                         &connection_keep_alive)) {
+                                         &connection_keep_alive, &connection_upgrade)) {
                 return IHTP_ERROR;
             }
+        } else if (header_name_eq(h, "upgrade", 7)) {
+            if (!ihtp_scanner_get()->is_token(h->value, h->value_len)) {
+                return IHTP_ERROR;
+            }
+            has_upgrade = true;
         } else if (header_name_eq(h, "host", 4)) {
             if (has_host || h->value_len == 0) {
                 return IHTP_ERROR;
             }
             has_host = true;
+        } else if (header_name_eq(h, "expect", 6)) {
+            if (!parse_expect_header(h->value, h->value_len, &req->expects_continue)) {
+                return IHTP_ERROR;
+            }
+            has_expect = true;
+        } else if (header_name_eq(h, "trailer", 7)) {
+            if (!parse_trailer_header(h->value, h->value_len)) {
+                return IHTP_ERROR;
+            }
+            has_trailer = true;
         }
     }
 
@@ -296,6 +376,16 @@ ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_polic
         req->body_mode = IHTP_BODY_NONE;
     }
 
+    if (has_trailer && req->body_mode != IHTP_BODY_CHUNKED) {
+        return IHTP_ERROR;
+    }
+
+    req->protocol_upgrade = has_upgrade && connection_upgrade;
+    req->has_trailer_fields = has_trailer;
+    if (!has_expect) {
+        req->expects_continue = false;
+    }
+
     /* Default keep-alive based on HTTP version */
     if (!has_connection) {
         /* No explicit Connection header decision — use version default */
@@ -326,8 +416,11 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
     bool has_cl = false;
     bool chunked = false;
     bool has_connection = false;
+    bool has_upgrade = false;
+    bool has_trailer = false;
     bool connection_close = false;
     bool connection_keep_alive = false;
+    bool connection_upgrade = false;
     size_t chunked_count = 0;
     uint64_t content_length = 0;
 
@@ -358,9 +451,19 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
             content_length = parsed_content_length;
         } else if (header_name_eq(h, "connection", 10)) {
             if (!parse_connection_header(h->value, h->value_len, &connection_close,
-                                         &connection_keep_alive)) {
+                                         &connection_keep_alive, &connection_upgrade)) {
                 return IHTP_ERROR;
             }
+        } else if (header_name_eq(h, "upgrade", 7)) {
+            if (!ihtp_scanner_get()->is_token(h->value, h->value_len)) {
+                return IHTP_ERROR;
+            }
+            has_upgrade = true;
+        } else if (header_name_eq(h, "trailer", 7)) {
+            if (!parse_trailer_header(h->value, h->value_len)) {
+                return IHTP_ERROR;
+            }
+            has_trailer = true;
         }
     }
 
@@ -389,6 +492,18 @@ ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_po
         resp->content_length = content_length;
     } else {
         resp->body_mode = IHTP_BODY_EOF;
+    }
+
+    if (has_trailer && resp->body_mode != IHTP_BODY_CHUNKED) {
+        return IHTP_ERROR;
+    }
+
+    resp->protocol_upgrade = resp->status_code == 101 && has_upgrade && connection_upgrade &&
+                             !connection_close;
+    resp->has_trailer_fields = has_trailer;
+    if (resp->protocol_upgrade) {
+        resp->keep_alive = false;
+        has_connection = true;
     }
 
     /* HTTP/1.1 defaults to keep-alive unless EOF framing requires connection close. */

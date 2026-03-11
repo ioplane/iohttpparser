@@ -40,6 +40,10 @@ Semantics handoff теперь тоже часть публичного surface:
 - `ihtp_request_apply_semantics()`
 - `ihtp_response_apply_semantics()`
 - header: `include/iohttpparser/ihtp_semantics.h`
+- consumer-facing flags:
+  - `protocol_upgrade`
+  - `expects_continue`
+  - `has_trailer_fields`
 
 ---
 
@@ -127,6 +131,20 @@ Sprint 7 теперь должен зафиксировать:
 2. ownership для `Upgrade`, `CONNECT` и `Expect: 100-continue`
 3. presets по limits/profile для `iohttp` и `ioguard`
 4. integration examples со stateful parsing поверх accumulated buffers
+
+### Детали ownership в semantics
+
+- `protocol_upgrade` выставляется только когда само сообщение явно фиксирует
+  переключение протокола:
+  - request: `Connection: upgrade` и непустой `Upgrade`
+  - response: `101 Switching Protocols` вместе с `Connection: upgrade` и `Upgrade`
+- `expects_continue` есть только у request и выставляется для точного
+  `Expect: 100-continue`
+- `has_trailer_fields` означает, что сообщение объявляет trailer fields и
+  consumer должен передать завершение chunked body в trailer-aware path
+- `CONNECT` по-прежнему определяется главным образом через
+  `req.method == IHTP_METHOD_CONNECT`; Sprint 7 не добавляет для него отдельный
+  дублирующий флаг
 
 ## Рекомендация
 

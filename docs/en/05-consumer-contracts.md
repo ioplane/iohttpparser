@@ -40,6 +40,10 @@ The semantics handoff is now also part of the public surface:
 - `ihtp_request_apply_semantics()`
 - `ihtp_response_apply_semantics()`
 - header: `include/iohttpparser/ihtp_semantics.h`
+- consumer-facing semantics flags:
+  - `protocol_upgrade`
+  - `expects_continue`
+  - `has_trailer_fields`
 
 ---
 
@@ -127,6 +131,18 @@ Sprint 7 should now lock down:
 2. `Upgrade`, `CONNECT`, and `Expect: 100-continue` semantics ownership
 3. limit/profile presets for `iohttp` and `ioguard`
 4. integration examples that show stateful parsing on accumulated buffers
+
+### Semantics ownership details
+
+- `protocol_upgrade` is set only when the parsed message itself makes the
+  upgrade decision explicit:
+  - request: `Connection: upgrade` plus non-empty `Upgrade`
+  - response: `101 Switching Protocols` plus `Connection: upgrade` and `Upgrade`
+- `expects_continue` is request-only and is set for exact `Expect: 100-continue`
+- `has_trailer_fields` means the message advertises trailer fields and the
+  consumer should hand off chunked body completion to the trailer-aware path
+- `CONNECT` remains visible primarily through `req.method == IHTP_METHOD_CONNECT`;
+  Sprint 7 does not add a redundant boolean for that case
 
 ## Recommendation
 

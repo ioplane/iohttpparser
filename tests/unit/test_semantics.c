@@ -269,6 +269,61 @@ void test_semantics_request_accepts_identical_duplicate_content_length(void)
     TEST_ASSERT_EQUAL_UINT64(42, req.content_length);
 }
 
+void test_semantics_request_sets_protocol_upgrade(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("GET /chat HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Connection: keep-alive, Upgrade\r\n"
+                                               "Upgrade: websocket\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_TRUE(req.protocol_upgrade);
+}
+
+void test_semantics_request_sets_expect_continue(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("POST /upload HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Content-Length: 42\r\n"
+                                               "Expect: 100-continue\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_TRUE(req.expects_continue);
+}
+
+void test_semantics_request_sets_trailer_advertisement_for_chunked_body(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("POST /upload HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Transfer-Encoding: chunked\r\n"
+                                               "Trailer: Digest, Expires\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_TRUE(req.has_trailer_fields);
+}
+
+void test_semantics_request_rejects_trailer_without_chunked_body(void)
+{
+    ihtp_request_t req;
+    ihtp_status_t s = parse_req_with_semantics("POST /upload HTTP/1.1\r\n"
+                                               "Host: example.com\r\n"
+                                               "Content-Length: 42\r\n"
+                                               "Trailer: Digest\r\n"
+                                               "\r\n",
+                                               &req);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
+}
+
 void test_semantics_response_rejects_te_cl_in_strict_mode(void)
 {
     ihtp_response_t resp;
@@ -293,6 +348,46 @@ void test_semantics_response_allows_te_cl_in_lenient_mode(void)
 
     TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
     TEST_ASSERT_EQUAL_INT(IHTP_BODY_CHUNKED, resp.body_mode);
+}
+
+void test_semantics_response_sets_protocol_upgrade_for_switching_protocols(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Connection: Upgrade\r\n"
+                                                       "Upgrade: websocket\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_TRUE(resp.protocol_upgrade);
+    TEST_ASSERT_FALSE(resp.keep_alive);
+    TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
+}
+
+void test_semantics_response_sets_trailer_advertisement_for_chunked_body(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
+                                                       "Transfer-Encoding: chunked\r\n"
+                                                       "Trailer: Digest\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_TRUE(resp.has_trailer_fields);
+}
+
+void test_semantics_response_rejects_trailer_without_chunked_body(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 200 OK\r\n"
+                                                       "Content-Length: 42\r\n"
+                                                       "Trailer: Digest\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_ERROR, s);
 }
 
 void test_semantics_response_uses_eof_for_transfer_encoding_not_ending_in_chunked(void)
@@ -651,8 +746,15 @@ int main(void)
     RUN_TEST(test_semantics_request_allows_te_cl_in_lenient_mode);
     RUN_TEST(test_semantics_request_rejects_conflicting_content_length);
     RUN_TEST(test_semantics_request_accepts_identical_duplicate_content_length);
+    RUN_TEST(test_semantics_request_sets_protocol_upgrade);
+    RUN_TEST(test_semantics_request_sets_expect_continue);
+    RUN_TEST(test_semantics_request_sets_trailer_advertisement_for_chunked_body);
+    RUN_TEST(test_semantics_request_rejects_trailer_without_chunked_body);
     RUN_TEST(test_semantics_response_rejects_te_cl_in_strict_mode);
     RUN_TEST(test_semantics_response_allows_te_cl_in_lenient_mode);
+    RUN_TEST(test_semantics_response_sets_protocol_upgrade_for_switching_protocols);
+    RUN_TEST(test_semantics_response_sets_trailer_advertisement_for_chunked_body);
+    RUN_TEST(test_semantics_response_rejects_trailer_without_chunked_body);
     RUN_TEST(test_semantics_response_uses_eof_for_transfer_encoding_not_ending_in_chunked);
     RUN_TEST(test_semantics_response_accepts_case_insensitive_chunked);
     RUN_TEST(test_semantics_response_rejects_malformed_transfer_encoding_list);

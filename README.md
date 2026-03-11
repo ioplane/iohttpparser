@@ -140,6 +140,17 @@ See:
 - with `consume_trailer = true`, trailer lines are consumed through the terminating empty line before completion
 - `ihtp_fixed_decoder_t` tracks only payload accounting: `remaining`, `total_decoded`, and overflow rejection
 
+## Semantics Contracts
+
+- `ihtp_request_apply_semantics()` now exposes:
+  - `req.protocol_upgrade`
+  - `req.expects_continue`
+  - `req.has_trailer_fields`
+- `ihtp_response_apply_semantics()` now exposes:
+  - `resp.protocol_upgrade`
+  - `resp.has_trailer_fields`
+- trailer advertisement is accepted only for chunked messages; strict mode rejects `Trailer` on non-chunked framing
+
 ## Status Codes
 
 | Code | Meaning |
