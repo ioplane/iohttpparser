@@ -200,6 +200,23 @@ static bool field_text_is_valid(const char *buf, size_t len)
 {
     const uint8_t *p = (const uint8_t *)buf;
     const uint8_t *end = p + len;
+    static const uint64_t ones = UINT64_C(0x0101010101010101);
+    static const uint64_t highs = UINT64_C(0x8080808080808080);
+
+    while ((size_t)(end - p) >= sizeof(uint64_t)) {
+        uint64_t chunk = 0;
+        memcpy(&chunk, p, sizeof(chunk));
+
+        uint64_t low_controls = (chunk - (ones * UINT64_C(0x20))) & ~chunk & highs;
+        uint64_t del_bytes = chunk ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del = (del_bytes - ones) & ~del_bytes & highs;
+
+        if ((low_controls | has_del) != 0) {
+            break;
+        }
+
+        p += sizeof(uint64_t);
+    }
 
     while (p < end) {
         uint8_t c = *p++;

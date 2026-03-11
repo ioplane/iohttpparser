@@ -565,8 +565,68 @@ Practical conclusion:
 
 - do not spend the next batch on generic loop bookkeeping
 - the remaining payoff is still in long, realistic header values and mixed header-heavy requests
-| `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
-| `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
+
+## Sprint 13 Value-Path Batch 3 (Verified)
+
+The next accepted step added a word-at-a-time fast path to `field_text_is_valid()`:
+
+- scan `8` bytes at a time with a `memcpy` load into `uint64_t`
+- skip whole chunks when they contain no bytes `< 0x20` and no `0x7f`
+- fall back to the existing bytewise path for chunks containing tabs or any potentially invalid control byte
+
+Why this worked while the earlier table-driven attempt failed:
+
+- it reduces work on the common case by skipping whole clean chunks
+- it does not introduce an extra dependent memory lookup per byte
+- it preserves the exact valid-byte set and keeps all unusual cases on the slow path
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Confirmed 7-run strict results:
+
+| Scenario | Batch 2 strict req/s | Batch 3 strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-ascii-clean` | `2,932,513.08` | `7,131,262.39` | `+143.1%` |
+| `hdr-value-heavy` | `1,863,789.91` | `4,565,518.20` | `+145.0%` |
+| `hdr-value-obs-text` | `11,934,233.78` | `11,934,233.78` | `0.0%` |
+| `hdr-value-trim-heavy` | `6,731,744.69` | `6,731,744.69` | `0.0%` |
+| `req-pico-bench` | `1,838,413.32` | `3,308,078.87` | `+80.0%` |
+
+Interpretation:
+
+- the main win is exactly where expected: long printable values
+- `obs-text` and trim-heavy cases do not benefit as much, because they hit the fallback path more often
+- this confirms that the highest-payoff remaining optimization surface was the clean long-value scan itself
+
+### Common Matrix Shift After Batch 3
+
+The broader parser-only matrix also moved materially.
+
+5-run median (`RUNS=5`, `ITERATIONS=100000`) after Batch 3:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-small` | `16,253,090.53` | `18,388,068.79` | `41,447,392.69` |
+| `req-headers` | `8,019,083.49` | `7,021,617.88` | `13,607,684.20` |
+| `req-pico-bench` | `3,420,096.98` | `2,761,719.99` | `7,130,088.17` |
+| `resp-small` | `22,209,281.61` | `17,835,949.93` | `41,749,295.48` |
+| `resp-headers` | `11,903,669.32` | `7,973,997.75` | `17,067,065.72` |
+| `resp-upgrade` | `17,025,156.88` | `13,586,410.11` | `27,937,455.86` |
+
+Practical interpretation:
+
+- `picohttpparser` remains the raw parser-throughput leader on every scenario in this matrix
+- `llhttp` still wins the very short request baseline
+- `iohttpparser-strict` now wins the header-heavy and response-side parser-only scenarios that are
+  more relevant to `iohttp` / `ioguard`
+- the remaining story is no longer “`llhttp` is always faster”; it is:
+  - `picohttpparser` is fastest because it does the least
+  - `llhttp` is very cheap on short request parsing because of its generated state machine
+  - `iohttpparser` is now competitive or better on header-heavy and response-side scenarios while
+    preserving a stricter and richer pull-style contract
 
 ### Sprint 13 Micro-Localization Findings
 
