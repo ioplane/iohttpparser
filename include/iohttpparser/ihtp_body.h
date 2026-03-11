@@ -34,7 +34,8 @@ typedef struct {
  * @brief Decode chunked transfer encoding (in-place).
  *
  * Rewrites buf in-place, removing chunk framing.
- * On return, *bufsz is updated to decoded data length.
+ * On return, *bufsz is updated to decoded payload length retained in the
+ * caller buffer.
  * The function is incremental: callers may invoke it repeatedly with
  * subsequent buffer slices using the same decoder state.
  *
@@ -44,6 +45,10 @@ typedef struct {
  * @return >= 0: complete (value = undecoded trailing bytes),
  *         IHTP_INCOMPLETE: need more data,
  *         IHTP_ERROR: malformed chunked data.
+ *
+ * Trailing bytes remain in the same caller-owned buffer immediately after the
+ * decoded payload prefix. The decoder never allocates or takes ownership of
+ * payload or trailer bytes.
  */
 [[nodiscard]] ihtp_status_t ihtp_decode_chunked(ihtp_chunked_decoder_t *decoder, char *buf,
                                                 size_t *bufsz);

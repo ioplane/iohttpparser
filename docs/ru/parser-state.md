@@ -24,6 +24,9 @@
 - `state.cursor` показывает общий прогресс внутри накопленного буфера
 - `state.phase` показывает, где сейчас парсер: start line, headers, done или error
 - `ihtp_parser_state_reset()` сохраняет `state.mode`, но сбрасывает progress для нового сообщения
+- разобранные request/response/header spans по-прежнему указывают на caller-owned input bytes
+- `ihtp_parser_state_reset()` не очищает output structs; если consumer хочет
+  заново обнулить их, он должен сделать это сам
 
 ## Пример
 

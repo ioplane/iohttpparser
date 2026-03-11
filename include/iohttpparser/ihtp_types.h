@@ -106,9 +106,9 @@ typedef struct {
  * Valid only while the input buffer is alive.
  */
 typedef struct {
-    const char *name;  /**< Header name (not NUL-terminated) */
+    const char *name;  /**< Header name (not NUL-terminated, points into caller-owned input) */
     size_t name_len;   /**< Length of name */
-    const char *value; /**< Header value (not NUL-terminated) */
+    const char *value; /**< Header value (not NUL-terminated, points into caller-owned input) */
     size_t value_len;  /**< Length of value */
 } ihtp_header_t;
 
@@ -129,10 +129,10 @@ typedef enum {
  */
 typedef struct {
     ihtp_method_t method;   /**< Parsed method enum */
-    const char *method_str; /**< Raw method string */
+    const char *method_str; /**< Raw method string (points into caller-owned input) */
     size_t method_len;      /**< Length of method string */
 
-    const char *path; /**< Request target (path) */
+    const char *path; /**< Request target (points into caller-owned input) */
     size_t path_len;  /**< Length of path */
 
     ihtp_http_version_t version; /**< HTTP version (1.0 or 1.1) */
@@ -154,7 +154,7 @@ typedef struct {
 typedef struct {
     ihtp_http_version_t version; /**< HTTP version */
     int status_code;             /**< Status code (100-599) */
-    const char *reason;          /**< Reason phrase */
+    const char *reason;          /**< Reason phrase (points into caller-owned input) */
     size_t reason_len;           /**< Length of reason phrase */
 
     ihtp_header_t headers[IHTP_MAX_HEADERS]; /**< Parsed headers */

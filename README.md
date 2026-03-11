@@ -109,6 +109,13 @@ pkg-config --cflags --libs iohttpparser
 
 ## Stateful Parser API
 
+- all parsed spans in request, response, and header structs point into the
+  caller-owned input buffer
+- for stateful parsing, keep reusing the same accumulated buffer while new
+  bytes are appended
+- `ihtp_parser_state_reset()` rewinds parser progress for a new message but does
+  not clear caller-owned output structs for you
+
 - `ihtp_parser_state_t` exposes explicit progress for request, response, and headers-only parsing
 - `state.cursor` tracks consumed bytes inside the accumulated buffer
 - `state.phase` exposes `start-line`, `headers`, `done`, or `error`
@@ -151,6 +158,8 @@ See:
 - with `consume_trailer = false`, the terminal chunk trailer section stays in trailing bytes
 - with `consume_trailer = true`, trailer lines are consumed through the terminating empty line before completion
 - `ihtp_fixed_decoder_t` tracks only payload accounting: `remaining`, `total_decoded`, and overflow rejection
+- trailing bytes remain caller-owned in the same buffer immediately after the
+  decoded payload prefix
 
 ## Semantics Contracts
 
