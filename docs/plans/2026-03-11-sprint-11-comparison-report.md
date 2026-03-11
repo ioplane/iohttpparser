@@ -400,6 +400,59 @@ Unpromising directions based on current evidence:
 - branchless/table-driven field-value validation
 - wider SIMD in parser logic without proof that scanner cost is the limiting factor
 - moving wire-level ambiguity handling out of the library just to gain parser throughput
+
+## Sprint 13 Cost Decomposition: Header Name vs Header Value
+
+To reduce guesswork, the standalone harness was extended with two synthetic request scenarios:
+
+- `hdr-name-heavy`: very long uncommon header names with trivial values
+- `hdr-value-heavy`: short header names with long valid values
+
+These scenarios are not meant to model real traffic directly. They isolate the two dominant terms in the
+generic header path:
+
+- `T_name`: name scan + token validation
+- `T_value`: value scan + trim + validation
+
+At a high level, header cost can be thought of as:
+
+`T_headers ~= sum(T_name_i + T_value_i + T_line_i) + T_loop`
+
+where:
+
+- `T_name_i` grows with header-name length and uncommon-name handling
+- `T_value_i` grows with value length and field-value checks
+- `T_line_i` is line-end / delimiter search
+- `T_loop` is fixed parser bookkeeping per header
+
+Focused 5-run median results (`RUNS=5`, `ITERATIONS=100000`):
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `3,308,903.15` | `4,616,647.66` | `9,055,289.70` |
+| `hdr-value-heavy` | `1,649,627.96` | `3,601,368.16` | `8,689,912.30` |
+| `hdr-uncommon-valid` | `5,805,903.54` | `9,251,856.06` | `16,353,122.79` |
+| `req-pico-bench` | `1,598,296.19` | `3,147,542.70` | `7,109,814.79` |
+
+Supporting interpretation:
+
+- `hdr-name-heavy` is slower than `llhttp`, but not catastrophically so
+- `hdr-value-heavy` is much worse, and the gap to `llhttp` widens materially
+- `req-pico-bench` tracks the same direction as `hdr-value-heavy`
+
+This strongly suggests that the dominant remaining cost in `iohttpparser` is not just uncommon header names.
+The bigger tax is in generic field-value handling on long, valid header values.
+
+Secondary observation:
+
+- `strict` and `lenient` are close on these isolated scenarios
+- therefore the remaining cost is mostly parser-core work, not strict-policy branching
+
+Practical conclusion:
+
+- the next tuning wave should target `T_value`, not `T_name`
+- value-path optimization should focus on reducing repeated per-byte work without adding extra memory traffic
+- name-path work is still relevant, but it is now clearly a secondary priority
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 

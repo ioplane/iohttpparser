@@ -233,6 +233,28 @@ int main(int argc, char **argv)
     static const char hdr_common_heavy[] =
         "GET /r HTTP/1.1\r\nHost: example.test\r\nConnection: keep-alive\r\nContent-Length: 0\r\n"
         "Expect: 100-continue\r\nUpgrade: websocket\r\n\r\n";
+    static const char hdr_name_heavy[] =
+        "GET /r HTTP/1.1\r\n"
+        "X-Extremely-Long-Alpha-Header-Name-0001: 1\r\n"
+        "X-Extremely-Long-Beta-Header-Name-0002: 1\r\n"
+        "X-Extremely-Long-Gamma-Header-Name-0003: 1\r\n"
+        "X-Extremely-Long-Delta-Header-Name-0004: 1\r\n"
+        "X-Extremely-Long-Epsilon-Header-Name-0005: 1\r\n"
+        "X-Extremely-Long-Zeta-Header-Name-0006: 1\r\n"
+        "X-Extremely-Long-Eta-Header-Name-0007: 1\r\n"
+        "X-Extremely-Long-Theta-Header-Name-0008: 1\r\n"
+        "\r\n";
+    static const char hdr_value_heavy[] =
+        "GET /r HTTP/1.1\r\n"
+        "A: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "B: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "C: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "D: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "E: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "F: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "G: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "H: token0001 token0002 token0003 token0004 token0005 token0006 token0007 token0008\r\n"
+        "\r\n";
     static const char hdr_uncommon_valid[] =
         "GET /r HTTP/1.1\r\nX-Custom-Alpha-Token: abcdef1234567890\r\n"
         "X-Trace-Vector-Path: a,b,c,d,e,f,g\r\n"
@@ -256,6 +278,8 @@ int main(int argc, char **argv)
         {"req-small", SCENARIO_REQUEST, req_small, sizeof(req_small) - 1, false},
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
         {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1, false},
+        {"hdr-name-heavy", SCENARIO_REQUEST, hdr_name_heavy, sizeof(hdr_name_heavy) - 1, false},
+        {"hdr-value-heavy", SCENARIO_REQUEST, hdr_value_heavy, sizeof(hdr_value_heavy) - 1, false},
         {"hdr-uncommon-valid", SCENARIO_REQUEST, hdr_uncommon_valid, sizeof(hdr_uncommon_valid) - 1,
          false},
         {"req-connect", SCENARIO_REQUEST, req_connect, sizeof(req_connect) - 1, true},
