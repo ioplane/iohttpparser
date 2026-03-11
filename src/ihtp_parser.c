@@ -198,10 +198,13 @@ static bool request_target_is_valid(const char *buf, size_t len, bool allow_spac
 
 static bool field_text_is_valid(const char *buf, size_t len)
 {
-    for (size_t i = 0; i < len; i++) {
-        uint8_t c = (uint8_t)buf[i];
+    const uint8_t *p = (const uint8_t *)buf;
+    const uint8_t *end = p + len;
 
-        if (c == '\t' || c == ' ') {
+    while (p < end) {
+        uint8_t c = *p++;
+
+        if (c == '\t') {
             continue;
         }
 

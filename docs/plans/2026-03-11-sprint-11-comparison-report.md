@@ -492,6 +492,43 @@ Interpretation:
 - the gain is strongest on the long mixed request from `pico`'s upstream benchmark
 - the optimization helps because it removes repeated trim bookkeeping from the full value scan
   without introducing extra per-byte memory traffic
+
+## Sprint 13 Value-Path Batch 2 (Verified)
+
+The second successful `T_value` step kept semantics unchanged and only tightened the inner
+`field_text_is_valid()` loop:
+
+- switched from indexed iteration to pointer-walk
+- removed the unnecessary special-case branch for `' '`
+- kept the same valid set:
+  - `HTAB`
+  - `SP`
+  - `VCHAR`
+  - `obs-text`
+  - reject other control bytes and `DEL`
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- first 5-run median already showed improvement on all value-oriented scenarios
+- final acceptance used a heavier confirmation run (`RUNS=7`, `ITERATIONS=150000`)
+
+Confirmed 7-run median results:
+
+| Scenario | Batch 1 strict req/s | Batch 2 strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-ascii-clean` | `2,553,077.98` | `2,932,513.08` | `+14.9%` |
+| `hdr-value-heavy` | `1,830,023.00` | `1,863,789.91` | `+1.8%` |
+| `req-pico-bench` | `1,616,138.08` | `1,838,413.32` | `+13.8%` |
+
+Interpretation:
+
+- the extra branch on `' '` was expensive enough to matter on long ASCII-heavy header values
+- the gain is strongest exactly where expected:
+  - ASCII-clean values
+  - long mixed real-world request from `pico`'s benchmark
+- the smaller gain on `hdr-value-heavy` suggests that the next remaining cost is no longer just the
+  validation loop body, but the combined generic header path around it
 | `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
 | `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
 
