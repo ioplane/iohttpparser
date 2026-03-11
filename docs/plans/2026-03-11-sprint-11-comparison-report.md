@@ -1111,6 +1111,27 @@ Recommended order of use:
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 
+### Comparison Rule for Sprint 13
+
+All remaining performance decisions are evaluated against **all three** parser baselines:
+
+- `iohttpparser`
+- `llhttp`
+- `picohttpparser`
+
+They answer different questions:
+
+- `llhttp` is the closest reference for a highly optimized generated parser core
+- `picohttpparser` is the raw-throughput upper bound for a much thinner parser contract
+- `iohttpparser` must be judged both by speed and by the richer consumer contract it preserves
+
+This prevents two common mistakes:
+
+- overfitting to `llhttp` while ignoring that `picohttpparser` still defines the minimal-contract
+  throughput ceiling
+- overfitting to `picohttpparser` and accidentally removing parser-adjacent guarantees that
+  `iohttp` and `ioguard` rely on
+
 ### Where `iohttpparser` Is Better Than `picohttpparser` and `llhttp`
 
 `iohttpparser` is not trying to be only a byte scanner. Its differentiator is the consumer contract.
@@ -1147,6 +1168,41 @@ Where the competitors cover less or differently:
   - very strong parser state machine
   - efficient callback-based embedding
   - different integration model than a stateful pull-style parser with typed semantic handoff
+
+### Profiler-Guided Batch: Thresholded `field_text` Fast Path
+
+The next accepted experiment stayed strictly inside the value-validation path:
+
+- keep the RFC-valid byte rules unchanged
+- add a word-at-a-time fast path in `field_text_is_valid()`
+- enable the wider 16-byte step only when enough bytes remain to amortize the extra loads
+
+This targets the hottest remaining helpers found by built-in trace, `uftrace`, and `callgrind`:
+
+- `field_text_is_valid`
+- `trim_and_validate_field_value`
+
+Five-run median comparison against the same baseline revision (`8eb07e6`) gave:
+
+| Scenario | `iohttpparser` before | `iohttpparser` after | `llhttp` | `picohttpparser` | Delta |
+|---|---:|---:|---:|---:|---:|
+| `hdr-value-heavy` | `4.44M req/s` | `4.79M req/s` | `3.58M` | `8.64M` | `+8.0%` |
+| `hdr-uncommon-valid` | `8.82M req/s` | `8.76M req/s` | `9.17M` | `16.61M` | `-0.7%` |
+| `req-pico-bench` | `4.16M req/s` | `4.29M req/s` | `3.14M` | `7.06M` | `+3.0%` |
+| `hdr-value-ascii-clean` | `6.75M req/s` | `6.85M req/s` | `5.07M` | `11.42M` | `+1.5%` |
+
+Interpretation:
+
+- the change is worth keeping because it improves the long realistic value path and `req-pico-bench`
+- the regression on `hdr-uncommon-valid` is small and does not change the overall three-way ranking
+- `picohttpparser` remains the clear raw-throughput leader
+- `iohttpparser` remains competitive with or faster than `llhttp` on the value-heavy scenarios that
+  matter most for realistic consumer traffic
+
+The corresponding methodology fix is also kept:
+
+- `scripts/run-throughput-compare.sh` now forwards extra benchmark arguments such as `--scenario`
+- this prevents accidental “all-scenarios” runs when only one targeted median was intended
 
 ### Are These Extra Responsibilities in the Right Layer?
 

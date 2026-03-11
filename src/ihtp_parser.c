@@ -286,8 +286,32 @@ static bool field_text_is_valid(const char *buf, size_t len)
     IHTP_PERF_ADD(field_text_calls, 1);
     IHTP_PERF_ADD(field_text_bytes, len);
 
+    while ((size_t)(end - p) >= sizeof(uint64_t) * 4U) {
+        uint64_t chunk_a = 0;
+        uint64_t chunk_b = 0;
+
+        memcpy(&chunk_a, p, sizeof(chunk_a));
+        memcpy(&chunk_b, p + sizeof(chunk_a), sizeof(chunk_b));
+
+        uint64_t low_controls_a = (chunk_a - (ones * UINT64_C(0x20))) & ~chunk_a & highs;
+        uint64_t del_bytes_a = chunk_a ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del_a = (del_bytes_a - ones) & ~del_bytes_a & highs;
+
+        uint64_t low_controls_b = (chunk_b - (ones * UINT64_C(0x20))) & ~chunk_b & highs;
+        uint64_t del_bytes_b = chunk_b ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del_b = (del_bytes_b - ones) & ~del_bytes_b & highs;
+
+        if ((low_controls_a | has_del_a | low_controls_b | has_del_b) != 0) {
+            break;
+        }
+
+        p += sizeof(uint64_t) * 2U;
+        IHTP_PERF_ADD(field_text_fast_bytes, sizeof(uint64_t) * 2U);
+    }
+
     while ((size_t)(end - p) >= sizeof(uint64_t)) {
         uint64_t chunk = 0;
+
         memcpy(&chunk, p, sizeof(chunk));
 
         uint64_t low_controls = (chunk - (ones * UINT64_C(0x20))) & ~chunk & highs;
