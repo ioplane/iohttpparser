@@ -227,6 +227,7 @@ int main(int argc, char **argv)
     static const char req_line_hot[] =
         "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
     static const char req_line_connect[] = "CONNECT example.test:443 HTTP/1.1\r\n\r\n";
+    static const char req_line_options[] = "OPTIONS /v1/ping?x=1&y=2 HTTP/1.1\r\n\r\n";
     static const char req_line_long_target[] =
         "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n\r\n";
     static const char req_small[] = "GET /api/v1/ping HTTP/1.1\r\nHost: example.test\r\n\r\n";
@@ -371,6 +372,8 @@ int main(int argc, char **argv)
         {"req-line-only", SCENARIO_REQUEST, req_line_only, sizeof(req_line_only) - 1, false},
         {"req-line-hot", SCENARIO_REQUEST, req_line_hot, sizeof(req_line_hot) - 1, false},
         {"req-line-connect", SCENARIO_REQUEST, req_line_connect, sizeof(req_line_connect) - 1,
+         false},
+        {"req-line-options", SCENARIO_REQUEST, req_line_options, sizeof(req_line_options) - 1,
          false},
         {"req-line-long-target", SCENARIO_REQUEST, req_line_long_target,
          sizeof(req_line_long_target) - 1, false},

@@ -864,6 +864,28 @@ Practical consequence:
 - if we keep tuning request-line work, the next likely hotspot is method classification and
   method-specific branching, especially around `CONNECT`
 
+### `CONNECT` vs `OPTIONS` Control Check
+
+An extra control scenario was added to avoid overfitting on `CONNECT` alone:
+
+- `req-line-connect`
+- `req-line-options`
+
+Observed 5-run median pattern:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-connect` | `23,826,111.32` | `29,351,929.93` | `65,276,921.02` |
+| `req-line-options` | `24,211,586.02` | `28,213,981.61` | `66,610,403.08` |
+
+Interpretation:
+
+- `CONNECT` is not a unique pathological case
+- the remaining short-request gap is more likely in the general request-line path for longer
+  method names than in authority-form handling alone
+- that points the next request-line investigation toward method classification and general
+  short-line parser overhead, not back toward target validation
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 
