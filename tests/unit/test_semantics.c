@@ -381,6 +381,30 @@ void test_semantics_response_sets_protocol_upgrade_for_switching_protocols(void)
     TEST_ASSERT_EQUAL_INT(IHTP_BODY_NONE, resp.body_mode);
 }
 
+void test_semantics_response_does_not_set_protocol_upgrade_without_connection_upgrade(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Upgrade: websocket\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_FALSE(resp.protocol_upgrade);
+}
+
+void test_semantics_response_does_not_set_protocol_upgrade_without_upgrade_header(void)
+{
+    ihtp_response_t resp;
+    ihtp_status_t s = parse_resp_with_semantics_policy("HTTP/1.1 101 Switching Protocols\r\n"
+                                                       "Connection: Upgrade\r\n"
+                                                       "\r\n",
+                                                       &resp, nullptr);
+
+    TEST_ASSERT_EQUAL_INT(IHTP_OK, s);
+    TEST_ASSERT_FALSE(resp.protocol_upgrade);
+}
+
 void test_semantics_response_sets_trailer_advertisement_for_chunked_body(void)
 {
     ihtp_response_t resp;
@@ -770,6 +794,8 @@ int main(void)
     RUN_TEST(test_semantics_response_rejects_te_cl_in_strict_mode);
     RUN_TEST(test_semantics_response_allows_te_cl_in_lenient_mode);
     RUN_TEST(test_semantics_response_sets_protocol_upgrade_for_switching_protocols);
+    RUN_TEST(test_semantics_response_does_not_set_protocol_upgrade_without_connection_upgrade);
+    RUN_TEST(test_semantics_response_does_not_set_protocol_upgrade_without_upgrade_header);
     RUN_TEST(test_semantics_response_sets_trailer_advertisement_for_chunked_body);
     RUN_TEST(test_semantics_response_rejects_trailer_without_chunked_body);
     RUN_TEST(test_semantics_response_uses_eof_for_transfer_encoding_not_ending_in_chunked);

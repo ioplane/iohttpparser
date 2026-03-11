@@ -175,6 +175,22 @@ See:
 
 ## Status Codes
 
+`examples/response_upgrade.c` demonstrates:
+- stateful parsing of a `101 Switching Protocols` response
+- response-side `protocol_upgrade` handoff
+- the point where upgraded bytes become consumer-owned rather than HTTP-owned
+
+`examples/expect_trailers.c` demonstrates:
+- `Expect: 100-continue` handoff
+- chunked request-body decoding with `consume_trailer = false`
+- the fact that trailer bytes can remain consumer-owned after chunked decode
+
+At the moment `IHTP_POLICY_IOHTTP` and `IHTP_POLICY_IOGUARD` are intentional
+named aliases of the strict profile. They exist to stabilize consumer-facing
+configuration names before a narrower policy split is justified and test-covered.
+
+## Status Codes
+
 | Code | Meaning |
 |------|---------|
 | `IHTP_OK` (0) | Parsing complete |

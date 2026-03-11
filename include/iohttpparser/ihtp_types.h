@@ -194,6 +194,8 @@ typedef struct {
  * intended consumer contract explicit and allows future divergence without
  * changing integration call sites.
  */
+/* Named consumer preset for iohttp. Currently kept equivalent to strict until
+ * consumer requirements force a narrower behavioral split. */
 #define IHTP_POLICY_IOHTTP IHTP_POLICY_STRICT
 
 /**
@@ -202,6 +204,8 @@ typedef struct {
  * This currently maps to the strict RFC profile and is named separately so
  * higher-layer integrations can depend on an explicit security-oriented preset.
  */
+/* Named consumer preset for ioguard. Currently kept equivalent to strict and
+ * treated as a stable named contract rather than an unfinished TODO. */
 #define IHTP_POLICY_IOGUARD IHTP_POLICY_STRICT
 
 #endif /* IOHTTPPARSER_IHTP_TYPES_H */

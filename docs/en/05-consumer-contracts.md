@@ -174,6 +174,48 @@ Sprint 7 should now lock down:
 
 `examples/connect_tunnel.c` is the minimal reference for this handoff model.
 
+### Response upgrade ownership
+
+Response-side upgrade stays explicit and minimal:
+
+- `protocol_upgrade` is set only for `101 Switching Protocols` plus
+  `Connection: Upgrade` and a non-empty `Upgrade` token
+- once this flag is set, `iohttpparser` is finished with HTTP framing for that
+  response
+- any protocol bytes that follow the response header block are consumer-owned
+
+`examples/response_upgrade.c` is the minimal reference for this handoff model.
+
+### `Expect: 100-continue` and trailer ownership
+
+For request-side body handoff:
+
+- `expects_continue` tells the consumer that the request explicitly asked for
+  `100 Continue`
+- the parser does not emit interim responses; the application decides whether
+  to send `100 Continue`, reject the request, or read the body immediately
+- `has_trailer_fields` means the request or response advertised trailing fields
+- the chunked decoder only consumes the trailer section if the consumer opts in
+  through `ihtp_chunked_decoder_t.consume_trailer`
+
+This means trailer ownership is a consumer decision:
+
+- `consume_trailer = true`: decoder consumes the trailer section itself
+- `consume_trailer = false`: decoder returns trailing bytes to the consumer
+
+`examples/expect_trailers.c` is the minimal reference for this handoff model.
+
+### Current preset contract
+
+At the current stage of the project:
+
+- `IHTP_POLICY_IOHTTP` is a named strict-profile alias
+- `IHTP_POLICY_IOGUARD` is also a named strict-profile alias
+
+These presets are intentionally named even though they are currently equivalent.
+The library treats them as stable consumer-facing configuration names, and any
+future divergence must be narrow, explicit, and regression-covered.
+
 ## Recommendation
 
 Treat `iohttp` and `ioguard` as policy consumers of one parser core, not as reasons to fork parser behavior into separate implementations.
