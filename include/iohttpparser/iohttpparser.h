@@ -18,11 +18,13 @@
  * Or include individual headers:
  *   #include <iohttpparser/ihtp_types.h>
  *   #include <iohttpparser/ihtp_parser.h>
+ *   #include <iohttpparser/ihtp_semantics.h>
  *   #include <iohttpparser/ihtp_body.h>
  */
 
 #include <iohttpparser/ihtp_body.h>
 #include <iohttpparser/ihtp_parser.h>
+#include <iohttpparser/ihtp_semantics.h>
 #include <iohttpparser/ihtp_types.h>
 
 /**

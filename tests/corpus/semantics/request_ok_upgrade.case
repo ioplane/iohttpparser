@@ -1,0 +1,7 @@
+kind=request
+mode=strict
+expect=ok
+body_mode=none
+keep_alive=true
+protocol_upgrade=true
+wire=GET /chat HTTP/1.1\r\nHost: example.com\r\nConnection: keep-alive, Upgrade\r\nUpgrade: websocket\r\n\r\n

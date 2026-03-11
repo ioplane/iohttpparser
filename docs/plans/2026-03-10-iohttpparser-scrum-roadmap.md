@@ -1,6 +1,6 @@
 # iohttpparser Scrum Roadmap
 
-**Goal:** Bring `iohttpparser` from parser prototype to a production-ready C23 HTTP/1.1 parser library with strict default semantics, SIMD scanner backends, validated quality tooling, and consumer-ready integration contracts for `iohttp` and `ringwall`.
+**Goal:** Bring `iohttpparser` from parser prototype to a production-ready C23 HTTP/1.1 parser library with strict default semantics, SIMD scanner backends, validated quality tooling, and consumer-ready integration contracts for `iohttp` and `ioguard` (formerly `ringwall`).
 
 **Workflow constraints:**
 - Development and validation happen only inside the dev container.
@@ -184,30 +184,35 @@
 - next implementation focus is documenting the public stateful API in user-facing docs and deciding whether parser-state consumers need finer-grained completion metadata beyond `phase` and `cursor`
 
 **Current Sprint 6 focus:**
-- `feature/sprint-6-differential` is active from `origin/main`
-- differential corpus infrastructure now exists under `tests/corpus/differential/`
-- `test_differential_corpus` is wired into `ctest` as a data-driven cross-parser runner
-- a real `picohttpparser` adapter is now vendored under `tests/third_party/picohttpparser/`
-- a real `llhttp` adapter is now vendored under `tests/third_party/llhttp/` using generated C artifacts plus native helper sources
-- the differential runner now supports separate reference and `iohttpparser` expectations so strict-vs-lenient divergence can be asserted explicitly
-- request and response baseline parity is covered for complete and incomplete header blocks
-- bare-`LF` divergence is now regression-covered for strict reject and lenient accept against `picohttpparser`
-- request and response baseline parity is now also covered against `llhttp` for complete and incomplete header blocks
-- bare-`LF` behavior is now regression-covered against `llhttp` for both strict reject and lenient accept
-- semantics-level differential coverage now exists under `tests/corpus/semantics-differential/`
-- `test_semantics_differential` is wired into `ctest` for request/response framing comparisons against `llhttp`
-- HTTP/1.1 EOF response behavior is now fixed so keep-alive defaults do not override EOF framing
-- semantics corpus expectations were corrected for HTTP/1.1 EOF responses without explicit connection reuse
-- next implementation focus is committing the semantics differential batch and using the resulting reference matrix to draft consumer contracts for `iohttp` and `ringwall`
+- Sprint 6 differential work is merged on `main`
+- differential corpus infrastructure exists under `tests/corpus/differential/`
+- `test_differential_corpus` and `test_semantics_differential` are part of the current regression surface
+- real `picohttpparser` and `llhttp` references are vendored under `tests/third_party/`
+- parser-level and semantics-level divergence against `llhttp` and `picohttpparser` is now explicit enough to support consumer-contract work
+
+**Current Sprint 7 focus:**
+- `feature/sprint-7-consumer-contracts` is active from `main`
+- the primary contract consumers are now:
+  - `iohttp`
+  - `ioguard` (formerly `ringwall`)
+- consumer contract docs now exist in `docs/en/05-consumer-contracts.md` and `docs/ru/05-consumer-contracts.md`
+- public semantics handoff is now formalized in `include/iohttpparser/ihtp_semantics.h`
+- current Sprint 7 semantics batch is green for:
+  - `protocol_upgrade`
+  - `Expect: 100-continue` ownership via `expects_continue`
+  - trailer advertisement ownership via `has_trailer_fields`
+  - strict rejection of `Trailer` on non-chunked framing
+- unit and corpus coverage now pin these semantics contracts before integration examples land
+- next implementation focus:
+  - integration-oriented examples for stateful parsing + semantics/body handoff
+  - `CONNECT`-specific consumer guidance
+  - policy presets for `iohttp` and `ioguard`
 
 **Immediate execution queue:**
-1. Commit the semantics differential batch after the green container-only quality checkpoint.
-2. Merge Sprint 6 differential work.
-3. Start the next sprint for consumer integration contracts and remaining semantics edge cases.
-2. Extend `llhttp` differential coverage beyond baseline complete/incomplete cases to strict-lenient divergence and parser error paths.
-3. Use the resulting differential matrix to draft `iohttp` consumer expectations for stateful parsing and body-mode handoff.
-4. Follow with `ringwall` strict-profile contract work once cross-parser behavior is documented.
-5. Keep full container quality and fuzz-smoke baselines green as new differential tooling lands.
+1. Finish Sprint 7 verification and publish the consumer-contract branch.
+2. Add integration-oriented examples for stateful parsing plus semantics/body handoff.
+3. Add policy presets for `iohttp` and `ioguard`.
+4. Keep full container quality and docs validation green as Sprint 7 lands.
 
 ---
 
@@ -396,9 +401,9 @@
 
 ---
 
-## Sprint 7: ringwall Strict-Profile Integration
+## Sprint 7: ioguard Strict-Profile Integration
 
-**Goal:** Provide a stricter consumer profile for `ringwall`.
+**Goal:** Provide a stricter consumer profile for `ioguard`.
 
 **Scope:**
 - fail-closed policy profile
@@ -412,7 +417,7 @@
 - add security regression tests for proxy-sensitive cases
 
 **Exit criteria:**
-- `ringwall` integration contract is explicit
+- `ioguard` integration contract is explicit
 - strict profile behavior is separate from `iohttp` general profile
 
 ---

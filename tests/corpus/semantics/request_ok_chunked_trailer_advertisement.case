@@ -1,0 +1,7 @@
+kind=request
+mode=strict
+expect=ok
+body_mode=chunked
+keep_alive=true
+has_trailer_fields=true
+wire=POST /upload HTTP/1.1\r\nHost: example.com\r\nTransfer-Encoding: chunked\r\nTrailer: Digest, Expires\r\n\r\n

@@ -97,6 +97,8 @@ pkg-config --cflags --libs iohttpparser
 | `ihtp_parse_response_stateful()` | Parse HTTP response with explicit parser state |
 | `ihtp_parse_headers()` | Parse standalone header block |
 | `ihtp_parse_headers_stateful()` | Parse standalone header block with explicit parser state |
+| `ihtp_request_apply_semantics()` | Resolve request framing and keep-alive decisions |
+| `ihtp_response_apply_semantics()` | Resolve response framing and keep-alive decisions |
 | `ihtp_parser_state_init()` | Initialize parser state for request/response/headers mode |
 | `ihtp_parser_state_reset()` | Reset parser progress while preserving parser mode |
 | `ihtp_decode_chunked()` | Decode chunked transfer encoding (in-place) |
@@ -137,6 +139,17 @@ See:
 - with `consume_trailer = false`, the terminal chunk trailer section stays in trailing bytes
 - with `consume_trailer = true`, trailer lines are consumed through the terminating empty line before completion
 - `ihtp_fixed_decoder_t` tracks only payload accounting: `remaining`, `total_decoded`, and overflow rejection
+
+## Semantics Contracts
+
+- `ihtp_request_apply_semantics()` now exposes:
+  - `req.protocol_upgrade`
+  - `req.expects_continue`
+  - `req.has_trailer_fields`
+- `ihtp_response_apply_semantics()` now exposes:
+  - `resp.protocol_upgrade`
+  - `resp.has_trailer_fields`
+- trailer advertisement is accepted only for chunked messages; strict mode rejects `Trailer` on non-chunked framing
 
 ## Status Codes
 

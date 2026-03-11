@@ -1,0 +1,7 @@
+kind=response
+mode=strict
+expect=ok
+body_mode=none
+keep_alive=false
+protocol_upgrade=true
+wire=HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n

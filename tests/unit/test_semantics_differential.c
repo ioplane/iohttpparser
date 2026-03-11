@@ -7,15 +7,12 @@
 #include <unity/unity.h>
 
 #include <iohttpparser/ihtp_parser.h>
+#include <iohttpparser/ihtp_semantics.h>
 #include <llhttp.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-extern ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_policy_t *policy);
-extern ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp,
-                                                   const ihtp_policy_t *policy);
 
 typedef enum {
     DIFF_KIND_REQUEST,

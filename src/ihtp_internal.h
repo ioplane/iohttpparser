@@ -7,6 +7,7 @@
 #ifndef IOHTTPPARSER_IHTP_INTERNAL_H
 #define IOHTTPPARSER_IHTP_INTERNAL_H
 
+#include <iohttpparser/ihtp_semantics.h>
 #include <iohttpparser/ihtp_types.h>
 
 #include <stdbool.h>
@@ -79,11 +80,6 @@ bool ihtp_scan_is_token_sse42(const char *buf, size_t len);
 const char *ihtp_scan_find_char_avx2(const char *buf, size_t len, const char *delims);
 bool ihtp_scan_is_token_avx2(const char *buf, size_t len);
 #endif
-
-/* ─── Semantics layer (apply body mode, keep-alive) ───────────────────── */
-
-ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_policy_t *policy);
-ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp, const ihtp_policy_t *policy);
 
 /* ─── Version ─────────────────────────────────────────────────────────── */
 

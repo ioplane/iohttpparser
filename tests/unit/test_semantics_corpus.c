@@ -7,14 +7,11 @@
 #include <unity/unity.h>
 
 #include <iohttpparser/ihtp_parser.h>
+#include <iohttpparser/ihtp_semantics.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-extern ihtp_status_t ihtp_request_apply_semantics(ihtp_request_t *req, const ihtp_policy_t *policy);
-extern ihtp_status_t ihtp_response_apply_semantics(ihtp_response_t *resp,
-                                                   const ihtp_policy_t *policy);
 
 typedef enum {
     CORPUS_KIND_REQUEST,
@@ -37,6 +34,12 @@ typedef struct {
     bool has_content_length;
     bool keep_alive;
     bool has_keep_alive;
+    bool protocol_upgrade;
+    bool has_protocol_upgrade;
+    bool expects_continue;
+    bool has_expects_continue;
+    bool has_trailer_fields;
+    bool has_has_trailer_fields;
 } corpus_case_t;
 
 static const char *kStrict = "strict";
@@ -152,6 +155,12 @@ static void run_corpus_case(const char *path)
     bool has_body_mode = false;
     bool has_content_length = false;
     bool has_keep_alive = false;
+    bool protocol_upgrade = false;
+    bool has_protocol_upgrade = false;
+    bool expects_continue = false;
+    bool has_expects_continue = false;
+    bool has_trailer_fields = false;
+    bool has_has_trailer_fields = false;
     bool has_wire = false;
 
     TEST_ASSERT_NOT_NULL_MESSAGE(fp, path);
@@ -214,6 +223,15 @@ static void run_corpus_case(const char *path)
         } else if (str_eq(key, "keep_alive")) {
             keep_alive = parse_bool_value(value);
             has_keep_alive = true;
+        } else if (str_eq(key, "protocol_upgrade")) {
+            protocol_upgrade = parse_bool_value(value);
+            has_protocol_upgrade = true;
+        } else if (str_eq(key, "expects_continue")) {
+            expects_continue = parse_bool_value(value);
+            has_expects_continue = true;
+        } else if (str_eq(key, "has_trailer_fields")) {
+            has_trailer_fields = parse_bool_value(value);
+            has_has_trailer_fields = true;
         } else if (str_eq(key, "wire")) {
             TEST_ASSERT_EQUAL_CHAR_MESSAGE('\0', wire_line[0], path);
             strncpy(wire_line, value, sizeof(wire_line) - 1);
@@ -256,6 +274,15 @@ static void run_corpus_case(const char *path)
         if (has_keep_alive) {
             TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, req.keep_alive, path);
         }
+        if (has_protocol_upgrade) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, req.protocol_upgrade, path);
+        }
+        if (has_expects_continue) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(expects_continue, req.expects_continue, path);
+        }
+        if (has_has_trailer_fields) {
+            TEST_ASSERT_EQUAL_INT_MESSAGE(has_trailer_fields, req.has_trailer_fields, path);
+        }
         return;
     }
 
@@ -282,6 +309,12 @@ static void run_corpus_case(const char *path)
     if (has_keep_alive) {
         TEST_ASSERT_EQUAL_INT_MESSAGE(keep_alive, resp.keep_alive, path);
     }
+    if (has_protocol_upgrade) {
+        TEST_ASSERT_EQUAL_INT_MESSAGE(protocol_upgrade, resp.protocol_upgrade, path);
+    }
+    if (has_has_trailer_fields) {
+        TEST_ASSERT_EQUAL_INT_MESSAGE(has_trailer_fields, resp.has_trailer_fields, path);
+    }
 }
 
 void test_semantics_corpus_cases(void)
@@ -296,9 +329,13 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_lenient_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_transfer_encoding_chain.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_case_insensitive_chunked.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_upgrade.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_expect_continue.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_ok_chunked_trailer_advertisement.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_te_not_ending_in_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_malformed_transfer_encoding.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_chunked_with_parameters.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_trailer_without_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_empty_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_reject_malformed_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/request_connection_close_wins.case",
@@ -312,10 +349,13 @@ void test_semantics_corpus_cases(void)
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_ok_lenient_te_cl.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_ok_case_insensitive_chunked.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_ok_switching_protocols_upgrade.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_ok_chunked_trailer_advertisement.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_malformed_transfer_encoding.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_conflicting_content_length.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_duplicate_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_chunked_with_parameters.case",
+        IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_trailer_without_chunked.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_empty_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_reject_malformed_connection.case",
         IHTP_SOURCE_DIR "/tests/corpus/semantics/response_no_body_204_ignores_te.case",
