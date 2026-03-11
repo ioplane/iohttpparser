@@ -73,12 +73,13 @@ static bool parse_ihtp_with_policy(const char *buf, size_t len, scenario_kind_t 
     size_t consumed = 0;
 
     if (kind == SCENARIO_REQUEST) {
-        ihtp_request_t req = {0};
+        /* Benchmark parser cost, not caller-side struct clearing cost. */
+        ihtp_request_t req;
         if (ihtp_parse_request(buf, len, &req, policy, &consumed) != IHTP_OK) {
             return false;
         }
     } else {
-        ihtp_response_t resp = {0};
+        ihtp_response_t resp;
         if (ihtp_parse_response(buf, len, &resp, policy, &consumed) != IHTP_OK) {
             return false;
         }
@@ -103,6 +104,52 @@ static bool parse_ihtp_lenient(const char *buf, size_t len, scenario_kind_t kind
 {
     static const ihtp_policy_t lenient = IHTP_POLICY_LENIENT;
     return parse_ihtp_with_policy(buf, len, kind, &lenient, consumed_out);
+}
+
+static bool parse_ihtp_stateful_with_policy(const char *buf, size_t len, scenario_kind_t kind,
+                                            const ihtp_policy_t *policy, size_t *consumed_out)
+{
+    size_t consumed = 0;
+
+    if (kind == SCENARIO_REQUEST) {
+        ihtp_parser_state_t state;
+        ihtp_request_t req;
+
+        ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+        memset(&req, 0, sizeof(req));
+        if (ihtp_parse_request_stateful(&state, buf, len, &req, policy, &consumed) != IHTP_OK) {
+            return false;
+        }
+    } else {
+        ihtp_parser_state_t state;
+        ihtp_response_t resp;
+
+        ihtp_parser_state_init(&state, IHTP_PARSER_MODE_RESPONSE);
+        memset(&resp, 0, sizeof(resp));
+        if (ihtp_parse_response_stateful(&state, buf, len, &resp, policy, &consumed) != IHTP_OK) {
+            return false;
+        }
+    }
+
+    if (consumed != len) {
+        return false;
+    }
+    *consumed_out = consumed;
+    return true;
+}
+
+static bool parse_ihtp_stateful_strict(const char *buf, size_t len, scenario_kind_t kind,
+                                       size_t *consumed_out)
+{
+    static const ihtp_policy_t strict = IHTP_POLICY_STRICT;
+    return parse_ihtp_stateful_with_policy(buf, len, kind, &strict, consumed_out);
+}
+
+static bool parse_ihtp_stateful_lenient(const char *buf, size_t len, scenario_kind_t kind,
+                                        size_t *consumed_out)
+{
+    static const ihtp_policy_t lenient = IHTP_POLICY_LENIENT;
+    return parse_ihtp_stateful_with_policy(buf, len, kind, &lenient, consumed_out);
 }
 
 static bool parse_pico(const char *buf, size_t len, scenario_kind_t kind, size_t *consumed_out)
@@ -169,7 +216,7 @@ static bool parse_llhttp(const char *buf, size_t len, scenario_kind_t kind, size
 
 static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_t parse_fn,
                          const scenario_t *scenarios, size_t scenario_count, size_t iterations,
-                         bool connect_only)
+                         bool connect_only, const char *scenario_filter)
 {
     for (size_t i = 0; i < scenario_count; i++) {
         const scenario_t *sc = &scenarios[i];
@@ -178,10 +225,16 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
         if (connect_only != sc->connect_only) {
             continue;
         }
+        if (scenario_filter != nullptr && strcmp(sc->name, scenario_filter) != 0) {
+            continue;
+        }
 
         for (size_t warmup = 0; warmup < 1000; warmup++) {
             if (!parse_fn(sc->wire, sc->len, sc->kind, &consumed)) {
-                fprintf(stderr, "warmup failed: parser=%s scenario=%s\n", parser_name, sc->name);
+                if (fprintf(stderr, "warmup failed: parser=%s scenario=%s\n", parser_name,
+                            sc->name) < 0) {
+                    return;
+                }
                 exit(2);
             }
             g_sink += (uint64_t)consumed;
@@ -190,8 +243,10 @@ static void bench_parser(output_mode_t mode, const char *parser_name, parser_fn_
         uint64_t start_ns = monotonic_ns();
         for (size_t iter = 0; iter < iterations; iter++) {
             if (!parse_fn(sc->wire, sc->len, sc->kind, &consumed)) {
-                fprintf(stderr, "parse failed: parser=%s scenario=%s iter=%zu\n", parser_name,
-                        sc->name, iter);
+                if (fprintf(stderr, "parse failed: parser=%s scenario=%s iter=%zu\n",
+                            parser_name, sc->name, iter) < 0) {
+                    return;
+                }
                 exit(2);
             }
             g_sink += (uint64_t)consumed;
@@ -486,6 +541,8 @@ int main(int argc, char **argv)
     static const parser_entry_t parsers[] = {
         {"iohttpparser-strict", parse_ihtp_strict},
         {"iohttpparser-lenient", parse_ihtp_lenient},
+        {"iohttpparser-stateful-strict", parse_ihtp_stateful_strict},
+        {"iohttpparser-stateful-lenient", parse_ihtp_stateful_lenient},
         {"picohttpparser", parse_pico},
         {"llhttp", parse_llhttp},
     };
@@ -493,14 +550,18 @@ int main(int argc, char **argv)
     size_t iterations = 200000;
     output_mode_t mode = OUTPUT_HUMAN;
     bool connect_only = false;
+    const char *scenario_filter = nullptr;
+    const char *parser_filter = nullptr;
     const char *trace_parser = nullptr;
     const char *trace_scenario = nullptr;
 
-    if (argc > 8) {
-        fprintf(stderr,
-                "usage: %s [iterations] [--tsv] [--connect-only] [--trace-parser NAME "
-                "--trace-scenario NAME]\n",
-                argv[0]);
+    if (argc > 12) {
+        if (fprintf(stderr,
+                    "usage: %s [iterations] [--tsv] [--connect-only] [--scenario NAME] "
+                    "[--parser NAME] [--trace-parser NAME --trace-scenario NAME]\n",
+                    argv[0]) < 0) {
+            return 2;
+        }
         return 2;
     }
     for (int i = 1; i < argc; i++) {
@@ -510,6 +571,14 @@ int main(int argc, char **argv)
         }
         if (strcmp(argv[i], "--connect-only") == 0) {
             connect_only = true;
+            continue;
+        }
+        if (strcmp(argv[i], "--scenario") == 0 && i + 1 < argc) {
+            scenario_filter = argv[++i];
+            continue;
+        }
+        if (strcmp(argv[i], "--parser") == 0 && i + 1 < argc) {
+            parser_filter = argv[++i];
             continue;
         }
         if (strcmp(argv[i], "--trace-parser") == 0 && i + 1 < argc) {
@@ -523,7 +592,9 @@ int main(int argc, char **argv)
         char *end = nullptr;
         unsigned long long parsed = strtoull(argv[i], &end, 10);
         if (end == argv[i] || *end != '\0' || parsed == 0ULL) {
-            fprintf(stderr, "invalid iterations: %s\n", argv[i]);
+            if (fprintf(stderr, "invalid iterations: %s\n", argv[i]) < 0) {
+                return 2;
+            }
             return 2;
         }
         iterations = (size_t)parsed;
@@ -541,27 +612,51 @@ int main(int argc, char **argv)
     }
 #else
     if (trace_parser != nullptr || trace_scenario != nullptr) {
-        fprintf(stderr, "trace mode requires IOHTTPPARSER_PERF_TRACE=ON at build time\n");
+        if (fprintf(stderr, "trace mode requires IOHTTPPARSER_PERF_TRACE=ON at build time\n") <
+            0) {
+            return 2;
+        }
         return 2;
     }
 #endif
 
     if (mode == OUTPUT_TSV) {
-        puts("format\ttsv\tv1");
+        if (puts("format\ttsv\tv1") == EOF) {
+            return 2;
+        }
         printf("meta\titerations\t%zu\n", iterations);
         printf("meta\tconnect_only\t%s\n", connect_only ? "true" : "false");
+        if (scenario_filter != nullptr) {
+            printf("meta\tscenario_filter\t%s\n", scenario_filter);
+        }
+        if (parser_filter != nullptr) {
+            printf("meta\tparser_filter\t%s\n", parser_filter);
+        }
         puts("columns\tparser\tscenario\tkind\tlen\telapsed_ns\treq_per_s\tmib_per_s\tns_per_req");
     } else {
         printf("Standalone throughput comparison benchmark\n");
         printf("iterations: %zu\n", iterations);
         printf("connect_only: %s\n\n", connect_only ? "true" : "false");
+        if (scenario_filter != nullptr) {
+            printf("scenario_filter: %s\n", scenario_filter);
+        }
+        if (parser_filter != nullptr) {
+            printf("parser_filter: %s\n", parser_filter);
+        }
+        if (scenario_filter != nullptr || parser_filter != nullptr) {
+            putchar('\n');
+        }
         printf("%-20s %-12s %-8s %-4s %-12s %-12s %-12s %-10s\n", "parser", "scenario", "kind",
                "len", "elapsed_ns", "req/s", "MiB/s", "ns/req");
     }
 
     for (size_t i = 0; i < sizeof(parsers) / sizeof(parsers[0]); i++) {
+        if (parser_filter != nullptr && strcmp(parsers[i].name, parser_filter) != 0) {
+            continue;
+        }
         bench_parser(mode, parsers[i].name, parsers[i].fn, scenarios,
-                     sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only);
+                     sizeof(scenarios) / sizeof(scenarios[0]), iterations, connect_only,
+                     scenario_filter);
     }
 
     if (mode == OUTPUT_TSV) {

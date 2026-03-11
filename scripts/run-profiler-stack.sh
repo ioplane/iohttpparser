@@ -34,6 +34,7 @@ need_cmd() {
 
 bench_bin_default="$ROOT_DIR/build/clang-debug/bench_throughput_compare"
 trace_bin="$ROOT_DIR/build/trace-clang/bench_throughput_compare"
+uftrace_bin="${UFTRACE_BUILD_DIR:-$ROOT_DIR/build/uftrace-clang-pg}/bench_throughput_compare"
 results_dir="$ROOT_DIR/docs/tmp/profiling"
 
 mkdir -p "$results_dir"
@@ -49,13 +50,15 @@ trace)
     ;;
 uftrace)
     need_cmd uftrace
-    if [[ ! -x "$bench_bin_default" ]]; then
-        echo "benchmark binary not found: $bench_bin_default" >&2
+    if [[ ! -x "$uftrace_bin" ]]; then
+        echo "uftrace benchmark binary not found: $uftrace_bin" >&2
+        echo "build it with scripts/build-uftrace-bench.sh first" >&2
         exit 2
     fi
     out_dir="$results_dir/uftrace-${SCENARIO}-${PARSER}"
     echo "Running uftrace record into $out_dir"
-    exec uftrace record -d "$out_dir" -- "$bench_bin_default" "$ITERATIONS" --tsv
+    exec uftrace record -d "$out_dir" -- \
+        "$uftrace_bin" "$ITERATIONS" --tsv --scenario "$SCENARIO" --parser "$PARSER"
     ;;
 valgrind)
     need_cmd valgrind
@@ -66,7 +69,8 @@ valgrind)
     out_file="$results_dir/valgrind-${SCENARIO}-${PARSER}.log"
     echo "Running Valgrind Memcheck into $out_file"
     exec valgrind --tool=memcheck --leak-check=full --track-origins=yes \
-        --log-file="$out_file" "$bench_bin_default" "$ITERATIONS" --tsv
+        --log-file="$out_file" "$bench_bin_default" "$ITERATIONS" --tsv \
+        --scenario "$SCENARIO" --parser "$PARSER"
     ;;
 gdb)
     need_cmd gdb
@@ -74,7 +78,8 @@ gdb)
         echo "benchmark binary not found: $bench_bin_default" >&2
         exit 2
     fi
-    exec gdb --args "$bench_bin_default" "$ITERATIONS" --tsv
+    exec gdb --args "$bench_bin_default" "$ITERATIONS" --tsv \
+        --scenario "$SCENARIO" --parser "$PARSER"
     ;;
 ftracer)
     cat <<'EOF'

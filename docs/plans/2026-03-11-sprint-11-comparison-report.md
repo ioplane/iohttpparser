@@ -231,6 +231,80 @@ Recommended runs:
 - common matrix: `FORMAT=tsv ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
 - `CONNECT`-focused: `FORMAT=tsv CONNECT_ONLY=1 ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
 
+### 2026-03-12 Profiler Stack Follow-up
+
+The new dev image toolchain was used for a deeper three-way follow-up with:
+
+- built-in parser trace mode
+- `callgrind`
+- `uftrace` with a dedicated `-pg` benchmark build
+
+Supporting helpers added during this campaign:
+
+- `scripts/build-uftrace-bench.sh`
+- `scripts/run-profiler-stack.sh`
+
+Profiler artifacts are stored under:
+
+- `docs/tmp/profiling/20260312-toolchain/`
+- `docs/tmp/profiling/20260312-toolchain-fairness/`
+
+#### Tool-level findings
+
+Built-in trace and external profilers converge on the same result:
+
+- the remaining hot path is `parse_header_block`
+- the heaviest internal work is:
+  - `field_text_is_valid`
+  - `find_header_name_colon`
+  - `trim_and_validate_field_value`
+- `request-line` helpers are no longer the dominant cost center
+
+`uftrace` also confirmed that a normal `clang-debug` build is insufficient for function-graph
+tracing; it needs an instrumented benchmark build (`-pg`). That requirement is now encoded in the
+helper script instead of being left as tribal knowledge.
+
+#### Fairness correction in the standalone harness
+
+The throughput harness originally zeroed large typed output structs in the benchmark wrapper before
+every parse call. That distorted the three-way comparison because `iohttpparser` was paying an
+extra caller-side cost that `picohttpparser` and `llhttp` do not have in the same form.
+
+This benchmark-only overhead was removed from the wrapper so the standalone numbers reflect parser
+work more fairly.
+
+After that correction, the comparison changed materially:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-pico-bench` | `1,191,423.98` | `937,139.41` | `2,326,475.48` |
+| `hdr-value-heavy` | `1,621,744.73` | `1,081,931.17` | `2,376,376.16` |
+| `req-small` | `5,962,988.21` | `3,800,373.19` | `11,787,428.35` |
+
+Interpretation:
+
+- `iohttpparser` is no longer slower than `llhttp` on these targeted parser-only scenarios
+  once the benchmark bias is removed.
+- `picohttpparser` remains clearly ahead, which is still expected given its thinner contract and
+  lower parser-layer work.
+- the main remaining question is not “why are we worse than `llhttp` everywhere”, but rather
+  “where do we still pay more than `picohttpparser`, and which part of that is intentional contract
+  cost versus implementation cost?”
+
+#### Stateful vs stateless benchmark view
+
+The follow-up also added stateful parser entries to the benchmark harness. On the same scenarios,
+stateful and stateless `iohttpparser` throughput stayed close:
+
+| Scenario | `ihtp` stateless strict | `ihtp` stateful strict |
+|---|---:|---:|
+| `req-pico-bench` | `1,200,833.73` | `1,221,530.82` |
+| `hdr-value-heavy` | `1,593,041.27` | `1,565,026.28` |
+| `req-small` | `6,132,969.65` | `5,909,919.12` |
+
+This means the current dominant cost is not the stateless wrapper itself. The real work still sits
+inside the generic header parsing path.
+
 Current reproducible results from the repository harness (`200000` iterations):
 
 Common 5-scenario matrix:
