@@ -308,6 +308,8 @@ endif()
 if(IOHTTPPARSER_BUILD_EXAMPLES)
     add_executable(example_basic examples/basic_parse.c)
     target_link_libraries(example_basic PRIVATE iohttpparser)
+    add_executable(example_connect examples/connect_tunnel.c)
+    target_link_libraries(example_connect PRIVATE iohttpparser)
 endif()
 
 # ============================================================================

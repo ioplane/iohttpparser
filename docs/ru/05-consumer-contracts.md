@@ -164,6 +164,18 @@ Sprint 7 теперь должен зафиксировать:
 4. вызывать `ihtp_request_apply_semantics()`
 5. передавать оставшиеся байты в `ihtp_decode_chunked()`, если framing chunked
 
+### Ownership для CONNECT
+
+`CONNECT` намеренно остаётся method-driven случаем:
+
+- parser выражает его через `req.method == IHTP_METHOD_CONNECT`
+- `req.path` несёт authority-form target (`host:port`)
+- semantics не добавляет дублирующий `is_connect_tunnel` boolean
+- tunnel setup, CONNECT-specific ACL и передача байтов после `200` относятся к
+  consumer layer, а не к parser core
+
+`examples/connect_tunnel.c` служит минимальным reference-example для этого handoff.
+
 ## Рекомендация
 
 Нужно рассматривать `iohttp` и `ioguard` как policy consumers одного parser core, а не как повод разводить поведение на разные parser implementations.

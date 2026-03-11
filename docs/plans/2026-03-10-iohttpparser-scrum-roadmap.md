@@ -206,16 +206,17 @@
   - `IHTP_POLICY_IOHTTP`
   - `IHTP_POLICY_IOGUARD`
 - `examples/basic_parse.c` now demonstrates stateful parsing plus semantics/body handoff
+- `examples/connect_tunnel.c` now demonstrates CONNECT authority-form handoff for `ioguard`
 - unit and corpus coverage now pin these semantics contracts before broader integration examples land
 - next implementation focus:
-  - `CONNECT`-specific consumer guidance
-  - additional integration-oriented examples beyond the basic request flow
-  - branch cleanup and release gating for the accumulated Sprint 7 work
+  - decide whether Sprint 7 needs any more examples beyond basic request + CONNECT
+  - branch cleanup for older merged worktrees
+  - release gating for the accumulated Sprint 7 work
 
 **Immediate execution queue:**
-1. Verify and publish the preset/example batch.
-2. Add `CONNECT`-specific consumer guidance.
-3. Decide whether Sprint 7 needs another example batch before calling the sprint complete.
+1. Verify and publish the CONNECT-guidance batch.
+2. Decide whether Sprint 7 is complete enough to close.
+3. Clean up merged worktrees and stale branches.
 4. Keep full container quality and docs validation green as Sprint 7 lands.
 
 ---

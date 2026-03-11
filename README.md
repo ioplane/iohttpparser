@@ -166,6 +166,13 @@ See:
 - semantics handoff for `Expect` and trailer ownership
 - chunked body decoding after header completion
 
+`examples/connect_tunnel.c` demonstrates:
+- stateful parsing of a `CONNECT` request in authority-form
+- consumer-oriented policy selection via `IHTP_POLICY_IOGUARD`
+- tunnel handoff using `req.method == IHTP_METHOD_CONNECT`
+- the fact that `CONNECT` stays a method-driven integration decision, not a
+  separate parser boolean
+
 ## Status Codes
 
 | Code | Meaning |
