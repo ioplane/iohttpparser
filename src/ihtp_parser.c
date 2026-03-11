@@ -146,6 +146,27 @@ static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset
     return true;
 }
 
+static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_offset)
+{
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (c == ':') {
+            if (i == 0) {
+                return false;
+            }
+            *colon_offset = i;
+            return true;
+        }
+
+        if (!ihtp_is_token_char(c)) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *offset)
 {
     const char *pos = memrchr(buf, ch, len);
@@ -224,51 +245,6 @@ static bool trim_and_validate_field_value(const char *buf, size_t len, const cha
     *trimmed_start = buf + first;
     *trimmed_len = last - first;
     return true;
-}
-
-static bool bytes_eq_ignore_case(const char *buf, size_t len, const char *lit, size_t lit_len)
-{
-    if (len != lit_len) {
-        return false;
-    }
-
-    for (size_t i = 0; i < len; i++) {
-        char a = buf[i];
-        char b = lit[i];
-
-        if (a >= 'A' && a <= 'Z') {
-            a = (char)(a + ('a' - 'A'));
-        }
-        if (b >= 'A' && b <= 'Z') {
-            b = (char)(b + ('a' - 'A'));
-        }
-        if (a != b) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static bool is_common_header_name(const char *name, size_t name_len)
-{
-    switch (name_len) {
-    case 4:
-        return bytes_eq_ignore_case(name, name_len, "Host", 4);
-    case 6:
-        return bytes_eq_ignore_case(name, name_len, "Expect", 6);
-    case 7:
-        return bytes_eq_ignore_case(name, name_len, "Upgrade", 7) ||
-               bytes_eq_ignore_case(name, name_len, "Trailer", 7);
-    case 10:
-        return bytes_eq_ignore_case(name, name_len, "Connection", 10);
-    case 14:
-        return bytes_eq_ignore_case(name, name_len, "Content-Length", 14);
-    case 17:
-        return bytes_eq_ignore_case(name, name_len, "Transfer-Encoding", 17);
-    default:
-        return false;
-    }
 }
 
 static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_response_t *resp,
@@ -417,7 +393,6 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
                                         size_t max_headers, const ihtp_policy_t *policy,
                                         size_t *block_end)
 {
-    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
     size_t count = initial_count;
     size_t pos = 0;
 
@@ -470,7 +445,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         /* Parse: field-name ":" OWS field-value OWS */
         const char *line_start = buf + pos;
         size_t colon_offset = 0;
-        if (!find_char_offset(line_start, line_len, ':', &colon_offset)) {
+        if (!find_header_name_colon(line_start, line_len, &colon_offset)) {
             return IHTP_ERROR;
         }
         const char *colon = line_start + colon_offset;
@@ -481,13 +456,6 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
 
         headers[count].name = line_start;
         headers[count].name_len = colon_offset;
-
-        /* Validate header name is token */
-        if (headers[count].name_len == 0 ||
-            (!is_common_header_name(headers[count].name, headers[count].name_len) &&
-             !scanner->is_token(headers[count].name, headers[count].name_len))) {
-            return IHTP_ERROR;
-        }
 
         /* Skip ": " and trim OWS from value */
         const char *val_start = colon + 1;

@@ -332,6 +332,37 @@ Interpretation:
 - the tiny gap between strict and lenient here also suggests that the dominant cost is not mainly
   strict-policy branching; it is the always-on structural work in the parser path
 
+### Sprint 13 Follow-up Tuning Signal
+
+The next safe tuning step combined two changes in the generic header path:
+
+- single-pass trim+validate for non-continuation header values
+- single-pass header-name validation while searching for `:`
+
+Observed single-run impact on the focused scenarios:
+
+| Scenario | `iohttpparser-strict` before | `iohttpparser-strict` after | Approx. delta |
+|---|---:|---:|---:|
+| `req-headers` | `5,411,711.07` | `5,784,550.15` | `+6.9%` |
+| `hdr-common-heavy` | `8,019,308.89` | `8,155,851.80` | `+1.7%` |
+| `hdr-uncommon-valid` | `5,510,077.06` | `6,085,385.75` | `+10.4%` |
+| `req-pico-bench` | `1,545,166.32` | `1,633,692.92` | `+5.7%` |
+
+Interpretation:
+
+- the uncommon/generic header path was indeed a real cost center
+- the new one-pass header-name/value work is directionally correct
+- `iohttpparser-strict` now slightly edges `llhttp` on `hdr-common-heavy`, which suggests the
+  common-header path is no longer the main problem
+- the remaining gap is now concentrated more clearly in uncommon header handling and richer
+  parser-contract work on large header-heavy requests
+
+Next measurement requirement:
+
+- keep using 5-run median before accepting any additional micro-optimization as a real win
+- prefer focused scenarios (`hdr-uncommon-valid`, `req-pico-bench`) over coarse all-scenario
+  averages when evaluating the next parser hot-path changes
+
 ### Why `iohttpparser` Still Trails `llhttp`
 
 The current evidence does not suggest hidden magic. The remaining gap is explainable by contract shape
