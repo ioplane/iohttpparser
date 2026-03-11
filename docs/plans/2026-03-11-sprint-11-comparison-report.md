@@ -821,6 +821,49 @@ Practical read:
   - the remaining `llhttp` gap is now mostly concentrated in the shortest request path
   - the remaining `pico` gap is largely the cost of richer parser work that we intentionally keep
 
+## Sprint 13 Request-Target Batch 2 (Verified)
+
+The next safe step targeted `request_target_is_valid()` for the common `allow_spaces=false` path:
+
+- scan `8` bytes at a time with a `memcpy` load into `uint64_t`
+- skip whole chunks when every byte is strictly greater than `0x20` and not `0x7f`
+- fall back to the existing bytewise path for any chunk containing a possible control byte
+
+This is the request-target analogue of the accepted field-value optimization:
+
+- fast path only for clean printable bytes
+- identical rejection semantics for controls and `DEL`
+- unchanged slow path when spaces are allowed
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Confirmed 7-run strict request-line table:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-only` | `28,370,849.37` | `28,003,135.60` | `61,650,558.06` |
+| `req-line-hot` | `23,187,050.87` | `21,843,173.59` | `40,961,883.33` |
+| `req-line-long-target` | `22,582,226.40` | `21,702,855.21` | `47,659,217.53` |
+| `req-line-connect` | `24,588,039.69` | `30,347,840.88` | `62,367,054.23` |
+| `req-small` | `19,546,918.08` | `23,575,653.33` | `36,730,199.30` |
+| `req-pico-bench` | `4,026,939.26` | `3,201,032.53` | `7,464,286.00` |
+
+Interpretation:
+
+- this batch effectively erased the remaining `llhttp` gap on most short request-line scenarios
+- `CONNECT` is still the outlier, which suggests the remaining request-line cost is now much more
+  method-specific than target-specific
+- `picohttpparser` still stays far ahead because its parser contract is materially thinner
+
+Practical consequence:
+
+- the next optimization should not go back to generic target scanning
+- if we keep tuning request-line work, the next likely hotspot is method classification and
+  method-specific branching, especially around `CONNECT`
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
 

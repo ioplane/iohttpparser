@@ -223,8 +223,12 @@ int main(int argc, char **argv)
         "__utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|"
         "utmcct=/reader/|utmcmd=referral\r\n"
         "\r\n";
+    static const char req_line_only[] = "GET /v1/ping?x=1&y=2 HTTP/1.1\r\n\r\n";
     static const char req_line_hot[] =
         "GET /v1/ping?x=1&y=2 HTTP/1.1\r\nHost: a\r\n\r\n";
+    static const char req_line_connect[] = "CONNECT example.test:443 HTTP/1.1\r\n\r\n";
+    static const char req_line_long_target[] =
+        "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n\r\n";
     static const char req_small[] = "GET /api/v1/ping HTTP/1.1\r\nHost: example.test\r\n\r\n";
     static const char req_headers[] =
         "GET /resource/alpha?x=1&y=2 HTTP/1.1\r\nHost: example.test\r\nConnection: keep-alive\r\n"
@@ -364,7 +368,12 @@ int main(int argc, char **argv)
 
     static const scenario_t scenarios[] = {
         {"req-pico-bench", SCENARIO_REQUEST, req_pico_bench, sizeof(req_pico_bench) - 1, false},
+        {"req-line-only", SCENARIO_REQUEST, req_line_only, sizeof(req_line_only) - 1, false},
         {"req-line-hot", SCENARIO_REQUEST, req_line_hot, sizeof(req_line_hot) - 1, false},
+        {"req-line-connect", SCENARIO_REQUEST, req_line_connect, sizeof(req_line_connect) - 1,
+         false},
+        {"req-line-long-target", SCENARIO_REQUEST, req_line_long_target,
+         sizeof(req_line_long_target) - 1, false},
         {"req-small", SCENARIO_REQUEST, req_small, sizeof(req_small) - 1, false},
         {"req-headers", SCENARIO_REQUEST, req_headers, sizeof(req_headers) - 1, false},
         {"hdr-common-heavy", SCENARIO_REQUEST, hdr_common_heavy, sizeof(hdr_common_heavy) - 1, false},

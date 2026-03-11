@@ -190,8 +190,30 @@ static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *o
 
 static bool request_target_is_valid(const char *buf, size_t len, bool allow_spaces)
 {
-    for (size_t i = 0; i < len; i++) {
-        uint8_t c = (uint8_t)buf[i];
+    const uint8_t *p = (const uint8_t *)buf;
+    const uint8_t *end = p + len;
+    static const uint64_t ones = UINT64_C(0x0101010101010101);
+    static const uint64_t highs = UINT64_C(0x8080808080808080);
+
+    if (!allow_spaces) {
+        while ((size_t)(end - p) >= sizeof(uint64_t)) {
+            uint64_t chunk = 0;
+            memcpy(&chunk, p, sizeof(chunk));
+
+            uint64_t low_controls = (chunk - (ones * UINT64_C(0x21))) & ~chunk & highs;
+            uint64_t del_bytes = chunk ^ (ones * UINT64_C(0x7f));
+            uint64_t has_del = (del_bytes - ones) & ~del_bytes & highs;
+
+            if ((low_controls | has_del) != 0) {
+                break;
+            }
+
+            p += sizeof(uint64_t);
+        }
+    }
+
+    while (p < end) {
+        uint8_t c = *p++;
 
         if (c == ' ' && allow_spaces) {
             continue;
