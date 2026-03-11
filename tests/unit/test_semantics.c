@@ -18,6 +18,22 @@ void tearDown(void)
 {
 }
 
+void test_policy_presets_default_to_strict_contracts(void)
+{
+    const ihtp_policy_t iohttp = IHTP_POLICY_IOHTTP;
+    const ihtp_policy_t ioguard = IHTP_POLICY_IOGUARD;
+
+    TEST_ASSERT_TRUE(iohttp.reject_obs_fold);
+    TEST_ASSERT_TRUE(iohttp.reject_bare_lf);
+    TEST_ASSERT_TRUE(iohttp.reject_te_cl);
+    TEST_ASSERT_FALSE(iohttp.allow_spaces_in_uri);
+
+    TEST_ASSERT_TRUE(ioguard.reject_obs_fold);
+    TEST_ASSERT_TRUE(ioguard.reject_bare_lf);
+    TEST_ASSERT_TRUE(ioguard.reject_te_cl);
+    TEST_ASSERT_FALSE(ioguard.allow_spaces_in_uri);
+}
+
 /* ─── Helper: parse + apply semantics ─────────────────────────────────── */
 
 static ihtp_status_t parse_req_with_semantics(const char *raw, ihtp_request_t *req)
@@ -728,6 +744,7 @@ void test_semantics_response_rejects_empty_connection_value(void)
 int main(void)
 {
     UNITY_BEGIN();
+    RUN_TEST(test_policy_presets_default_to_strict_contracts);
     RUN_TEST(test_semantics_no_body);
     RUN_TEST(test_semantics_content_length);
     RUN_TEST(test_semantics_request_rejects_http11_without_host);

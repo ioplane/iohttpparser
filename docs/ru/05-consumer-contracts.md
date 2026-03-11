@@ -121,6 +121,14 @@ sequenceDiagram
 | Bare `LF` support | Только через явную lenient policy | Off |
 | `obs-fold` support | Только через явную lenient policy | Off |
 
+В публичном API теперь есть именованные presets:
+- `IHTP_POLICY_IOHTTP`
+- `IHTP_POLICY_IOGUARD`
+
+Оба пока отображаются в строгий RFC-профиль. Раздельные имена нужны, чтобы
+consumer code опирался на явный intent и мог пережить будущую дивергенцию без
+смены call site.
+
 ---
 
 ## Ближайшие Шаги
@@ -145,6 +153,16 @@ Sprint 7 теперь должен зафиксировать:
 - `CONNECT` по-прежнему определяется главным образом через
   `req.method == IHTP_METHOD_CONNECT`; Sprint 7 не добавляет для него отдельный
   дублирующий флаг
+
+### Базовый integration example
+
+`examples/basic_parse.c` теперь показывает рекомендуемый consumer flow:
+
+1. накапливать байты в одном caller-owned буфере
+2. переиспользовать `ihtp_parser_state_t`
+3. разбирать сообщение с `IHTP_POLICY_IOHTTP`
+4. вызывать `ihtp_request_apply_semantics()`
+5. передавать оставшиеся байты в `ihtp_decode_chunked()`, если framing chunked
 
 ## Рекомендация
 

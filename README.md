@@ -131,6 +131,13 @@ See:
 - [`docs/en/parser-state.md`](docs/en/parser-state.md)
 - [`docs/ru/parser-state.md`](docs/ru/parser-state.md)
 
+## Consumer Policy Presets
+
+- `IHTP_POLICY_IOHTTP` is the named strict-by-default preset for `iohttp`
+- `IHTP_POLICY_IOGUARD` is the named fail-closed preset for `ioguard`
+- both currently map to the strict RFC profile and exist so consumer code can
+  depend on explicit intent rather than anonymous `IHTP_POLICY_STRICT`
+
 ## Body Decoder Contracts
 
 - `ihtp_decode_chunked()` is incremental: reuse the same decoder across calls as more bytes arrive
@@ -150,6 +157,14 @@ See:
   - `resp.protocol_upgrade`
   - `resp.has_trailer_fields`
 - trailer advertisement is accepted only for chunked messages; strict mode rejects `Trailer` on non-chunked framing
+
+## Integration Example
+
+`examples/basic_parse.c` now demonstrates:
+- incremental request parsing with `ihtp_parser_state_t`
+- consumer-oriented policy selection via `IHTP_POLICY_IOHTTP`
+- semantics handoff for `Expect` and trailer ownership
+- chunked body decoding after header completion
 
 ## Status Codes
 
