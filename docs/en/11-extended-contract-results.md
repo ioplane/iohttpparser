@@ -89,6 +89,84 @@ flowchart TD
 | WebSocket frame parsing | `out-of-scope` | excluded by design | not applicable | `not-applicable` | belongs after protocol upgrade |
 | application protocol after upgrade | `out-of-scope` | excluded by design | not applicable | `not-applicable` | belongs to the upgraded protocol handler |
 
+## Published Extended Scenario Results
+
+The following sections publish the measured results for capabilities that do
+not belong to the common three-way parser-core matrix from `09`.
+
+Published run:
+
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+
+### Parser State Reuse
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `stateful-reuse-request` | public parser state | `req-small/iohttpparser-stateful-strict` | `7,981,577.56` | `1,019.98` | `125.29` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#2563eb'}}}%%
+xychart-beta
+    title "Parser state reuse req/s median"
+    x-axis ["stateful-reuse-request"]
+    y-axis "req/s" 0 --> 9000000
+    bar [7981577.56]
+```
+
+### Semantics And Body Handoff
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `request-chunked-parse` | parser plus chunked framing input | `req-headers/iohttpparser-stateful-strict` | `7,852,263.74` | `666.48` | `127.35` |
+| `request-chunked-parse-semantics` | framing semantics | `request-chunked-parse` | `8,154,989.49` | `692.17` | `122.62` |
+| `request-chunked-parse-semantics-body` | chunked body decode | `request-chunked-parse-semantics` | `4,075,425.45` | `380.89` | `245.37` |
+| `response-fixed-parse-semantics-body` | fixed-length accounting | `resp-headers/iohttpparser-stateful-strict` | `16,895,333.75` | `692.84` | `59.19` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#059669'}}}%%
+xychart-beta
+    title "Semantics and body handoff req/s median"
+    x-axis ["req-chunked-parse", "req-chunked-semantics", "req-chunked-body", "resp-fixed-body"]
+    y-axis "req/s" 0 --> 18000000
+    bar [7852263.74, 8154989.49, 4075425.45, 16895333.75]
+```
+
+### iohttp-style Consumer Flows
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `consumer-iohttp-expect-trailers` | `Expect: 100-continue` and trailer ownership | `request-chunked-parse-semantics-body` | `3,913,056.27` | `966.53` | `255.55` |
+| `consumer-iohttp-fixed-response` | fixed-length body handoff | `response-fixed-parse-semantics-body` | `8,018,723.08` | `1,032.38` | `124.71` |
+| `consumer-iohttp-pipeline` | pipelined stateful consumer flow | `request-chunked-parse-semantics-body` | `3,418,498.73` | `704.19` | `292.53` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#7c3aed'}}}%%
+xychart-beta
+    title "iohttp-style consumer flows req/s median"
+    x-axis ["expect-trailers", "fixed-response", "pipeline"]
+    y-axis "req/s" 0 --> 9000000
+    bar [3913056.27, 8018723.08, 3418498.73]
+```
+
+### Upgrade And ioguard-style Flows
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `response-upgrade-parse` | response upgrade handoff | `resp-upgrade/iohttpparser-stateful-strict` | `10,138,496.42` | `744.50` | `98.63` |
+| `response-upgrade-parse-semantics` | upgrade ownership flags | `response-upgrade-parse` | `10,942,576.59` | `803.55` | `91.39` |
+| `consumer-ioguard-connect` | strict `CONNECT` handoff | `req-connect/iohttpparser-stateful-strict` | `17,046,011.45` | `1,056.66` | `58.66` |
+| `consumer-ioguard-reject-te-cl` | strict ambiguity rejection | `request-chunked-parse-semantics` | `7,838,169.09` | `680.23` | `127.58` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#d97706'}}}%%
+xychart-beta
+    title "Upgrade and ioguard-style flows req/s median"
+    x-axis ["upgrade-parse", "upgrade-semantics", "ioguard-connect", "ioguard-reject"]
+    y-axis "req/s" 0 --> 18000000
+    bar [10138496.42, 10942576.59, 17046011.45, 7838169.09]
+```
+
 ## Extended Contract Performance Interpretation
 
 ### What is already measured

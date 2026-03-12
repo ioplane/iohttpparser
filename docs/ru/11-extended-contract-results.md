@@ -89,6 +89,84 @@ flowchart TD
 | разбор кадров WebSocket | вне области | исключено проектным контрактом | не применяется | не применяется | задача возникает после повышения протокола |
 | прикладной протокол после повышения соединения | вне области | исключено проектным контрактом | не применяется | не применяется | задача относится к обработчику нового протокола |
 
+## Опубликованные Результаты По Расширенным Сценариям
+
+Ниже приведены опубликованные измерения для возможностей, которые не входят в
+общую трёхстороннюю матрицу `09`.
+
+Опубликованный прогон:
+
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+
+### Повторное Использование Состояния
+
+| Сценарий | Возможность | Базис | медиана req/s | медиана MiB/s | медиана ns/op |
+|---|---|---|---:|---:|---:|
+| `stateful-reuse-request` | публичное состояние парсера | `req-small/iohttpparser-stateful-strict` | `7,981,577.56` | `1,019.98` | `125.29` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#2563eb'}}}%%
+xychart-beta
+    title "Повторное использование состояния, медиана req/s"
+    x-axis ["stateful-reuse-request"]
+    y-axis "req/s" 0 --> 9000000
+    bar [7981577.56]
+```
+
+### Семантика И Передача Тела
+
+| Сценарий | Возможность | Базис | медиана req/s | медиана MiB/s | медиана ns/op |
+|---|---|---|---:|---:|---:|
+| `request-chunked-parse` | разбор запроса с чанковым фреймингом | `req-headers/iohttpparser-stateful-strict` | `7,852,263.74` | `666.48` | `127.35` |
+| `request-chunked-parse-semantics` | применение семантики фрейминга | `request-chunked-parse` | `8,154,989.49` | `692.17` | `122.62` |
+| `request-chunked-parse-semantics-body` | декодирование чанкового тела | `request-chunked-parse-semantics` | `4,075,425.45` | `380.89` | `245.37` |
+| `response-fixed-parse-semantics-body` | учёт фиксированной длины тела | `resp-headers/iohttpparser-stateful-strict` | `16,895,333.75` | `692.84` | `59.19` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#059669'}}}%%
+xychart-beta
+    title "Семантика и передача тела, медиана req/s"
+    x-axis ["req-chunked-parse", "req-chunked-semantics", "req-chunked-body", "resp-fixed-body"]
+    y-axis "req/s" 0 --> 18000000
+    bar [7852263.74, 8154989.49, 4075425.45, 16895333.75]
+```
+
+### Потоки Потребителя В Стиле iohttp
+
+| Сценарий | Возможность | Базис | медиана req/s | медиана MiB/s | медиана ns/op |
+|---|---|---|---:|---:|---:|
+| `consumer-iohttp-expect-trailers` | `Expect: 100-continue` и владение завершающими полями | `request-chunked-parse-semantics-body` | `3,913,056.27` | `966.53` | `255.55` |
+| `consumer-iohttp-fixed-response` | передача ответа с фиксированной длиной тела | `response-fixed-parse-semantics-body` | `8,018,723.08` | `1,032.38` | `124.71` |
+| `consumer-iohttp-pipeline` | конвейерный поток потребителя с парсером, сохраняющим состояние | `request-chunked-parse-semantics-body` | `3,418,498.73` | `704.19` | `292.53` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#7c3aed'}}}%%
+xychart-beta
+    title "Потоки потребителя iohttp, медиана req/s"
+    x-axis ["expect-trailers", "fixed-response", "pipeline"]
+    y-axis "req/s" 0 --> 9000000
+    bar [3913056.27, 8018723.08, 3418498.73]
+```
+
+### Повышение Протокола И Потоки В Стиле ioguard
+
+| Сценарий | Возможность | Базис | медиана req/s | медиана MiB/s | медиана ns/op |
+|---|---|---|---:|---:|---:|
+| `response-upgrade-parse` | передача ответа с повышением протокола | `resp-upgrade/iohttpparser-stateful-strict` | `10,138,496.42` | `744.50` | `98.63` |
+| `response-upgrade-parse-semantics` | флаги владения при повышении протокола | `response-upgrade-parse` | `10,942,576.59` | `803.55` | `91.39` |
+| `consumer-ioguard-connect` | строгая передача `CONNECT` | `req-connect/iohttpparser-stateful-strict` | `17,046,011.45` | `1,056.66` | `58.66` |
+| `consumer-ioguard-reject-te-cl` | строгий отказ на неоднозначном фрейминге | `request-chunked-parse-semantics` | `7,838,169.09` | `680.23` | `127.58` |
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#d97706'}}}%%
+xychart-beta
+    title "Повышение протокола и потоки ioguard, медиана req/s"
+    x-axis ["upgrade-parse", "upgrade-semantics", "ioguard-connect", "ioguard-reject"]
+    y-axis "req/s" 0 --> 18000000
+    bar [10138496.42, 10942576.59, 17046011.45, 7838169.09]
+```
+
 ## Интерпретация Производительности Расширенного Слоя
 
 ### Что уже измеряется
