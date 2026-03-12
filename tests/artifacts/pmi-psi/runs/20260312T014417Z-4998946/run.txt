@@ -1,0 +1,7 @@
+date_utc=2026-03-12T01:44:17Z
+root=/opt/projects/repositories/iohttpparser/.worktrees/sprint-14
+run_id=20260312T014417Z-4998946
+debug_preset=clang-debug
+release_preset=clang-release
+iterations=200000
+median_runs=5

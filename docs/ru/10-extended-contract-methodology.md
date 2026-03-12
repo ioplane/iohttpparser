@@ -198,6 +198,12 @@ flowchart TD
 - `summary-extended.md`
 - `manifest.json`
 
+Текущий опубликованный путь в репозитории:
+
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended.tsv`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+
 Если у возможности ещё нет отдельного артефакта, в результате должно быть
 прямо указано:
 - `ещё не опубликовано`;

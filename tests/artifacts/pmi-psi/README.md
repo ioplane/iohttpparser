@@ -23,4 +23,7 @@ tests/artifacts/pmi-psi/
 - `throughput-connect.tsv`
 - `throughput-median.tsv`
 - `throughput-connect-median.tsv`
+- `throughput-extended.tsv`
+- `throughput-extended-median.tsv`
 - `summary.md`
+- `summary-extended.md`
