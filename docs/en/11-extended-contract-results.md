@@ -1,6 +1,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
 [![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
 [![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![SVG](https://img.shields.io/badge/SVG-Charts-f97316?style=for-the-badge)](https://www.w3.org/Graphics/SVG/)
 [![Mermaid](https://img.shields.io/badge/Mermaid-Flowchart-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/flowchart.html)
 
 # Extended Contract Results
@@ -105,14 +106,7 @@ Published run:
 |---|---|---|---:|---:|---:|
 | `stateful-reuse-request` | public parser state | `req-small/iohttpparser-stateful-strict` | `7,981,577.56` | `1,019.98` | `125.29` |
 
-```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#2563eb'}}}%%
-xychart-beta
-    title "Parser state reuse req/s median"
-    x-axis ["stateful-reuse-request"]
-    y-axis "req/s" 0 --> 9000000
-    bar [7981577.56]
-```
+![Parser state reuse req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-parser-state.svg)
 
 ### Semantics And Body Handoff
 
@@ -123,14 +117,7 @@ xychart-beta
 | `request-chunked-parse-semantics-body` | chunked body decode | `request-chunked-parse-semantics` | `4,075,425.45` | `380.89` | `245.37` |
 | `response-fixed-parse-semantics-body` | fixed-length accounting | `resp-headers/iohttpparser-stateful-strict` | `16,895,333.75` | `692.84` | `59.19` |
 
-```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#059669'}}}%%
-xychart-beta
-    title "Semantics and body handoff req/s median"
-    x-axis ["req-chunked-parse", "req-chunked-semantics", "req-chunked-body", "resp-fixed-body"]
-    y-axis "req/s" 0 --> 18000000
-    bar [7852263.74, 8154989.49, 4075425.45, 16895333.75]
-```
+![Semantics and body handoff req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-semantics-body.svg)
 
 ### iohttp-style Consumer Flows
 
@@ -140,14 +127,7 @@ xychart-beta
 | `consumer-iohttp-fixed-response` | fixed-length body handoff | `response-fixed-parse-semantics-body` | `8,018,723.08` | `1,032.38` | `124.71` |
 | `consumer-iohttp-pipeline` | pipelined stateful consumer flow | `request-chunked-parse-semantics-body` | `3,418,498.73` | `704.19` | `292.53` |
 
-```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#7c3aed'}}}%%
-xychart-beta
-    title "iohttp-style consumer flows req/s median"
-    x-axis ["expect-trailers", "fixed-response", "pipeline"]
-    y-axis "req/s" 0 --> 9000000
-    bar [3913056.27, 8018723.08, 3418498.73]
-```
+![iohttp-style consumer flows req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-consumer-iohttp.svg)
 
 ### Upgrade And ioguard-style Flows
 
@@ -158,14 +138,7 @@ xychart-beta
 | `consumer-ioguard-connect` | strict `CONNECT` handoff | `req-connect/iohttpparser-stateful-strict` | `17,046,011.45` | `1,056.66` | `58.66` |
 | `consumer-ioguard-reject-te-cl` | strict ambiguity rejection | `request-chunked-parse-semantics` | `7,838,169.09` | `680.23` | `127.58` |
 
-```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#d97706'}}}%%
-xychart-beta
-    title "Upgrade and ioguard-style flows req/s median"
-    x-axis ["upgrade-parse", "upgrade-semantics", "ioguard-connect", "ioguard-reject"]
-    y-axis "req/s" 0 --> 18000000
-    bar [10138496.42, 10942576.59, 17046011.45, 7838169.09]
-```
+![Upgrade and ioguard-style flows req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-upgrade-ioguard.svg)
 
 ## Extended Contract Performance Interpretation
 

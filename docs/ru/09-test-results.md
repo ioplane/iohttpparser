@@ -2,7 +2,7 @@
 [![picohttpparser](https://img.shields.io/badge/GitHub-picohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/h2o/picohttpparser)
 [![llhttp](https://img.shields.io/badge/GitHub-llhttp-181717?style=for-the-badge&logo=github)](https://github.com/nodejs/llhttp)
 [![Valgrind](https://img.shields.io/badge/Valgrind-callgrind-b22222?style=for-the-badge)](https://valgrind.org/)
-[![Mermaid](https://img.shields.io/badge/Mermaid-График-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/xyChart.html)
+[![SVG](https://img.shields.io/badge/SVG-Графики-f97316?style=for-the-badge)](https://www.w3.org/Graphics/SVG/)
 
 # Результаты Испытаний
 
@@ -42,6 +42,21 @@
 - [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary.md`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary.md)
 - [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-median.tsv)
 - [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-connect-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-connect-median.tsv)
+
+```mermaid
+flowchart LR
+  A["Функциональные и производительные прогоны"]
+  B["Артефакты TSV"]
+  C["Графики SVG"]
+  D["summary.md"]
+  E["09-test-results.md"]
+
+  A --> B
+  B --> C
+  B --> D
+  C --> E
+  D --> E
+```
 
 ## Сводка Выполнения
 
@@ -103,38 +118,13 @@
 | `resp-upgrade` | передача ответа `101 Switching Protocols` потребителю |
 | `req-connect` | запрос `CONNECT` в форме authority |
 
-### Легенда Цветов Для Сравнительных Графиков
-
-| Цвет | Библиотека |
-|---|---|
-| синий | `picohttpparser` |
-| красный | `llhttp` |
-| зелёный | `iohttpparser-stateful-strict` |
-
 ### Общая Трёхсторонняя Матрица
 
-`синий = picohttpparser` | `красный = llhttp` | `зелёный = iohttpparser-stateful-strict`
-
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#2563eb,#dc2626,#059669"
----
-xychart-beta
-    title "Прикладные сценарии, медиана req/s"
-    x-axis ["req-small", "req-headers", "resp-small", "resp-headers", "resp-upgrade"]
-    y-axis "req/s" 0 --> 40000000
-    line [38695677.07, 13525043.61, 37669387.46, 16830116.55, 23766424.53]
-    line [23759749.96, 7702701.60, 17006629.18, 9694390.17, 11994313.02]
-    line [19635405.86, 9334685.68, 22148835.75, 11824577.19, 15261886.34]
-```
+![Прикладные сценарии, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/common-three-way.svg)
 
 ### Трёхсторонний Фокус На CONNECT
 
-Для сравнения по одному сценарию `CONNECT` таблица ниже точнее, чем
-накладывающийся график.
+![CONNECT, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/connect-three-way.svg)
 
 ### req-small
 

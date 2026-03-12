@@ -22,6 +22,12 @@
     "throughput_extended": "throughput-extended.tsv",
     "throughput_extended_median": "throughput-extended-median.tsv",
     "summary": "summary.md",
-    "summary_extended": "summary-extended.md"
+    "summary_extended": "summary-extended.md",
+    "charts_common_three_way": "charts/common-three-way.svg",
+    "charts_connect_three_way": "charts/connect-three-way.svg",
+    "charts_extended_parser_state": "charts/extended-parser-state.svg",
+    "charts_extended_semantics_body": "charts/extended-semantics-body.svg",
+    "charts_extended_consumer_iohttp": "charts/extended-consumer-iohttp.svg",
+    "charts_extended_upgrade_ioguard": "charts/extended-upgrade-ioguard.svg"
   }
 }
