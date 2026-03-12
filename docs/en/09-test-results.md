@@ -126,30 +126,15 @@ xychart-beta
     title "Common consumer scenarios req/s median"
     x-axis ["req-small", "req-headers", "resp-small", "resp-headers", "resp-upgrade"]
     y-axis "req/s" 0 --> 40000000
-    bar [38695677.07, 13525043.61, 37669387.46, 16830116.55, 23766424.53]
-    bar [23759749.96, 7702701.60, 17006629.18, 9694390.17, 11994313.02]
-    bar [19635405.86, 9334685.68, 22148835.75, 11824577.19, 15261886.34]
+    line [38695677.07, 13525043.61, 37669387.46, 16830116.55, 23766424.53]
+    line [23759749.96, 7702701.60, 17006629.18, 9694390.17, 11994313.02]
+    line [19635405.86, 9334685.68, 22148835.75, 11824577.19, 15261886.34]
 ```
 
 ### Three-way CONNECT Focus
 
-`blue = picohttpparser` | `red = llhttp` | `green = iohttpparser-stateful-strict`
-
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#2563eb,#dc2626,#059669"
----
-xychart-beta
-    title "CONNECT req/s median"
-    x-axis ["req-connect"]
-    y-axis "req/s" 0 --> 25000000
-    bar [23793069.77]
-    bar [11256663.52]
-    bar [14397430.12]
-```
+For a single-category `CONNECT` comparison, the table below is more precise
+than an overlaid chart.
 
 ### req-small
 
