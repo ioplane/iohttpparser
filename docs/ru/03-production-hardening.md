@@ -1,160 +1,112 @@
-# Production Hardening
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Требования-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/requirementDiagram.html)
 
-`iohttpparser` — не generic text parser. Это security-sensitive HTTP/1.1 wire parser. Поэтому production hardening означает fail-closed обработку malformed, ambiguous и hostile traffic при предсказуемой интеграции для `iohttp` и `ringwall`.
+# Усиление Для Работы В Рабочей Среде
 
----
+## Базовый Режим
 
-## Содержание
+`iohttpparser` — чувствительный к ошибкам безопасности парсер HTTP/1.1 на
+уровне байтового протокола. Для рабочей среды нужен режим отказа по умолчанию
+на ошибочном и неоднозначном вводе.
 
-1. [Strict Policy Surface](#1-strict-policy-surface)
-2. [Limits and Boundaries](#2-limits-and-boundaries)
-3. [Semantics Rejection Rules](#3-semantics-rejection-rules)
-4. [State and Buffer Ownership](#4-state-and-buffer-ownership)
-5. [Verification Pipeline](#5-verification-pipeline)
-6. [Consumer Profiles](#6-consumer-profiles)
-7. [Release Gates](#7-release-gates)
+## Политика
 
----
+Базовый профиль для рабочей среды: `IHTP_POLICY_STRICT`.
 
-## 1. Strict Policy Surface
-
-Production baseline — это `IHTP_POLICY_STRICT`.
-
-| Policy | Default | Purpose |
+| Поле | Значение По Умолчанию | Эффект |
 |---|---|---|
-| `reject_obs_fold` | `true` | Запрет obsolete folded header syntax |
-| `reject_bare_lf` | `true` | Запрет line endings без `CRLF` |
-| `reject_te_cl` | `true` | Запрет ambiguity `Transfer-Encoding` + `Content-Length` |
-| `allow_spaces_in_uri` | `false` | Fail-closed разбор request-target |
+| `reject_obs_fold` | `true` | отклонять устаревший перенос заголовка |
+| `reject_bare_lf` | `true` | отклонять окончания строк без `CRLF` |
+| `reject_te_cl` | `true` | отклонять сочетание `Transfer-Encoding` и `Content-Length` |
+| `allow_spaces_in_uri` | `false` | отклонять цель запроса с пробелами |
 
-Цель — маленький policy surface. Если правило влияет на request smuggling или framing ambiguity, strict mode должен отвергать это по умолчанию.
+## Лимиты
+
+| Лимит | Макрос | Значение По Умолчанию |
+|---|---|---|
+| число заголовков | `IHTP_MAX_HEADERS` | 64 |
+| длина строки запроса | `IHTP_MAX_REQUEST_LINE` | 8192 |
+| длина строки заголовка | `IHTP_MAX_HEADER_LINE` | 8192 |
+
+Эти лимиты входят в публичный контракт.
+
+## Классы Отклонения
+
+Текущие классы жёсткого отклонения:
+- bare `LF`
+- obsolete folded headers в строгом режиме
+- конфликтующий повторяющийся `Content-Length`
+- ошибочный `Transfer-Encoding`
+- повторяющийся `chunked`
+- цепочка `Transfer-Encoding` в запросе, не заканчивающаяся `chunked`
+- ошибочный список токенов `Connection`
+- недопустимые управляющие байты в цели запроса
+- отсутствующий или повторяющийся `Host` в строгом режиме HTTP/1.1
 
 ```mermaid
-flowchart TD
-    A[Incoming Bytes] --> B{Strict Syntax OK?}
-    B -- no --> X[Reject]
-    B -- yes --> C{Semantics Ambiguous?}
-    C -- yes --> X
-    C -- no --> D[Body Mode Decision]
-    D --> E[Consumer]
+requirementDiagram
+    functionalRequirement строгая_политика {
+        id: hardening-1
+        text: строгий профиль отклоняет неверный и неоднозначный HTTP-ввод
+        risk: high
+        verifymethod: test
+    }
+
+    functionalRequirement явные_лимиты {
+        id: hardening-2
+        text: лимиты парсера заданы явно и покрыты тестами
+        risk: medium
+        verifymethod: test
+    }
+
+    functionalRequirement владение {
+        id: hardening-3
+        text: парсер сохраняет владение буфером на стороне потребителя и не выполняет скрытых выделений памяти в горячем пути
+        risk: high
+        verifymethod: inspection
+    }
+
+    element выпуск {
+        type: verification
+    }
+
+    выпуск - satisfies -> строгая_политика
+    выпуск - satisfies -> явные_лимиты
+    выпуск - satisfies -> владение
 ```
 
----
+## Правила Владения
 
-## 2. Limits and Boundaries
+- Входные байты принадлежат потребителю.
+- Парсер не выделяет скрытые входные буферы.
+- Разобранные диапазоны валидны только пока жив буфер потребителя.
+- Состояние декодера хранит только счётчики и состояние фрейминга.
 
-Жёсткие parser limits — это часть production contract.
+## Поверхность Проверки
 
-| Limit | Macro | Default |
-|---|---|---|
-| Max headers | `IHTP_MAX_HEADERS` | 64 |
-| Max request line | `IHTP_MAX_REQUEST_LINE` | 8192 |
-| Max header line | `IHTP_MAX_HEADER_LINE` | 8192 |
-
-Эти лимиты должны оставаться:
-- явными
-- покрытыми тестами
-- build-time configurable для consumer
-
-Для `ringwall` ожидается более жёсткий профиль, чем для general-purpose `iohttp`.
-
----
-
-## 3. Semantics Rejection Rules
-
-Production hardening живёт в основном в semantics layer.
-
-Сейчас уже реализованы классы reject:
-- conflicting duplicate `Content-Length`
-- malformed `Transfer-Encoding`
-- duplicate `chunked`
-- request `Transfer-Encoding`, который не заканчивается `chunked`
-- malformed `Connection` token lists
-- missing или duplicate `Host` в strict HTTP/1.1 request handling
-- no-body response precedence для `1xx`, `204` и `304`
-
-```mermaid
-stateDiagram-v2
-    [*] --> ParsedHeaders
-    ParsedHeaders --> Reject: TE plus CL ambiguity
-    ParsedHeaders --> Reject: conflicting Content-Length
-    ParsedHeaders --> Reject: malformed Connection
-    ParsedHeaders --> Reject: malformed Transfer-Encoding
-    ParsedHeaders --> NoBody: 1xx or 204 or 304
-    ParsedHeaders --> FixedBody: Content-Length
-    ParsedHeaders --> ChunkedBody: final chunked coding
-    ParsedHeaders --> EOFBody: response fallback
-    NoBody --> [*]
-    FixedBody --> [*]
-    ChunkedBody --> [*]
-    EOFBody --> [*]
-    Reject --> [*]
-```
-
----
-
-## 4. State and Buffer Ownership
-
-Production embedding зависит от простых ownership rules:
-- caller владеет всеми input buffers
-- parsed spans валидны только пока жив caller buffer
-- parser state хранит progress, а не private storage
-- body decoders хранят только framing state
-
-Это критично для:
-- `io_uring` provided-buffer pipelines
-- proxy/security use cases, где копии должны быть явными
-- запрета hidden heap allocation в hot path
-
----
-
-## 5. Verification Pipeline
-
-Production hardening обеспечивается несколькими слоями проверки:
-
-| Layer | Current Tooling |
+| Слой | Инструменты |
 |---|---|
-| Unit tests | Unity |
-| Corpus tests | Scanner, semantics, body corpora |
-| Fuzzing | `fuzz_parser`, `fuzz_chunked`, `fuzz_scanner` |
-| Formatting | `clang-format` |
-| Static analysis | `cppcheck`, `PVS-Studio`, `CodeChecker` |
-| Benchmark checks | scanner benchmark scripts |
+| модульные тесты | Unity |
+| корпусные тесты | корпуса для парсера, семантики и тела |
+| дифференциальные тесты | `picohttpparser`, `llhttp` |
+| фаззинг | парсер, сканер, декодер `chunked` |
+| статический анализ | `cppcheck`, `PVS-Studio`, `CodeChecker` |
+| форматирование | `clang-format` |
 
-```mermaid
-flowchart LR
-    A[Unit Tests] --> E[Quality Gate]
-    B[Corpus Tests] --> E
-    C[Fuzz Targets] --> E
-    D[Static Analysis] --> E
-    E --> F[Release Candidate]
-```
+## Профили Потребителей
 
----
+| Потребитель | Ожидаемый профиль |
+|---|---|
+| `iohttp` | строгий режим по умолчанию; ослабление только явно |
+| `ioguard` | строгий режим, меньшие лимиты, отказ по умолчанию на неоднозначности |
 
-## 6. Consumer Profiles
+## Условия Выпуска
 
-### iohttp
+Обязательные условия перед выпуском рабочей версии:
 
-Профиль `iohttp` должен оставаться interoperable, но strict by default. Leniency допустима только как явный compatibility choice.
-
-### ringwall
-
-Профиль `ringwall` должен оставаться более жёстким:
-- меньшие limits
-- никакой legacy tolerance по умолчанию
-- fail closed при ambiguity
-
----
-
-## 7. Release Gates
-
-Перед production-tagged release проект должен требовать:
-
-1. Green `./scripts/quality.sh`
-2. Green sanitizer matrix там, где она поддерживается
-3. Green fuzz smoke runs
-4. Differential checks против `picohttpparser` и `llhttp`
-5. Документированный consumer contract для `iohttp` и `ringwall`
-
-Правило простое: performance improvements опциональны; strict correctness и явные failure modes обязательны.
+1. `./scripts/quality.sh` проходит.
+2. Дифференциальный корпус зелёный.
+3. Короткие фаззинг-прогоны зелёные.
+4. Контракты для `iohttp` и `ioguard` документированы.

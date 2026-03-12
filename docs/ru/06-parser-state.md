@@ -1,40 +1,55 @@
-# Stateful Parser API
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![C23](https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge)](https://www.iso.org/standard/82075.html)
+[![Doxygen](https://img.shields.io/badge/Doxygen-Справочник-2C4AA8?style=for-the-badge)](https://www.doxygen.nl/)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Состояния-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/stateDiagram.html)
 
-В `iohttpparser` теперь есть явный stateful API для инкрементального разбора:
-- request
-- response
-- отдельного header block
+# Состояние Парсера
 
-Новый API сохраняет базовую модель библиотеки: pull-based parsing, zero-copy spans, без callback-ов, без скрытых аллокаций и без внутренних буферов парсера.
+## Назначение
+
+Интерфейс состояния парсера нужен для инкрементального разбора по накопленному
+буферу потребителя.
+
+Поддерживаемые классы сообщений:
+- запросы
+- ответы
+- отдельные блоки заголовков
+
+## Публичный Интерфейс
+
+| API | Назначение |
+|---|---|
+| `ihtp_parser_state_t` | объект прогресса парсера |
+| `ihtp_parser_state_init()` | инициализация состояния |
+| `ihtp_parser_state_reset()` | подготовка состояния к следующему сообщению |
+| `ihtp_parse_request_stateful()` | инкрементальный разбор запроса |
+| `ihtp_parse_response_stateful()` | инкрементальный разбор ответа |
+| `ihtp_parse_headers_stateful()` | инкрементальный разбор блока заголовков |
+
+## Инварианты
+
+- накопленный буфер принадлежит потребителю
+- разобранные диапазоны указывают в накопленный буфер
+- один и тот же буфер должен оставаться валидным между вызовами
+- состояние парсера хранит только прогресс
+- `ihtp_parser_state_reset()` сбрасывает только прогресс разбора
+
+## Модель Прогресса
 
 ```mermaid
-flowchart LR
-    A[caller-owned accumulated buffer] --> B[ihtp_parser_state_t]
-    B --> C[ihtp_parse_*_stateful]
-    C --> D[zero-copy spans]
-    C --> E[state.phase и state.cursor]
+stateDiagram-v2
+    [*] --> StartLine
+    StartLine --> Headers: complete
+    StartLine --> StartLine: incomplete
+    StartLine --> Error: malformed
+    Headers --> Done: complete
+    Headers --> Headers: incomplete
+    Headers --> Error: malformed
+    Done --> [*]
+    Error --> [*]
 ```
 
-## Доступный API
-
-- `ihtp_parser_state_t`
-- `ihtp_parser_state_init()`
-- `ihtp_parser_state_reset()`
-- `ihtp_parse_request_stateful()`
-- `ihtp_parse_response_stateful()`
-- `ihtp_parse_headers_stateful()`
-
-## Контракт
-
-- входной буфер по-прежнему принадлежит вызывающему коду
-- разобранные поля по-прежнему ссылаются на caller-owned buffer
-- один и тот же `ihtp_parser_state_t` надо переиспользовать, пока accumulated buffer растёт
-- `state.cursor` показывает общий прогресс внутри накопленного буфера
-- `state.phase` показывает, где сейчас парсер: start line, headers, done или error
-- `ihtp_parser_state_reset()` сохраняет `state.mode`, но сбрасывает progress для нового сообщения
-- разобранные request/response/header spans по-прежнему указывают на caller-owned input bytes
-- `ihtp_parser_state_reset()` не очищает output structs; если consumer хочет
-  заново обнулить их, он должен сделать это сам
+Объект состояния нужен, чтобы не пересканировать уже принятые байты.
 
 ## Пример
 
@@ -55,16 +70,24 @@ int main(void)
 
     ihtp_parser_state_init(&st, IHTP_PARSER_MODE_REQUEST);
 
-    if (ihtp_parse_request_stateful(&st, wire, 20, &req, nullptr, &consumed) == IHTP_INCOMPLETE) {
-        /* дописываем новые байты в тот же accumulated buffer */
+    if (ihtp_parse_request_stateful(&st, wire, 20, &req, NULL, &consumed) == IHTP_INCOMPLETE) {
+        /* добавить байты в тот же накопленный буфер */
     }
 
-    if (ihtp_parse_request_stateful(&st, wire, strlen(wire), &req, nullptr, &consumed) == IHTP_OK) {
-        /* req теперь содержит zero-copy spans внутрь wire */
+    if (ihtp_parse_request_stateful(&st, wire, strlen(wire), &req, NULL, &consumed) == IHTP_OK) {
+        /* поля req указывают в wire */
     }
+
+    return 0;
 }
 ```
 
-## Когда использовать
+## Когда Использовать
 
-Stateful API нужен там, где consumer уже держит connection state и хочет явно контролировать прогресс parser layer. Stateless API по-прежнему подходит для простого accumulated-buffer сценария, где отдельный state object не даёт выигрыша.
+Использовать интерфейс состояния, когда потребитель:
+- читает из соединения в несколько шагов
+- хранит накопленный буфер
+- хочет явный прогресс парсера без обратных вызовов
+
+Использовать интерфейс без состояния, когда потребитель уже имеет полный
+накопленный буфер и не нуждается в отдельном объекте состояния.

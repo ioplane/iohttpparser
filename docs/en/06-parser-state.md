@@ -1,40 +1,55 @@
-# Parser State API
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![C23](https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge)](https://www.iso.org/standard/82075.html)
+[![Doxygen](https://img.shields.io/badge/Doxygen-Reference-2C4AA8?style=for-the-badge)](https://www.doxygen.nl/)
+[![Mermaid](https://img.shields.io/badge/Mermaid-State-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/stateDiagram.html)
 
-`iohttpparser` now exposes an explicit parser-state API for incremental parsing of:
+# Parser State
+
+## Purpose
+
+The parser-state API supports incremental parsing over an accumulated caller
+buffer.
+
+Supported message classes:
 - requests
 - responses
 - standalone header blocks
 
-The stateful API keeps the project on the same pull-based model as the original stateless functions. It does not introduce callbacks, hidden allocation, or parser-owned buffers.
+## Public API
+
+| API | Purpose |
+|---|---|
+| `ihtp_parser_state_t` | parser progress object |
+| `ihtp_parser_state_init()` | initialize parser state |
+| `ihtp_parser_state_reset()` | reuse parser state for the next message |
+| `ihtp_parse_request_stateful()` | incremental request parse |
+| `ihtp_parse_response_stateful()` | incremental response parse |
+| `ihtp_parse_headers_stateful()` | incremental header-block parse |
+
+## Invariants
+
+- The caller owns the accumulated buffer.
+- Parsed spans point into the accumulated buffer.
+- The same accumulated buffer must remain valid across incremental calls.
+- Parser state tracks progress; it does not own message bytes.
+- `ihtp_parser_state_reset()` rewinds parser progress only.
+
+## Progress Model
 
 ```mermaid
-flowchart LR
-    A[caller-owned accumulated buffer] --> B[ihtp_parser_state_t]
-    B --> C[ihtp_parse_*_stateful]
-    C --> D[zero-copy spans]
-    C --> E[state.phase and state.cursor]
+stateDiagram-v2
+    [*] --> StartLine
+    StartLine --> Headers: complete
+    StartLine --> StartLine: incomplete
+    StartLine --> Error: malformed
+    Headers --> Done: complete
+    Headers --> Headers: incomplete
+    Headers --> Error: malformed
+    Done --> [*]
+    Error --> [*]
 ```
 
-## Available API
-
-- `ihtp_parser_state_t`
-- `ihtp_parser_state_init()`
-- `ihtp_parser_state_reset()`
-- `ihtp_parse_request_stateful()`
-- `ihtp_parse_response_stateful()`
-- `ihtp_parse_headers_stateful()`
-
-## Contract
-
-- The caller still owns the input buffer.
-- Parsed spans still point into the caller buffer.
-- Reuse the same `ihtp_parser_state_t` while the accumulated buffer grows.
-- `state.cursor` tracks total consumed bytes inside the accumulated buffer.
-- `state.phase` reports whether parsing is still in the start line, header block, done, or error phase.
-- `ihtp_parser_state_reset()` preserves `state.mode` and rewinds progress for a fresh message.
-- Parsed request/response/header spans still point into the caller-owned input bytes.
-- `ihtp_parser_state_reset()` does not clear output structs; if the consumer
-  wants fresh zeroed storage it must do that itself.
+The state object exists to avoid rescanning already accepted bytes.
 
 ## Example
 
@@ -55,16 +70,24 @@ int main(void)
 
     ihtp_parser_state_init(&st, IHTP_PARSER_MODE_REQUEST);
 
-    if (ihtp_parse_request_stateful(&st, wire, 20, &req, nullptr, &consumed) == IHTP_INCOMPLETE) {
-        /* append more bytes to the same accumulated buffer */
+    if (ihtp_parse_request_stateful(&st, wire, 20, &req, NULL, &consumed) == IHTP_INCOMPLETE) {
+        /* append bytes to the same accumulated buffer */
     }
 
-    if (ihtp_parse_request_stateful(&st, wire, strlen(wire), &req, nullptr, &consumed) == IHTP_OK) {
-        /* req now contains zero-copy spans into wire */
+    if (ihtp_parse_request_stateful(&st, wire, strlen(wire), &req, NULL, &consumed) == IHTP_OK) {
+        /* req spans point into wire */
     }
+
+    return 0;
 }
 ```
 
-## When to use it
+## When to Use
 
-Prefer the stateful API when the consumer already manages connection-level state and wants explicit parser progress. Keep the existing stateless API for simple accumulated-buffer parsing where an extra state object adds no value.
+Use the stateful API when the consumer:
+- reads from a connection in multiple steps
+- retains an accumulated buffer
+- wants parser progress without callback integration
+
+Use the stateless API when the consumer already has the full accumulated buffer
+and does not need explicit parser progress state.

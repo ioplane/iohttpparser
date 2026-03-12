@@ -1,0 +1,14 @@
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/build/clang-release
+[ 53%] Built target iohttpparser
+[100%] Built target bench_throughput_compare
+format	tsv	v1
+meta	iterations	200000
+meta	connect_only	true
+columns	parser	scenario	kind	len	elapsed_ns	req_per_s	mib_per_s	ns_per_req
+iohttpparser-strict	req-connect	request	99	20875891	9580429.41	904.52	104.38
+iohttpparser-lenient	req-connect	request	99	20216106	9893102.06	934.04	101.08
+picohttpparser	req-connect	request	99	8456727	23649811.56	2232.87	42.28
+llhttp	req-connect	request	99	16977051	11780609.01	1112.25	84.89
+meta	sink	79596000

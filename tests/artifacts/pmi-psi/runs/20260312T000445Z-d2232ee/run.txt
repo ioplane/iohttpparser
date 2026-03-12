@@ -1,0 +1,7 @@
+date_utc=2026-03-12T00:04:45Z
+root=/workspace
+run_id=20260312T000445Z-d2232ee
+debug_preset=clang-debug
+release_preset=clang-release
+iterations=200000
+median_runs=5

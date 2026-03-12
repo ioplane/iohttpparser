@@ -1,0 +1,50 @@
+-- The C compiler identification is Clang 22.1.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/local/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Found Doxygen: /usr/local/bin/doxygen (found version "1.16.1") found components: doxygen dot
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/build/clang-release
+[  7%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_scalar.c.o
+[ 15%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_parser.c.o
+[ 23%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_semantics.c.o
+[ 30%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_body_decoder.c.o
+[ 38%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_sse42.c.o
+[ 46%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_avx2.c.o
+[ 53%] Linking C static library libiohttpparser.a
+[ 53%] Built target iohttpparser
+[ 61%] Building C object CMakeFiles/bench_throughput_compare.dir/bench/bench_throughput_compare.c.o
+[ 69%] Building C object CMakeFiles/bench_throughput_compare.dir/tests/third_party/picohttpparser/picohttpparser.c.o
+[ 76%] Building C object CMakeFiles/bench_throughput_compare.dir/tests/third_party/llhttp/api.c.o
+[ 84%] Building C object CMakeFiles/bench_throughput_compare.dir/tests/third_party/llhttp/http.c.o
+[ 92%] Building C object CMakeFiles/bench_throughput_compare.dir/tests/third_party/llhttp/llhttp.c.o
+[100%] Linking C executable bench_throughput_compare
+[100%] Built target bench_throughput_compare
+format	tsv	v1
+meta	iterations	200000
+meta	connect_only	false
+columns	parser	scenario	kind	len	elapsed_ns	req_per_s	mib_per_s	ns_per_req
+iohttpparser-strict	req-small	request	49	13035233	15343032.23	716.98	65.18
+iohttpparser-strict	req-headers	request	186	36976056	5408905.70	959.45	184.88
+iohttpparser-strict	resp-small	response	51	10871466	18396782.92	894.77	54.36
+iohttpparser-strict	resp-headers	response	116	21629420	9246664.96	1022.92	108.15
+iohttpparser-strict	resp-upgrade	response	77	16122037	12405380.29	910.96	80.61
+iohttpparser-lenient	req-small	request	49	12563165	15919555.30	743.92	62.82
+iohttpparser-lenient	req-headers	request	186	34635090	5774490.55	1024.30	173.18
+iohttpparser-lenient	resp-small	response	51	10190650	19625833.48	954.55	50.95
+iohttpparser-lenient	resp-headers	response	116	20965218	9539609.84	1055.33	104.83
+iohttpparser-lenient	resp-upgrade	response	77	15132200	13216848.84	970.55	75.66
+picohttpparser	req-small	request	49	4924504	40613227.24	1897.86	24.62
+picohttpparser	req-headers	request	186	14212829	14071793.87	2496.10	71.06
+picohttpparser	resp-small	response	51	4747855	42124285.60	2048.82	23.74
+picohttpparser	resp-headers	response	116	10939060	18283106.59	2022.59	54.70
+picohttpparser	resp-upgrade	response	77	6845932	29214429.82	2145.30	34.23
+llhttp	req-small	request	49	8132984	24591220.15	1149.15	40.66
+llhttp	req-headers	request	186	25284951	7909843.29	1403.08	126.42
+llhttp	resp-small	response	51	10880020	18382319.15	894.07	54.40
+llhttp	resp-headers	response	116	20920700	9559909.56	1057.58	104.60
+llhttp	resp-upgrade	response	77	13617210	14687296.44	1078.53	68.09
+meta	sink	385116000
