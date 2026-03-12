@@ -114,7 +114,22 @@
 ### Общая Трёхсторонняя Матрица
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#2563eb,#dc2626,#059669'}}}%%
+---
+config:
+  theme: base
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#2563eb, #dc2626, #059669"
+      titleColor: "#475569"
+      xAxisLabelColor: "#475569"
+      xAxisTitleColor: "#475569"
+      xAxisTickColor: "#94a3b8"
+      xAxisLineColor: "#94a3b8"
+      yAxisLabelColor: "#475569"
+      yAxisTitleColor: "#475569"
+      yAxisTickColor: "#94a3b8"
+      yAxisLineColor: "#94a3b8"
+---
 xychart-beta
     title "Прикладные сценарии, медиана req/s"
     x-axis ["req-small", "req-headers", "resp-small", "resp-headers", "resp-upgrade"]
@@ -127,7 +142,22 @@ xychart-beta
 ### Трёхсторонний Фокус На CONNECT
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables': {'plotColorPalette':'#2563eb,#dc2626,#059669'}}}%%
+---
+config:
+  theme: base
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#2563eb, #dc2626, #059669"
+      titleColor: "#475569"
+      xAxisLabelColor: "#475569"
+      xAxisTitleColor: "#475569"
+      xAxisTickColor: "#94a3b8"
+      xAxisLineColor: "#94a3b8"
+      yAxisLabelColor: "#475569"
+      yAxisTitleColor: "#475569"
+      yAxisTickColor: "#94a3b8"
+      yAxisLineColor: "#94a3b8"
+---
 xychart-beta
     title "CONNECT, медиана req/s"
     x-axis ["req-connect"]
