@@ -29,6 +29,7 @@ option(IOHTTPPARSER_BUILD_BENCH "Build benchmarks" OFF)
 option(IOHTTPPARSER_BUILD_FUZZ "Build fuzz targets (Clang only)" OFF)
 option(IOHTTPPARSER_BUILD_EXAMPLES "Build examples" OFF)
 option(IOHTTPPARSER_INSTALL "Generate install targets" ON)
+option(IOHTTPPARSER_PERF_TRACE "Enable internal parser perf counters for benchmarking" OFF)
 
 # SIMD options (auto-detected at compile time, runtime dispatch)
 option(IOHTTPPARSER_SIMD_SSE42 "Enable SSE4.2 scanner" ON)
@@ -105,7 +106,7 @@ target_include_directories(iohttpparser
         ${CMAKE_SOURCE_DIR}/src
 )
 
-# Shared library
+#Shared library
 add_library(iohttpparser_shared SHARED ${IOHTTPPARSER_SOURCES})
 set_target_properties(iohttpparser_shared PROPERTIES
     OUTPUT_NAME iohttpparser
@@ -120,7 +121,12 @@ target_include_directories(iohttpparser_shared
         ${CMAKE_SOURCE_DIR}/src
 )
 
-# SIMD compile flags per source file
+if(IOHTTPPARSER_PERF_TRACE)
+    target_compile_definitions(iohttpparser PRIVATE IHTP_PERF_TRACE)
+    target_compile_definitions(iohttpparser_shared PRIVATE IHTP_PERF_TRACE)
+endif()
+
+#SIMD compile flags per source file
 if(IOHTTPPARSER_SIMD_SSE42)
     set_source_files_properties(src/ihtp_scanner_sse42.c PROPERTIES
         COMPILE_FLAGS "-msse4.2"
@@ -137,9 +143,10 @@ if(IOHTTPPARSER_SIMD_AVX2)
     target_compile_definitions(iohttpparser_shared PRIVATE IOHTTPPARSER_HAVE_AVX2)
 endif()
 
-# Alias for use via add_subdirectory()
+#Alias for use via add_subdirectory()
 add_library(iohttpparser::iohttpparser ALIAS iohttpparser)
 
+#== == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==   \
 # ============================================================================
 # Testing
 # ============================================================================
@@ -317,6 +324,9 @@ if(IOHTTPPARSER_BUILD_BENCH)
             ${CMAKE_SOURCE_DIR}/tests/third_party/llhttp
     )
     target_link_libraries(bench_throughput_compare PRIVATE iohttpparser)
+    if(IOHTTPPARSER_PERF_TRACE)
+        target_compile_definitions(bench_throughput_compare PRIVATE IHTP_PERF_TRACE)
+    endif()
     target_compile_options(
         bench_throughput_compare
         PRIVATE

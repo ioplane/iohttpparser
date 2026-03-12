@@ -165,7 +165,9 @@ int main(int argc, char **argv)
     output_mode_t mode = OUTPUT_HUMAN;
 
     if (argc > 3) {
-        fprintf(stderr, "usage: %s [iterations] [--tsv]\n", argv[0]);
+        if (fprintf(stderr, "usage: %s [iterations] [--tsv]\n", argv[0]) < 0) {
+            return 2;
+        }
         return 2;
     }
 
@@ -178,7 +180,9 @@ int main(int argc, char **argv)
         char *end = nullptr;
         unsigned long long parsed = strtoull(argv[i], &end, 10);
         if (end == argv[i] || *end != '\0' || parsed == 0ULL) {
-            fprintf(stderr, "invalid iterations: %s\n", argv[i]);
+            if (fprintf(stderr, "invalid iterations: %s\n", argv[i]) < 0) {
+                return 2;
+            }
             return 2;
         }
         iterations = (size_t)parsed;

@@ -10,6 +10,34 @@
 
 #include <string.h>
 
+#ifdef IHTP_PERF_TRACE
+static ihtp_perf_counters_t g_ihtp_perf_counters;
+
+void ihtp_perf_counters_reset(void)
+{
+    memset(&g_ihtp_perf_counters, 0, sizeof(g_ihtp_perf_counters));
+}
+
+void ihtp_perf_counters_snapshot(ihtp_perf_counters_t *out)
+{
+    if (out != nullptr) {
+        *out = g_ihtp_perf_counters;
+    }
+}
+
+#    define IHTP_PERF_ADD(field, value) g_ihtp_perf_counters.field += (uint64_t)(value)
+#else
+void ihtp_perf_counters_reset(void)
+{
+}
+void ihtp_perf_counters_snapshot(ihtp_perf_counters_t *out)
+{
+    (void)out;
+}
+
+#    define IHTP_PERF_ADD(field, value) ((void)0)
+#endif
+
 /* ─── Method lookup ───────────────────────────────────────────────────── */
 
 ihtp_method_t ihtp_method_from_str(const char *method, size_t method_len)
@@ -113,11 +141,16 @@ void ihtp_parser_state_reset(ihtp_parser_state_t *state)
 static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_policy_t *policy,
                                    const char **line_end, size_t *line_ending_len)
 {
+    IHTP_PERF_ADD(find_line_end_calls, 1);
+
     const char *lf = memchr(buf, '\n', len);
 
     if (lf == nullptr) {
+        IHTP_PERF_ADD(find_line_end_bytes, len);
         return IHTP_INCOMPLETE;
     }
+
+    IHTP_PERF_ADD(find_line_end_bytes, (size_t)(lf - buf) + 1);
 
     if (lf > buf && lf[-1] == '\r') {
         *line_end = lf - 1;
@@ -134,16 +167,57 @@ static ihtp_status_t find_line_end(const char *buf, size_t len, const ihtp_polic
     return IHTP_OK;
 }
 
-static bool find_char_offset(const char *buf, size_t len, int ch, size_t *offset)
+static bool find_header_name_colon(const char *buf, size_t len, size_t *colon_offset)
 {
-    const char *pos = memchr(buf, ch, len);
+    const char *colon = nullptr;
 
-    if (pos == nullptr) {
+    IHTP_PERF_ADD(find_header_name_colon_calls, 1);
+    colon = memchr(buf, ':', len);
+    if (colon == nullptr) {
+        IHTP_PERF_ADD(find_header_name_colon_bytes, len);
         return false;
     }
 
-    *offset = (size_t)(pos - buf);
+    *colon_offset = (size_t)(colon - buf);
+    IHTP_PERF_ADD(find_header_name_colon_bytes, *colon_offset + 1);
+
+    if (*colon_offset == 0) {
+        return false;
+    }
+
+    for (size_t i = 0; i < *colon_offset; i++) {
+        uint8_t c = (uint8_t)buf[i];
+
+        if (!ihtp_is_token_char(c)) {
+            return false;
+        }
+    }
+
     return true;
+}
+
+static bool find_method_space(const char *buf, size_t len, size_t *space_offset)
+{
+    IHTP_PERF_ADD(find_method_space_calls, 1);
+
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)buf[i];
+        IHTP_PERF_ADD(find_method_space_bytes, 1);
+
+        if (c == ' ') {
+            if (i == 0) {
+                return false;
+            }
+            *space_offset = i;
+            return true;
+        }
+
+        if (!ihtp_is_token_char(c)) {
+            return false;
+        }
+    }
+
+    return false;
 }
 
 static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *offset)
@@ -160,8 +234,35 @@ static bool find_last_char_offset(const char *buf, size_t len, int ch, size_t *o
 
 static bool request_target_is_valid(const char *buf, size_t len, bool allow_spaces)
 {
-    for (size_t i = 0; i < len; i++) {
-        uint8_t c = (uint8_t)buf[i];
+    const uint8_t *p = (const uint8_t *)buf;
+    const uint8_t *end = p + len;
+    static const uint64_t ones = UINT64_C(0x0101010101010101);
+    static const uint64_t highs = UINT64_C(0x8080808080808080);
+
+    IHTP_PERF_ADD(request_target_calls, 1);
+    IHTP_PERF_ADD(request_target_bytes, len);
+
+    if (!allow_spaces) {
+        while ((size_t)(end - p) >= sizeof(uint64_t)) {
+            uint64_t chunk = 0;
+            memcpy(&chunk, p, sizeof(chunk));
+
+            uint64_t low_controls = (chunk - (ones * UINT64_C(0x21))) & ~chunk & highs;
+            uint64_t del_bytes = chunk ^ (ones * UINT64_C(0x7f));
+            uint64_t has_del = (del_bytes - ones) & ~del_bytes & highs;
+
+            if ((low_controls | has_del) != 0) {
+                break;
+            }
+
+            p += sizeof(uint64_t);
+            IHTP_PERF_ADD(request_target_fast_bytes, sizeof(uint64_t));
+        }
+    }
+
+    while (p < end) {
+        uint8_t c = *p++;
+        IHTP_PERF_ADD(request_target_slow_bytes, 1);
 
         if (c == ' ' && allow_spaces) {
             continue;
@@ -177,10 +278,59 @@ static bool request_target_is_valid(const char *buf, size_t len, bool allow_spac
 
 static bool field_text_is_valid(const char *buf, size_t len)
 {
-    for (size_t i = 0; i < len; i++) {
-        uint8_t c = (uint8_t)buf[i];
+    const uint8_t *p = (const uint8_t *)buf;
+    const uint8_t *end = p + len;
+    static const uint64_t ones = UINT64_C(0x0101010101010101);
+    static const uint64_t highs = UINT64_C(0x8080808080808080);
 
-        if (c == '\t' || c == ' ') {
+    IHTP_PERF_ADD(field_text_calls, 1);
+    IHTP_PERF_ADD(field_text_bytes, len);
+
+    while ((size_t)(end - p) >= sizeof(uint64_t) * 4U) {
+        uint64_t chunk_a = 0;
+        uint64_t chunk_b = 0;
+
+        memcpy(&chunk_a, p, sizeof(chunk_a));
+        memcpy(&chunk_b, p + sizeof(chunk_a), sizeof(chunk_b));
+
+        uint64_t low_controls_a = (chunk_a - (ones * UINT64_C(0x20))) & ~chunk_a & highs;
+        uint64_t del_bytes_a = chunk_a ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del_a = (del_bytes_a - ones) & ~del_bytes_a & highs;
+
+        uint64_t low_controls_b = (chunk_b - (ones * UINT64_C(0x20))) & ~chunk_b & highs;
+        uint64_t del_bytes_b = chunk_b ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del_b = (del_bytes_b - ones) & ~del_bytes_b & highs;
+
+        if ((low_controls_a | has_del_a | low_controls_b | has_del_b) != 0) {
+            break;
+        }
+
+        p += sizeof(uint64_t) * 2U;
+        IHTP_PERF_ADD(field_text_fast_bytes, sizeof(uint64_t) * 2U);
+    }
+
+    while ((size_t)(end - p) >= sizeof(uint64_t)) {
+        uint64_t chunk = 0;
+
+        memcpy(&chunk, p, sizeof(chunk));
+
+        uint64_t low_controls = (chunk - (ones * UINT64_C(0x20))) & ~chunk & highs;
+        uint64_t del_bytes = chunk ^ (ones * UINT64_C(0x7f));
+        uint64_t has_del = (del_bytes - ones) & ~del_bytes & highs;
+
+        if ((low_controls | has_del) != 0) {
+            break;
+        }
+
+        p += sizeof(uint64_t);
+        IHTP_PERF_ADD(field_text_fast_bytes, sizeof(uint64_t));
+    }
+
+    while (p < end) {
+        uint8_t c = *p++;
+        IHTP_PERF_ADD(field_text_slow_bytes, 1);
+
+        if (c == '\t') {
             continue;
         }
 
@@ -192,49 +342,31 @@ static bool field_text_is_valid(const char *buf, size_t len)
     return true;
 }
 
-static bool bytes_eq_ignore_case(const char *buf, size_t len, const char *lit, size_t lit_len)
+static bool trim_and_validate_field_value(const char *buf, size_t len, const char **trimmed_start,
+                                          size_t *trimmed_len)
 {
-    if (len != lit_len) {
-        return false;
+    IHTP_PERF_ADD(trim_field_value_calls, 1);
+    IHTP_PERF_ADD(trim_field_value_bytes, len);
+
+    size_t first = 0;
+    size_t last = len;
+
+    while (first < len && ihtp_is_lws((uint8_t)buf[first])) {
+        first++;
+    }
+    while (last > first && ihtp_is_lws((uint8_t)buf[last - 1])) {
+        last--;
     }
 
-    for (size_t i = 0; i < len; i++) {
-        char a = buf[i];
-        char b = lit[i];
-
-        if (a >= 'A' && a <= 'Z') {
-            a = (char)(a + ('a' - 'A'));
-        }
-        if (b >= 'A' && b <= 'Z') {
-            b = (char)(b + ('a' - 'A'));
-        }
-        if (a != b) {
-            return false;
-        }
+    if (first == len) {
+        *trimmed_start = buf + len;
+        *trimmed_len = 0;
+        return true;
     }
 
-    return true;
-}
-
-static bool is_common_header_name(const char *name, size_t name_len)
-{
-    switch (name_len) {
-    case 4:
-        return bytes_eq_ignore_case(name, name_len, "Host", 4);
-    case 6:
-        return bytes_eq_ignore_case(name, name_len, "Expect", 6);
-    case 7:
-        return bytes_eq_ignore_case(name, name_len, "Upgrade", 7) ||
-               bytes_eq_ignore_case(name, name_len, "Trailer", 7);
-    case 10:
-        return bytes_eq_ignore_case(name, name_len, "Connection", 10);
-    case 14:
-        return bytes_eq_ignore_case(name, name_len, "Content-Length", 14);
-    case 17:
-        return bytes_eq_ignore_case(name, name_len, "Transfer-Encoding", 17);
-    default:
-        return false;
-    }
+    *trimmed_start = buf + first;
+    *trimmed_len = last - first;
+    return field_text_is_valid(*trimmed_start, *trimmed_len);
 }
 
 static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_response_t *resp,
@@ -299,7 +431,8 @@ static ihtp_status_t parse_status_line(const char *buf, size_t len, ihtp_respons
 static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_request_t *req,
                                         const ihtp_policy_t *policy, size_t *line_end)
 {
-    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
+    IHTP_PERF_ADD(parse_request_line_calls, 1);
+
     const char *line_break = nullptr;
     size_t line_ending_len = 0;
 
@@ -322,21 +455,13 @@ static ihtp_status_t parse_request_line(const char *buf, size_t len, ihtp_reques
 
     /* Parse: METHOD SP request-target SP HTTP-version */
     size_t sp1_offset = 0;
-    if (!find_char_offset(buf, line_len, ' ', &sp1_offset)) {
+    if (!find_method_space(buf, line_len, &sp1_offset)) {
         return IHTP_ERROR;
     }
     const char *sp1 = buf + sp1_offset;
 
     req->method_str = buf;
     req->method_len = sp1_offset;
-    if (req->method_len == 0) {
-        return IHTP_ERROR;
-    }
-
-    /* Validate method is token */
-    if (!scanner->is_token(req->method_str, req->method_len)) {
-        return IHTP_ERROR;
-    }
     req->method = ihtp_method_from_str(req->method_str, req->method_len);
 
     /* Request-target */
@@ -383,7 +508,8 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
                                         size_t max_headers, const ihtp_policy_t *policy,
                                         size_t *block_end)
 {
-    const ihtp_scanner_vtable_t *scanner = ihtp_scanner_get();
+    IHTP_PERF_ADD(parse_header_block_calls, 1);
+
     size_t count = initial_count;
     size_t pos = 0;
 
@@ -393,11 +519,12 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
             return IHTP_ERROR;
         }
 
-        /* Find line ending for this header line */
         const char *line_break = nullptr;
         size_t line_ending_len = 0;
+        const char *line_start = buf + pos;
         ihtp_status_t line_status =
-            find_line_end(buf + pos, len - pos, policy, &line_break, &line_ending_len);
+            find_line_end(line_start, len - pos, policy, &line_break, &line_ending_len);
+
         if (line_status == IHTP_INCOMPLETE) {
             if (len - pos > IHTP_MAX_HEADER_LINE) {
                 return IHTP_ERROR_TOO_LONG;
@@ -410,7 +537,7 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
             return line_status;
         }
 
-        size_t line_len = (size_t)(line_break - (buf + pos));
+        size_t line_len = (size_t)(line_break - line_start);
         if (line_len > IHTP_MAX_HEADER_LINE) {
             return IHTP_ERROR_TOO_LONG;
         }
@@ -434,9 +561,8 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         }
 
         /* Parse: field-name ":" OWS field-value OWS */
-        const char *line_start = buf + pos;
         size_t colon_offset = 0;
-        if (!find_char_offset(line_start, line_len, ':', &colon_offset)) {
+        if (!find_header_name_colon(line_start, line_len, &colon_offset)) {
             return IHTP_ERROR;
         }
         const char *colon = line_start + colon_offset;
@@ -448,24 +574,10 @@ static ihtp_status_t parse_header_block(const char *buf, size_t len, ihtp_header
         headers[count].name = line_start;
         headers[count].name_len = colon_offset;
 
-        /* Validate header name is token */
-        if (headers[count].name_len == 0 ||
-            (!is_common_header_name(headers[count].name, headers[count].name_len) &&
-             !scanner->is_token(headers[count].name, headers[count].name_len))) {
-            return IHTP_ERROR;
-        }
-
         /* Skip ": " and trim OWS from value */
         const char *val_start = colon + 1;
         size_t val_len = (size_t)(line_break - val_start);
-        while (val_len > 0 && ihtp_is_lws((uint8_t)*val_start)) {
-            val_start++;
-            val_len--;
-        }
-        while (val_len > 0 && ihtp_is_lws((uint8_t)val_start[val_len - 1])) {
-            val_len--;
-        }
-        if (!field_text_is_valid(val_start, val_len)) {
+        if (!trim_and_validate_field_value(val_start, val_len, &val_start, &val_len)) {
             return IHTP_ERROR;
         }
 

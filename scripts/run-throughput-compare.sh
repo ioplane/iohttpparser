@@ -17,5 +17,8 @@ fi
 if [[ "$CONNECT_ONLY" == "1" ]]; then
     args+=("--connect-only")
 fi
+if [[ "$#" -gt 0 ]]; then
+    args+=("$@")
+fi
 
 "$BUILD_DIR/bench_throughput_compare" "${args[@]}"

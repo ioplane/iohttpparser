@@ -68,3 +68,7 @@ int main(void)
 ## When to use it
 
 Prefer the stateful API when the consumer already manages connection-level state and wants explicit parser progress. Keep the existing stateless API for simple accumulated-buffer parsing where an extra state object adds no value.
+
+For throughput-sensitive consumers, the stateful API is also the preferred hot path. The stateless
+wrappers clear the output struct on every call by contract before delegating to the same parser
+logic, so they are intentionally simpler but slightly more expensive in tight loops.

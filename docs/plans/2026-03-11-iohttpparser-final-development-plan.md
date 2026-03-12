@@ -157,6 +157,12 @@ This is still product work, not CI work.
    - expected strict-vs-lenient divergence
    - unexpected regressions
 4. Produce a concise comparison report for maintainers.
+5. For any sustained throughput delta, localize it with the profiling stack in this order:
+   - built-in parser trace mode
+   - `uftrace`
+   - `valgrind` (`memcheck`, then `callgrind` / `cachegrind`)
+   - `gdb`
+   - `ftracer` only for dedicated GCC-only experiments
 
 **Exit criteria:**
 - the project has an explicit documented comparison posture against `picohttpparser` and `llhttp`
