@@ -113,22 +113,14 @@
 
 ### Общая Трёхсторонняя Матрица
 
+`синий = picohttpparser` | `красный = llhttp` | `зелёный = iohttpparser-stateful-strict`
+
 ```mermaid
 ---
 config:
-  theme: base
   themeVariables:
     xyChart:
-      plotColorPalette: "#2563eb, #dc2626, #059669"
-      titleColor: "#475569"
-      xAxisLabelColor: "#475569"
-      xAxisTitleColor: "#475569"
-      xAxisTickColor: "#94a3b8"
-      xAxisLineColor: "#94a3b8"
-      yAxisLabelColor: "#475569"
-      yAxisTitleColor: "#475569"
-      yAxisTickColor: "#94a3b8"
-      yAxisLineColor: "#94a3b8"
+      plotColorPalette: "#2563eb,#dc2626,#059669"
 ---
 xychart-beta
     title "Прикладные сценарии, медиана req/s"
@@ -141,22 +133,14 @@ xychart-beta
 
 ### Трёхсторонний Фокус На CONNECT
 
+`синий = picohttpparser` | `красный = llhttp` | `зелёный = iohttpparser-stateful-strict`
+
 ```mermaid
 ---
 config:
-  theme: base
   themeVariables:
     xyChart:
-      plotColorPalette: "#2563eb, #dc2626, #059669"
-      titleColor: "#475569"
-      xAxisLabelColor: "#475569"
-      xAxisTitleColor: "#475569"
-      xAxisTickColor: "#94a3b8"
-      xAxisLineColor: "#94a3b8"
-      yAxisLabelColor: "#475569"
-      yAxisTitleColor: "#475569"
-      yAxisTickColor: "#94a3b8"
-      yAxisLineColor: "#94a3b8"
+      plotColorPalette: "#2563eb,#dc2626,#059669"
 ---
 xychart-beta
     title "CONNECT, медиана req/s"

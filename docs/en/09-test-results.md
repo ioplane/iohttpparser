@@ -113,22 +113,14 @@ Covered executable set:
 
 ### Three-way Common Matrix
 
+`blue = picohttpparser` | `red = llhttp` | `green = iohttpparser-stateful-strict`
+
 ```mermaid
 ---
 config:
-  theme: base
   themeVariables:
     xyChart:
-      plotColorPalette: "#2563eb, #dc2626, #059669"
-      titleColor: "#475569"
-      xAxisLabelColor: "#475569"
-      xAxisTitleColor: "#475569"
-      xAxisTickColor: "#94a3b8"
-      xAxisLineColor: "#94a3b8"
-      yAxisLabelColor: "#475569"
-      yAxisTitleColor: "#475569"
-      yAxisTickColor: "#94a3b8"
-      yAxisLineColor: "#94a3b8"
+      plotColorPalette: "#2563eb,#dc2626,#059669"
 ---
 xychart-beta
     title "Common consumer scenarios req/s median"
@@ -141,22 +133,14 @@ xychart-beta
 
 ### Three-way CONNECT Focus
 
+`blue = picohttpparser` | `red = llhttp` | `green = iohttpparser-stateful-strict`
+
 ```mermaid
 ---
 config:
-  theme: base
   themeVariables:
     xyChart:
-      plotColorPalette: "#2563eb, #dc2626, #059669"
-      titleColor: "#475569"
-      xAxisLabelColor: "#475569"
-      xAxisTitleColor: "#475569"
-      xAxisTickColor: "#94a3b8"
-      xAxisLineColor: "#94a3b8"
-      yAxisLabelColor: "#475569"
-      yAxisTitleColor: "#475569"
-      yAxisTickColor: "#94a3b8"
-      yAxisLineColor: "#94a3b8"
+      plotColorPalette: "#2563eb,#dc2626,#059669"
 ---
 xychart-beta
     title "CONNECT req/s median"
