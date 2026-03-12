@@ -11,6 +11,8 @@
 |---|---|
 | [08-testing-methodology.md](./08-testing-methodology.md) | test program, comparison rules, and artifact publication |
 | [09-test-results.md](./09-test-results.md) | current PMI/PSI results for the compared parsers |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | methodology for capabilities outside the common parser-core matrix |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | result status for extended `iohttpparser` contract features |
 
 ## Scope
 

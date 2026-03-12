@@ -12,6 +12,8 @@
 |---|---|
 | [02-comparison.md](./02-comparison.md) | compared capabilities and scenario scope |
 | [08-testing-methodology.md](./08-testing-methodology.md) | PMI and PSI method |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | methodology for extended-contract capabilities |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | result status for capabilities outside the common matrix |
 | [../plans/2026-03-11-sprint-11-comparison-report.md](../plans/2026-03-11-sprint-11-comparison-report.md) | deeper comparison and profiling notes |
 
 ## Scope
@@ -20,6 +22,12 @@ This document stores repository-published PSI results for:
 - functional validation
 - parser throughput comparison
 - consumer-oriented scenario verification
+
+This document publishes the common comparison matrix.
+
+Capabilities that require an extended-contract interpretation are covered in:
+- [10-extended-contract-methodology.md](./10-extended-contract-methodology.md)
+- [11-extended-contract-results.md](./11-extended-contract-results.md)
 
 ## Artifact Set
 

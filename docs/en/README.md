@@ -23,6 +23,8 @@ graph TD
     A7["07-body-decoder.md"]
     A8["08-testing-methodology.md"]
     A9["09-test-results.md"]
+    A10["10-extended-contract-methodology.md"]
+    A11["11-extended-contract-results.md"]
     API["api-reference.md"]
 
     IDX --> A1
@@ -34,6 +36,8 @@ graph TD
     IDX --> A7
     IDX --> A8
     IDX --> A9
+    IDX --> A10
+    IDX --> A11
     IDX --> API
 
     style IDX fill:#1a73e8,color:#fff
@@ -52,6 +56,8 @@ graph TD
 | 07 | [Body Decoder](./07-body-decoder.md) | Chunked and fixed-length decoder contracts |
 | 08 | [Testing Methodology](./08-testing-methodology.md) | PMI, PSI, comparison rules, and artifact publication |
 | 09 | [Test Results](./09-test-results.md) | Published PMI/PSI results and artifact index |
+| 10 | [Extended Contract Methodology](./10-extended-contract-methodology.md) | Methodology for capabilities outside the common parser-core matrix |
+| 11 | [Extended Contract Results](./11-extended-contract-results.md) | Result status for the extended `iohttpparser` contract |
 
 ## Reference
 

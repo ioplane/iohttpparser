@@ -11,6 +11,8 @@
 |---|---|
 | [08-testing-methodology.md](./08-testing-methodology.md) | программа и методика испытаний, правила сравнения и публикация артефактов |
 | [09-test-results.md](./09-test-results.md) | текущие результаты ПМИ/ПСИ для сравниваемых парсеров |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | методика для возможностей вне общей матрицы ядра разбора |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | состояние результатов по расширенному контракту `iohttpparser` |
 
 ## Область Сравнения
 
