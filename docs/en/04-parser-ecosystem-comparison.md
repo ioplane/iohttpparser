@@ -1,106 +1,95 @@
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![picohttpparser](https://img.shields.io/badge/GitHub-picohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/h2o/picohttpparser)
+[![llhttp](https://img.shields.io/badge/GitHub-llhttp-181717?style=for-the-badge&logo=github)](https://github.com/nodejs/llhttp)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Mindmap-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/mindmap.html)
+
 # Parser Ecosystem Comparison
 
-## Executive Summary
+## Purpose
 
-The parser ecosystem around embedded HTTP/1.1 libraries is split into three broad implementation styles:
+This document defines which tasks belong inside `iohttpparser` and which tasks
+belong in the consumer or in adjacent libraries.
 
-1. Minimal stateless parsers
-2. Generated callback-driven state machines
-3. Layered pull-based parser cores
+## Responsibility Split
 
-`iohttpparser` is intentionally building the third category. This document compares those styles and explains why that matters for `iohttp`, `ringwall`, and generic embedders.
-
----
-
-## Implementation Families
-
-| Family | Representative | Strength | Weakness |
+| Task | iohttpparser | Consumer | Adjacent library |
 |---|---|---|---|
-| Minimal stateless | `picohttpparser` | Tiny API, easy embedding, very fast syntax path | Consumer must own semantics and many edge cases |
-| Generated callback state machine | `llhttp` | Rich streaming behavior, mature state coverage | Callback-first API, semantics and parser logic more tightly coupled |
-| Layered pull-based core | `iohttpparser` | Explicit ownership, separate semantics/body layers, consumer-friendly state | Newer codebase, still maturing its ecosystem and docs |
+| request/status line parse | yes | no | no |
+| header field parse | yes | no | no |
+| framing semantics | yes | no | no |
+| chunked decode | yes | no | no |
+| keep-alive decision | yes | consumer uses result | no |
+| routing | no | yes | no |
+| URI normalization | no | yes | no |
+| TLS | no | yes | yes |
+| compression decode | no | yes | yes |
+| cookies | no | yes | yes |
+| WebSocket frames | no | yes | yes |
+
+## Comparison with Other Parser Families
+
+| Family | Typical boundary |
+|---|---|
+| minimal parser (`picohttpparser`) | syntax only; semantics mostly external |
+| generated state machine (`llhttp`) | syntax and many protocol decisions inside parser callbacks |
+| layered parser core (`iohttpparser`) | syntax, semantics, and body framing split into separate stages |
+
+## Why `iohttpparser` Includes Semantics and Body Framing
+
+The library includes:
+- framing decisions
+- ambiguity rejection
+- keep-alive and no-body precedence
+- chunked decode
+
+Reason:
+- both `iohttp` and `ioguard` need these decisions before application logic
+- these decisions depend directly on parsed HTTP wire semantics
+- keeping them in one library reduces duplicated parser-adjacent logic
+
+## Why `iohttpparser` Excludes Higher Layers
+
+The library excludes:
+- routing
+- authentication
+- authorization
+- URI normalization
+- content decoders
+- transport ownership
+
+Reason:
+- these tasks depend on application policy, not only on HTTP wire syntax
+- consumers need different behavior
+- adding them to the parser would widen the contract without improving parser
+  correctness
+
+## Boundary Diagram
 
 ```mermaid
-flowchart LR
-    A[Minimal Stateless] --> D[Syntax Speed]
-    B[Generated Callback Machine] --> E[Streaming Completeness]
-    C[Layered Pull-Based Core] --> F[Integration Clarity]
-
-    D --> G[Consumer Must Add Semantics]
-    E --> H[Consumer Must Accept Callback Model]
-    F --> I[Consumer Gets Zero-Copy Views and Explicit State]
+mindmap
+  root((Parser boundary))
+    iohttpparser
+      Syntax parsing
+      Framing semantics
+      Chunked decode
+    Consumer
+      Routing
+      Authentication
+      Authorization
+      Tunnel setup
+    Adjacent layers
+      TLS
+      Compression decode
+      WebSocket frames
 ```
 
----
+## Compatibility with `picohttpparser` and `llhttp`
 
-## Fit for Target Consumers
+`iohttpparser` is compatible with the ecosystem in the following sense:
+- it can be compared against `picohttpparser` and `llhttp` for syntax and
+  parser behavior
+- it does not try to copy either integration model
 
-### iohttp
-
-`iohttp` wants a parser core that:
-- does not own transport
-- can sit under an `io_uring` server
-- keeps body framing separate from routing and application logic
-
-This aligns better with `iohttpparser` than with a callback-driven machine.
-
-### ringwall
-
-`ringwall` wants a parser core that:
-- acts as a strict security boundary
-- exposes explicit semantics decisions
-- does not hide lenient behavior
-
-Again, this favors a layered pull-based parser with an explicit semantics step.
-
-### Generic Embedders
-
-Standalone event loops often want:
-- zero-copy structs
-- explicit progress via parser state
-- no mandatory dependency on a framework runtime
-
-That is the exact niche the public stateful API is meant to serve.
-
----
-
-## Comparison Matrix
-
-| Criterion | iohttpparser | picohttpparser | llhttp |
-|---|---|---|---|
-| Caller-owned buffers | Yes | Yes | Yes, but exposed through callbacks |
-| Public parser state | Yes | No | Yes |
-| Pull-based result structs | Yes | Yes | No, callback events instead |
-| Separate semantics phase | Yes | No | Mostly no |
-| Separate body decoder | Yes | Partial | Mostly integrated |
-| Differential testing value | High | High | High |
-| Direct fit for `iohttp` and `ringwall` | Highest | Medium | Medium |
-
----
-
-## Roadmap Consequences
-
-The parser ecosystem comparison implies the following roadmap:
-
-1. Keep the public parser-state API small and stable.
-2. Grow differential testing instead of widening leniency.
-3. Document consumer integration patterns as first-class docs.
-4. Keep the semantics layer explicit rather than folding it into the syntax parser.
-
-```mermaid
-flowchart TD
-    A[Public Parser State] --> B[Differential Testing]
-    B --> C[Consumer Contracts]
-    C --> D[Stable Release]
-```
-
----
-
-## Recommendation
-
-`iohttpparser` should not try to become a clone of either `picohttpparser` or `llhttp`.
-
-It should remain:
-- stricter than `picohttpparser`
-- simpler to embed than `llhttp`
-- more explicit about ownership and semantics than both
+It is not compatible in the following sense:
+- it does not expose a callback-first API like `llhttp`
+- it does not reduce itself to syntax-only output like `picohttpparser`

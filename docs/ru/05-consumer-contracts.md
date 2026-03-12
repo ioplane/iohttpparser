@@ -1,228 +1,124 @@
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![iohttp](https://img.shields.io/badge/GitHub-iohttp-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttp)
+[![ioguard](https://img.shields.io/badge/GitHub-ioguard-181717?style=for-the-badge&logo=github)](https://github.com/dantte-lp/ioguard)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+
 # Контракты Потребителей
 
-## Краткий Вывод
+## Общий Контракт
 
-`iohttpparser` уже имеет достаточную базу по parser, semantics, body decoder и differential testing, чтобы зафиксировать явные consumer contracts.
+Оба поддерживаемых потребителя используют одно и то же ядро парсера.
 
-Два основных потребителя:
-- `iohttp`
-- `ioguard` (бывший `ringwall`)
+Общие инварианты:
+- входные буферы принадлежат потребителю
+- разобранные диапазоны не копируются
+- после синтаксического разбора всегда вызывается этап семантики
+- после семантики выполняется явная передача в декодер тела
+- библиотека не владеет транспортом
 
-Им не нужно идентичное поведение на уровне policy. Им нужен один parser core с разными policy envelopes.
-
-```mermaid
-flowchart LR
-    A[iohttpparser Core] --> B[iohttp Profile]
-    A --> C[ioguard Profile]
-
-    B --> D[Более широкая совместимость]
-    C --> E[Fail-closed security boundary]
-```
-
----
-
-## Общий Базовый Контракт
-
-Оба потребителя зависят от одинаковых инвариантов:
-- caller-owned input buffers
-- zero-copy spans в parsed outputs
-- отсутствие transport state внутри parser
-- явный semantics step после syntax parsing
-- явный body-framing handoff через `ihtp_semantics_*` и `ihtp_body_decoder_*`
-
-Предпочтительный путь интеграции для обоих:
+Предпочтительный интерфейс для обоих потребителей:
 - `ihtp_parser_state_t`
 - `ihtp_parse_request_stateful()`
 - `ihtp_parse_response_stateful()`
 - `ihtp_parse_headers_stateful()`
 
-Semantics handoff теперь тоже часть публичного surface:
+Публичная поверхность семантики:
 - `ihtp_request_apply_semantics()`
 - `ihtp_response_apply_semantics()`
-- header: `include/iohttpparser/ihtp_semantics.h`
-- consumer-facing flags:
-  - `protocol_upgrade`
-  - `expects_continue`
-  - `has_trailer_fields`
+- `protocol_upgrade`
+- `expects_continue`
+- `has_trailer_fields`
 
----
+## Именованные Профили
 
-## Контракт Для iohttp
+| Профиль | Текущее поведение |
+|---|---|
+| `IHTP_POLICY_IOHTTP` | строгий профиль RFC |
+| `IHTP_POLICY_IOGUARD` | строгий профиль RFC |
 
-`iohttp` это HTTP server library. Его parser contract должен оптимизироваться под понятный body framing и повторно используемое connection-level state, но при этом по умолчанию оставаться strict по RFC.
+Оба профиля сейчас являются точными псевдонимами строгого профиля.
 
-### Ожидаемая модель интеграции
+## Контракт Для `iohttp`
 
-- накапливать байты на соединение
-- переиспользовать один `ihtp_parser_state_t` на текущее сообщение
-- запускать semantics сразу после успешного разбора headers
-- передавать body mode дальше в request-processing code, не смешивая parser layer с routing и app logic
+`iohttp` использует `iohttpparser` как кодек HTTP/1.1 на уровне байтового протокола.
 
-### Обязательные гарантии
+Требуемое поведение:
+- разбор по накопленному буферу потребителя
+- переиспользование состояния парсера между частичными чтениями
+- немедленное применение семантики после завершения разбора заголовков
+- передача режима тела на уровень соединения или запроса
 
-- strict-by-default request parsing
-- leniency только через явную policy configuration
-- стабильные `bytes_consumed` и parser-phase reporting на partial reads
-- separation по body mode:
-  - `IHTP_BODY_NONE`
-  - `IHTP_BODY_FIXED`
-  - `IHTP_BODY_CHUNKED`
-  - `IHTP_BODY_EOF`
+Требуемые результаты:
+- `bytes_consumed`
+- `body_mode`
+- `keep_alive`
+- диапазоны байтов для заголовков запроса и ответа
+
+## Контракт Для `ioguard`
+
+`ioguard` использует `iohttpparser` как строгий граничный парсер.
+
+Требуемое поведение:
+- отказ по умолчанию на неоднозначности
+- строгая политика по умолчанию
+- отклонение ошибочного фрейминга до передачи в прикладной код
+
+Требуемые результаты:
+- метод и цель запроса
+- решение по фреймингу
+- решение по соединению
+- строгое отклонение неоднозначного синтаксиса и семантики
+
+## Правила Владения
+
+| Область | Правило |
+|---|---|
+| входные данные парсера | принадлежат потребителю |
+| разобранные диапазоны | указывают в буфер потребителя |
+| состояние парсера | хранит только прогресс |
+| результат семантики | копируемая структура потребителя |
+| полезная нагрузка `chunked` | переписывается в буфере потребителя |
+| хвостовые байты | остаются в буфере потребителя |
+
+## Специальные Случаи
+
+### `CONNECT`
+
+- определяется через `req.method == IHTP_METHOD_CONNECT`
+- целевой адрес в форме authority возвращается в `req.path`
+- настройка туннеля относится к уровню потребителя
+
+### `101 Switching Protocols`
+
+- `protocol_upgrade` выставляется только при явном повышении протокола
+- владение парсером заканчивается на блоке заголовков ответа
+- байты после блока заголовков принадлежат потребителю
+
+### `Expect: 100-continue`
+
+- `expects_continue` относится только к запросу
+- парсер не формирует промежуточные ответы
+- решение о `100 Continue` принимает потребитель
+
+### Хвостовые Поля
+
+- `has_trailer_fields` сообщает о наличии объявленных хвостовых полей
+- `ihtp_chunked_decoder_t.consume_trailer` определяет владение хвостовым блоком
+- `consume_trailer = false` возвращает хвостовые байты потребителю
+
+## Последовательность Интеграции
 
 ```mermaid
 sequenceDiagram
-    participant Conn as iohttp connection
-    participant Parser as iohttpparser parser
-    participant Sem as iohttpparser semantics
-    participant Body as iohttpparser body decoder
+    participant C as Потребитель
+    participant P as Парсер
+    participant S as Семантика
+    participant B as Декодер тела
 
-    Conn->>Parser: append bytes
-    Parser-->>Conn: request + state + consumed
-    Conn->>Sem: evaluate framing
-    Sem-->>Conn: body_mode + keep_alive
-    Conn->>Body: decode body if needed
+    C->>P: накопленные байты
+    P-->>C: разобранное сообщение и число использованных байтов
+    C->>S: применение семантики
+    S-->>C: режим тела и решение по соединению
+    C->>B: декодирование тела при необходимости
+    B-->>C: байты полезной нагрузки и хвостовые байты
 ```
-
----
-
-## Контракт Для ioguard
-
-`ioguard` использует `iohttpparser` как более строгий boundary component. Его parser contract должен оптимизироваться под fail-closed behavior и rejection любой неоднозначности.
-
-### Ожидаемая модель интеграции
-
-- один parser state на каждый control-plane message flow
-- strict profile по умолчанию
-- reject ambiguity до того, как сообщение увидит proxy или security logic
-
-### Обязательные гарантии
-
-- reject-by-default для:
-  - conflicting `Content-Length`
-  - `Transfer-Encoding + Content-Length`
-  - malformed `Connection`
-  - malformed line endings
-  - invalid request-target control bytes
-- маленькая и явная limit surface
-- отсутствие скрытого fallback от strict решения к lenient accept
-
-`ioguard` должен трактовать semantics output из `iohttpparser` как security decision point, а не просто как удобный parser result.
-
----
-
-## Разделение Policy
-
-| Область | iohttp | ioguard |
-|---|---|---|
-| Default mode | Strict | Strict |
-| Lenient toggles | Допустимы при явной настройке | Нежелательны; только как migration opt-in |
-| Header limits | Умеренные server defaults | Меньшие fail-closed defaults |
-| Ambiguous framing | Reject | Reject |
-| Bare `LF` support | Только через явную lenient policy | Off |
-| `obs-fold` support | Только через явную lenient policy | Off |
-
-В публичном API теперь есть именованные presets:
-- `IHTP_POLICY_IOHTTP`
-- `IHTP_POLICY_IOGUARD`
-
-Оба пока отображаются в строгий RFC-профиль. Раздельные имена нужны, чтобы
-consumer code опирался на явный intent и мог пережить будущую дивергенцию без
-смены call site.
-
-Текущий alias-контракт точен по всей публичной policy surface:
-- `reject_obs_fold`
-- `reject_bare_lf`
-- `reject_te_cl`
-- `allow_spaces_in_uri`
-
----
-
-## Ближайшие Шаги
-
-Sprint 7 теперь должен зафиксировать:
-
-1. consumer-facing docs для body-mode handoff
-2. ownership для `Upgrade`, `CONNECT` и `Expect: 100-continue`
-3. presets по limits/profile для `iohttp` и `ioguard`
-4. integration examples со stateful parsing поверх accumulated buffers
-
-### Детали ownership в semantics
-
-- `protocol_upgrade` выставляется только когда само сообщение явно фиксирует
-  переключение протокола:
-  - request: `Connection: upgrade` и непустой `Upgrade`
-  - response: `101 Switching Protocols` вместе с `Connection: upgrade` и `Upgrade`
-- `expects_continue` есть только у request и выставляется для точного
-  `Expect: 100-continue`
-- `has_trailer_fields` означает, что сообщение объявляет trailer fields и
-  consumer должен передать завершение chunked body в trailer-aware path
-- `CONNECT` по-прежнему определяется главным образом через
-  `req.method == IHTP_METHOD_CONNECT`; Sprint 7 не добавляет для него отдельный
-  дублирующий флаг
-
-### Базовый integration example
-
-`examples/basic_parse.c` теперь показывает рекомендуемый consumer flow:
-
-1. накапливать байты в одном caller-owned буфере
-2. переиспользовать `ihtp_parser_state_t`
-3. разбирать сообщение с `IHTP_POLICY_IOHTTP`
-4. вызывать `ihtp_request_apply_semantics()`
-5. передавать оставшиеся байты в `ihtp_decode_chunked()`, если framing chunked
-
-### Ownership для CONNECT
-
-`CONNECT` намеренно остаётся method-driven случаем:
-
-- parser выражает его через `req.method == IHTP_METHOD_CONNECT`
-- `req.path` несёт authority-form target (`host:port`)
-- semantics не добавляет дублирующий `is_connect_tunnel` boolean
-- tunnel setup, CONNECT-specific ACL и передача байтов после `200` относятся к
-  consumer layer, а не к parser core
-
-`examples/connect_tunnel.c` служит минимальным reference-example для этого handoff.
-
-### Ownership для response upgrade
-
-Для response-side upgrade контракт остаётся явным и минимальным:
-
-- `protocol_upgrade` выставляется только для `101 Switching Protocols` вместе с
-  `Connection: Upgrade` и непустым token в `Upgrade`
-- после этого флага `iohttpparser` заканчивает HTTP framing для данного response
-- все байты, которые следуют после header block, дальше принадлежат consumer'у
-
-`examples/response_upgrade.c` служит минимальным reference-example для этого handoff.
-
-### Ownership для `Expect: 100-continue` и trailer
-
-Для request-side handoff тела сообщения:
-
-- `expects_continue` сообщает consumer'у, что request явно запросил
-  `100 Continue`
-- сам parser не отправляет interim responses; приложение решает, слать ли
-  `100 Continue`, отклонять request или читать body сразу
-- `has_trailer_fields` означает, что request или response объявляет trailing fields
-- chunked decoder потребляет trailer section только если consumer явно включает
-  это через `ihtp_chunked_decoder_t.consume_trailer`
-
-То есть ownership trailer остаётся решением consumer'а:
-
-- `consume_trailer = true`: decoder сам потребляет trailer section
-- `consume_trailer = false`: decoder возвращает trailing bytes consumer'у
-
-`examples/expect_trailers.c` служит минимальным reference-example для этого handoff.
-
-### Текущий контракт preset-ов
-
-На текущей стадии проекта:
-
-- `IHTP_POLICY_IOHTTP` — именованный alias strict-profile
-- `IHTP_POLICY_IOGUARD` — тоже именованный alias strict-profile
-
-Эти preset-ы названы намеренно, хотя пока эквивалентны. Библиотека рассматривает
-их как стабильные consumer-facing имена конфигурации, и любое будущее расхождение
-должно быть узким, явным и закрытым regression-тестами.
-
-## Рекомендация
-
-Нужно рассматривать `iohttp` и `ioguard` как policy consumers одного parser core, а не как повод разводить поведение на разные parser implementations.

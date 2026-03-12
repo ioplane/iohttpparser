@@ -1,156 +1,119 @@
-# iohttpparser Architecture
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![C23](https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge)](https://www.iso.org/standard/82075.html)
+[![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Architecture-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/architecture.html)
 
-## Overview
+# Architecture
 
-`iohttpparser` is a strict HTTP/1.1 parser library for C23. It is designed as a reusable wire-level core for `iohttp`, `ringwall`, and other projects that need:
-- zero-copy parsing
-- no hidden allocation in the hot path
-- explicit strict/lenient policy control
-- transport-agnostic integration
+## Scope
 
-**Design philosophy:** keep syntax parsing, security semantics, and body framing separate. Optimize for correctness first, then prove SIMD and incremental behavior against scalar truth.
+`iohttpparser` is a C23 HTTP/1.1 wire parser.
 
----
+Included scope:
+- request line parsing
+- status line parsing
+- header field parsing
+- parser state for incremental parsing
+- framing semantics
+- fixed-length body accounting
+- chunked body decoding
 
-## Core Architecture
+Excluded scope:
+- URI normalization
+- percent-decoding
+- cookies
+- multipart parsing
+- content-coding decode
+- routing
+- transport ownership
+- WebSocket frame parsing
+
+## Layer Model
 
 ```mermaid
-flowchart TD
-    A[Caller-Owned Buffer] --> B[Layer 1 Scanner]
-    B --> C[Layer 2 Parser]
-    C --> D[Layer 3 Semantics]
-    D --> E[Layer 4 Body Decoder]
-    E --> F[Consumer Integration]
+architecture-beta
+    group caller(cloud)[Caller]
+    group parserlib(server)[iohttpparser]
+    group consumer(server)[Consumer]
 
-    B --> B1[Delimiter Search]
-    B --> B2[Token Validation]
-    B --> B3[CRLF Detection]
-    B --> B4[Scalar SSE4.2 AVX2 Dispatch]
+    service buffer(database)[Buffer] in caller
+    service scanner(server)[Scanner] in parserlib
+    service parser(server)[Parser] in parserlib
+    service semantics(server)[Semantics] in parserlib
+    service body(server)[Body Decoder] in parserlib
+    service app(server)[Application] in consumer
 
-    C --> C1[Request Line]
-    C --> C2[Status Line]
-    C --> C3[Header Extraction]
-    C --> C4[Parser State]
-
-    D --> D1[Content-Length]
-    D --> D2[Transfer-Encoding]
-    D --> D3[Connection and Host]
-    D --> D4[Keep-Alive and No-Body Rules]
-
-    E --> E1[Fixed-Length Tracking]
-    E --> E2[Chunked Decoding]
-    E --> E3[Trailer Consumption]
+    buffer:R --> L:scanner
+    scanner:R --> L:parser
+    parser:R --> L:semantics
+    semantics:R --> L:body
+    body:R --> L:app
 ```
 
----
-
-## Layer Decomposition
-
-| Layer | Responsibility | Current Status |
+| Layer | Responsibility | Output |
 |---|---|---|
-| Scanner | Delimiter search, token validation, runtime SIMD dispatch | Implemented with scalar, SSE4.2, AVX2 |
-| Parser | Request/status line parsing, header extraction, consumed-byte reporting | Implemented with stateless and stateful API |
-| Semantics | `Content-Length`, `Transfer-Encoding`, `Connection`, `Host`, keep-alive, ambiguity rejection | Implemented and covered by corpus tests |
-| Body Decoder | Fixed-length accounting, chunked decoding, trailer handling | Implemented with unit, corpus, and fuzz coverage |
+| Scanner | delimiter search, token checks, CRLF checks, SIMD dispatch | validated byte ranges |
+| Parser | request line, status line, header extraction, parser state | zero-copy request, response, or header views |
+| Semantics | framing rules, host rules, keep-alive, ambiguity rejection | body mode and connection decision |
+| Body Decoder | fixed-length accounting, chunked decode, trailer handling | payload bytes and trailing bytes |
 
----
+## Ownership Model
 
-## Parsing Modes
+- The caller owns every input buffer.
+- Parsed spans point into caller-owned memory.
+- Parser state stores progress only.
+- The body decoder stores framing state only.
+- The library does not allocate hidden buffers in the hot path.
 
-The library now supports two parser entry styles:
+## Public Surface
 
-1. Stateless parsing over an accumulated buffer.
-2. Stateful parsing with explicit `ihtp_parser_state_t`.
+| Area | API |
+|---|---|
+| Stateless parse | `ihtp_parse_request()`, `ihtp_parse_response()`, `ihtp_parse_headers()` |
+| Stateful parse | `ihtp_parser_state_t`, `ihtp_parser_state_init()`, `ihtp_parser_state_reset()`, `ihtp_parse_*_stateful()` |
+| Semantics | `ihtp_request_apply_semantics()`, `ihtp_response_apply_semantics()` |
+| Body decode | `ihtp_decode_fixed()`, `ihtp_decode_chunked()` |
+| Scanner | `ihtp_scan_*` helpers for internal and benchmark use |
 
-Both styles keep the same zero-copy ownership model.
+## Parser Modes
 
 ```mermaid
 stateDiagram-v2
     [*] --> StartLine
     StartLine --> Headers: line complete
-    StartLine --> Error: malformed input
-    StartLine --> StartLine: need more bytes
+    StartLine --> Error: malformed
+    StartLine --> StartLine: incomplete
     Headers --> Done: header block complete
-    Headers --> Error: malformed or ambiguous header
-    Headers --> Headers: need more bytes
+    Headers --> Error: malformed
+    Headers --> Headers: incomplete
     Done --> [*]
     Error --> [*]
 ```
 
----
+The library exposes:
+- stateless parsing over an accumulated buffer
+- stateful parsing over the same accumulated buffer with explicit progress
 
-## Public API Shape
-
-| API | Role |
-|---|---|
-| `ihtp_parse_request()` | Stateless request parse over an accumulated buffer |
-| `ihtp_parse_response()` | Stateless response parse over an accumulated buffer |
-| `ihtp_parse_headers()` | Stateless header-block parse |
-| `ihtp_parser_state_init()` | Initialize explicit parser state |
-| `ihtp_parser_state_reset()` | Reuse parser state for the next message |
-| `ihtp_parse_request_stateful()` | Stateful request parsing |
-| `ihtp_parse_response_stateful()` | Stateful response parsing |
-| `ihtp_parse_headers_stateful()` | Stateful header-block parsing |
-| `ihtp_decode_chunked()` | Incremental chunked body decode |
-| `ihtp_decode_fixed()` | Fixed-length body accounting |
-
-The stateful API does not change ownership rules:
-- input bytes still belong to the caller
-- parsed spans still point into caller memory
-- parser state tracks progress only, not private buffers
-
----
+The ownership model is identical in both modes.
 
 ## Integration Boundaries
 
-```mermaid
-flowchart LR
-    A[iohttp] --> B[iohttpparser]
-    C[ringwall] --> B
-    D[Standalone Event Loop] --> B
+| Consumer | Expected use |
+|---|---|
+| `iohttp` | general HTTP/1.1 server parsing with explicit framing handoff |
+| `ioguard` | strict boundary parsing with fail-closed policy |
+| standalone event loop | caller-managed buffer parsing without transport coupling |
 
-    B --> E[Request or Response Views]
-    B --> F[Body Mode Decision]
-    B --> G[Chunked or Fixed Decoder]
+The parser does not own:
+- sockets
+- TLS
+- event loops
+- message routing
 
-    E --> H[Application Model]
-    F --> H
-    G --> H
-```
+## Invariants
 
-### iohttp
-
-`iohttp` should use `iohttpparser` as the HTTP/1.1 wire codec under a broader server/runtime layer.
-
-### ringwall
-
-`ringwall` should treat `iohttpparser` as a strict security boundary with fail-closed defaults and smaller operational limits.
-
-### Generic Consumers
-
-Standalone applications can use either the stateless or stateful parser entry points without adopting `io_uring`, TLS, routing, or any `iohttp`-specific abstractions.
-
----
-
-## Non-Goals
-
-The parser core deliberately excludes:
-- URI normalization
-- percent-decoding
-- cookies
-- multipart parsing
-- compression decoding
-- WebSocket frames
-- routing
-- transport ownership
-
-These belong in higher layers or adjacent libraries.
-
----
-
-## Current Priorities
-
-1. Stabilize the public stateful parser API.
-2. Expand differential testing against `picohttpparser` and `llhttp`.
-3. Keep SIMD acceleration provably equivalent to scalar truth.
-4. Strengthen consumer-facing integration contracts for `iohttp` and `ringwall`.
+- strict policy is the baseline
+- SIMD paths must stay equivalent to scalar results
+- syntax parsing and semantics are separate stages
+- body decode starts only after semantics selects the body mode

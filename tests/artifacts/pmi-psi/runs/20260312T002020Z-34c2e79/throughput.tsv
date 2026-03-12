@@ -1,0 +1,145 @@
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/build/clang-release
+[  7%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_scalar.c.o
+[ 15%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_parser.c.o
+[ 23%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_semantics.c.o
+[ 30%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_body_decoder.c.o
+[ 38%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_sse42.c.o
+[ 46%] Building C object CMakeFiles/iohttpparser.dir/src/ihtp_scanner_avx2.c.o
+[ 53%] Linking C static library libiohttpparser.a
+[ 53%] Built target iohttpparser
+[ 61%] Building C object CMakeFiles/bench_throughput_compare.dir/bench/bench_throughput_compare.c.o
+[ 69%] Linking C executable bench_throughput_compare
+[100%] Built target bench_throughput_compare
+format	tsv	v1
+meta	iterations	200000
+meta	connect_only	false
+columns	parser	scenario	kind	len	elapsed_ns	req_per_s	mib_per_s	ns_per_req
+iohttpparser-strict	req-pico-bench	request	703	45168140	4427899.84	2968.61	225.84
+iohttpparser-strict	req-line-only	request	33	7697599	25982127.67	817.69	38.49
+iohttpparser-strict	req-line-hot	request	42	9242723	21638644.80	866.72	46.21
+iohttpparser-strict	req-line-connect	request	37	9120597	21928389.12	773.76	45.60
+iohttpparser-strict	req-line-options	request	37	8405909	23792786.72	839.55	42.03
+iohttpparser-strict	req-line-long-target	request	77	9412154	21249121.08	1560.39	47.06
+iohttpparser-strict	req-small	request	49	10684832	18718123.04	874.70	53.42
+iohttpparser-strict	req-headers	request	186	22857961	8749686.82	1552.05	114.29
+iohttpparser-strict	hdr-common-heavy	request	124	22291017	8972224.10	1061.02	111.46
+iohttpparser-strict	hdr-name-heavy	request	369	43898615	4555952.39	1603.27	219.49
+iohttpparser-strict	hdr-count-04-minimal	request	43	14799301	13514151.78	554.19	74.00
+iohttpparser-strict	hdr-count-16-minimal	request	115	38678279	5170860.89	567.10	193.39
+iohttpparser-strict	hdr-count-32-minimal	request	211	68476177	2920723.80	587.72	342.38
+iohttpparser-strict	hdr-value-heavy	request	691	47060974	4249805.79	2800.58	235.30
+iohttpparser-strict	hdr-value-ascii-clean	request	433	25730499	7772876.85	3209.74	128.65
+iohttpparser-strict	hdr-value-obs-text	request	167	18120612	11037154.82	1757.82	90.60
+iohttpparser-strict	hdr-value-trim-heavy	request	379	28892217	6922279.45	2502.01	144.46
+iohttpparser-strict	hdr-uncommon-valid	request	193	21765378	9188905.43	1691.30	108.83
+iohttpparser-strict	resp-small	response	51	10247136	19517648.64	949.29	51.24
+iohttpparser-strict	resp-headers	response	116	17195893	11630684.14	1286.66	85.98
+iohttpparser-strict	resp-upgrade	response	77	12048580	16599466.49	1218.95	60.24
+iohttpparser-lenient	req-pico-bench	request	703	54744411	3653340.98	2449.32	273.72
+iohttpparser-lenient	req-line-only	request	33	10900069	18348507.70	577.45	54.50
+iohttpparser-lenient	req-line-hot	request	42	11980116	16694329.17	668.68	59.90
+iohttpparser-lenient	req-line-connect	request	37	13377075	14950951.53	527.56	66.89
+iohttpparser-lenient	req-line-options	request	37	11022657	18144445.57	640.24	55.11
+iohttpparser-lenient	req-line-long-target	request	77	18990079	10531815.06	773.38	94.95
+iohttpparser-lenient	req-small	request	49	12732292	15708090.89	734.04	63.66
+iohttpparser-lenient	req-headers	request	186	27347263	7313346.13	1297.27	136.74
+iohttpparser-lenient	hdr-common-heavy	request	124	21403005	9344482.24	1105.04	107.02
+iohttpparser-lenient	hdr-name-heavy	request	369	42829435	4669685.70	1643.29	214.15
+iohttpparser-lenient	hdr-count-04-minimal	request	43	15179111	13176002.20	540.32	75.90
+iohttpparser-lenient	hdr-count-16-minimal	request	115	38241874	5229869.23	573.57	191.21
+iohttpparser-lenient	hdr-count-32-minimal	request	211	69509732	2877294.94	578.98	347.55
+iohttpparser-lenient	hdr-value-heavy	request	691	42663682	4687827.93	3089.23	213.32
+iohttpparser-lenient	hdr-value-ascii-clean	request	433	26425129	7568553.40	3125.37	132.13
+iohttpparser-lenient	hdr-value-obs-text	request	167	18396434	10871672.19	1731.46	91.98
+iohttpparser-lenient	hdr-value-trim-heavy	request	379	30035619	6658760.72	2406.76	150.18
+iohttpparser-lenient	hdr-uncommon-valid	request	193	22177734	9018053.87	1659.86	110.89
+iohttpparser-lenient	resp-small	response	51	9603334	20826100.60	1012.93	48.02
+iohttpparser-lenient	resp-headers	response	116	17782358	11247102.32	1244.22	88.91
+iohttpparser-lenient	resp-upgrade	response	77	12551306	15934596.77	1170.12	62.76
+iohttpparser-stateful-strict	req-pico-bench	request	703	47210761	4236322.31	2840.17	236.05
+iohttpparser-stateful-strict	req-line-only	request	33	7618379	26252303.80	826.19	38.09
+iohttpparser-stateful-strict	req-line-hot	request	42	9317619	21464711.10	859.75	46.59
+iohttpparser-stateful-strict	req-line-connect	request	37	9774446	20461517.72	722.00	48.87
+iohttpparser-stateful-strict	req-line-options	request	37	7527411	26569560.24	937.53	37.64
+iohttpparser-stateful-strict	req-line-long-target	request	77	8962798	22314460.28	1638.62	44.81
+iohttpparser-stateful-strict	req-small	request	49	11665256	17144930.21	801.18	58.33
+iohttpparser-stateful-strict	req-headers	request	186	26283842	7609237.64	1349.75	131.42
+iohttpparser-stateful-strict	hdr-common-heavy	request	124	20425886	9791496.93	1157.90	102.13
+iohttpparser-stateful-strict	hdr-name-heavy	request	369	42828854	4669749.04	1643.31	214.14
+iohttpparser-stateful-strict	hdr-count-04-minimal	request	43	14392081	13896531.02	569.87	71.96
+iohttpparser-stateful-strict	hdr-count-16-minimal	request	115	36268087	5514489.92	604.79	181.34
+iohttpparser-stateful-strict	hdr-count-32-minimal	request	211	69103012	2894229.85	582.39	345.52
+iohttpparser-stateful-strict	hdr-value-heavy	request	691	42510448	4704725.77	3100.36	212.55
+iohttpparser-stateful-strict	hdr-value-ascii-clean	request	433	26435353	7565626.23	3124.16	132.18
+iohttpparser-stateful-strict	hdr-value-obs-text	request	167	16874484	11852214.27	1887.63	84.37
+iohttpparser-stateful-strict	hdr-value-trim-heavy	request	379	29968016	6673781.81	2412.19	149.84
+iohttpparser-stateful-strict	hdr-uncommon-valid	request	193	24979675	8006509.29	1473.67	124.90
+iohttpparser-stateful-strict	resp-small	response	51	10160152	19684744.87	957.41	50.80
+iohttpparser-stateful-strict	resp-headers	response	116	17615153	11353861.08	1256.03	88.08
+iohttpparser-stateful-strict	resp-upgrade	response	77	12821387	15598936.37	1145.48	64.11
+iohttpparser-stateful-lenient	req-pico-bench	request	703	53520847	3736861.64	2505.32	267.60
+iohttpparser-stateful-lenient	req-line-only	request	33	8930468	22395242.89	704.81	44.65
+iohttpparser-stateful-lenient	req-line-hot	request	42	10880630	18381288.58	736.25	54.40
+iohttpparser-stateful-lenient	req-line-connect	request	37	9729126	20556831.11	725.37	48.65
+iohttpparser-stateful-lenient	req-line-options	request	37	9509992	21030511.91	742.08	47.55
+iohttpparser-stateful-lenient	req-line-long-target	request	77	17022621	11749072.01	862.77	85.11
+iohttpparser-stateful-lenient	req-small	request	49	10670350	18743527.63	875.89	53.35
+iohttpparser-stateful-lenient	req-headers	request	186	35407546	5648513.46	1001.95	177.04
+iohttpparser-stateful-lenient	hdr-common-heavy	request	124	24829005	8055095.24	952.56	124.15
+iohttpparser-stateful-lenient	hdr-name-heavy	request	369	45455046	4399951.55	1548.37	227.28
+iohttpparser-stateful-lenient	hdr-count-04-minimal	request	43	14733181	13574800.99	556.68	73.67
+iohttpparser-stateful-lenient	hdr-count-16-minimal	request	115	35928260	5566648.65	610.51	179.64
+iohttpparser-stateful-lenient	hdr-count-32-minimal	request	211	68035106	2939658.83	591.53	340.18
+iohttpparser-stateful-lenient	hdr-value-heavy	request	691	39309823	5087786.84	3352.80	196.55
+iohttpparser-stateful-lenient	hdr-value-ascii-clean	request	433	25587672	7816264.02	3227.66	127.94
+iohttpparser-stateful-lenient	hdr-value-obs-text	request	167	16737575	11949162.29	1903.07	83.69
+iohttpparser-stateful-lenient	hdr-value-trim-heavy	request	379	27172296	7360438.00	2660.38	135.86
+iohttpparser-stateful-lenient	hdr-uncommon-valid	request	193	21995207	9092890.10	1673.63	109.98
+iohttpparser-stateful-lenient	resp-small	response	51	9094298	21991801.90	1069.62	45.47
+iohttpparser-stateful-lenient	resp-headers	response	116	16635660	12022366.41	1329.99	83.18
+iohttpparser-stateful-lenient	resp-upgrade	response	77	12169124	16435036.74	1206.87	60.85
+picohttpparser	req-pico-bench	request	703	27965035	7151787.94	4794.79	139.83
+picohttpparser	req-line-only	request	33	3645205	54866598.72	1726.72	18.23
+picohttpparser	req-line-hot	request	42	4931966	40551779.96	1624.27	24.66
+picohttpparser	req-line-connect	request	37	3206497	62373362.58	2200.90	16.03
+picohttpparser	req-line-options	request	37	3143910	63615052.59	2244.72	15.72
+picohttpparser	req-line-long-target	request	77	4114861	48604314.95	3569.16	20.57
+picohttpparser	req-small	request	49	4785313	41794549.28	1953.06	23.93
+picohttpparser	req-headers	request	186	15830604	12633756.74	2241.02	79.15
+picohttpparser	hdr-common-heavy	request	124	13997500	14288265.76	1689.67	69.99
+picohttpparser	hdr-name-heavy	request	369	22251258	8988255.86	3163.02	111.26
+picohttpparser	hdr-count-04-minimal	request	43	9486646	21082266.59	864.54	47.43
+picohttpparser	hdr-count-16-minimal	request	115	35243856	5674747.96	622.36	176.22
+picohttpparser	hdr-count-32-minimal	request	211	67431625	2965967.38	596.83	337.16
+picohttpparser	hdr-value-heavy	request	691	24612375	8125993.53	5354.94	123.06
+picohttpparser	hdr-value-ascii-clean	request	433	17795518	11238784.96	4640.95	88.98
+picohttpparser	hdr-value-obs-text	request	167	12012635	16649136.51	2651.60	60.06
+picohttpparser	hdr-value-trim-heavy	request	379	20128262	9936277.66	3591.39	100.64
+picohttpparser	hdr-uncommon-valid	request	193	11889378	16821737.86	3096.19	59.45
+picohttpparser	resp-small	response	51	6607748	30267498.09	1472.13	33.04
+picohttpparser	resp-headers	response	116	12057835	16586725.56	1834.93	60.29
+picohttpparser	resp-upgrade	response	77	9342526	21407486.58	1572.01	46.71
+llhttp	req-pico-bench	request	703	65951739	3032520.49	2033.10	329.76
+llhttp	req-line-only	request	33	7465096	26791350.04	843.16	37.33
+llhttp	req-line-hot	request	42	13131451	15230609.32	610.05	65.66
+llhttp	req-line-connect	request	37	6917231	28913303.60	1020.23	34.59
+llhttp	req-line-options	request	37	9325721	21446062.99	756.74	46.63
+llhttp	req-line-long-target	request	77	11249643	17778341.94	1305.52	56.25
+llhttp	req-small	request	49	8711194	22958965.21	1072.87	43.56
+llhttp	req-headers	request	186	26456576	7559557.22	1340.94	132.28
+llhttp	hdr-common-heavy	request	124	24965012	8011211.85	947.37	124.83
+llhttp	hdr-name-heavy	request	369	47410877	4218441.27	1484.49	237.05
+llhttp	hdr-count-04-minimal	request	43	19487225	10263133.92	420.87	97.44
+llhttp	hdr-count-16-minimal	request	115	50362745	3971189.42	435.53	251.81
+llhttp	hdr-count-32-minimal	request	211	109843895	1820765.73	366.38	549.22
+llhttp	hdr-value-heavy	request	691	56328234	3550617.26	2339.82	281.64
+llhttp	hdr-value-ascii-clean	request	433	38135183	5244500.86	2165.67	190.68
+llhttp	hdr-value-obs-text	request	167	21200356	9433803.85	1502.46	106.00
+llhttp	hdr-value-trim-heavy	request	379	39606915	5049623.28	1825.15	198.03
+llhttp	hdr-uncommon-valid	request	193	21705516	9214247.66	1695.97	108.53
+llhttp	resp-small	response	51	11053584	18093678.94	880.03	55.27
+llhttp	resp-headers	response	116	21909366	9128516.09	1009.85	109.55
+llhttp	resp-upgrade	response	77	14919485	13405288.45	984.39	74.60
+meta	sink	4984398000

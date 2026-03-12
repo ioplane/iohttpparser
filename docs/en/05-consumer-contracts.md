@@ -1,227 +1,125 @@
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![iohttp](https://img.shields.io/badge/GitHub-iohttp-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttp)
+[![ioguard](https://img.shields.io/badge/GitHub-ioguard-181717?style=for-the-badge&logo=github)](https://github.com/dantte-lp/ioguard)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Sequence-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/sequenceDiagram.html)
+
 # Consumer Contracts
 
-## Executive Summary
+## Shared Contract
 
-`iohttpparser` now has enough parser, semantics, body-decoder, and differential-testing coverage to publish explicit consumer contracts.
+Both supported consumers use the same parser core.
 
-The two primary consumers are:
-- `iohttp`
-- `ioguard` (formerly `ringwall`)
-
-They do not need identical parser behavior. They need the same parser core with different policy envelopes.
-
-```mermaid
-flowchart LR
-    A[iohttpparser Core] --> B[iohttp Profile]
-    A --> C[ioguard Profile]
-
-    B --> D[Broader interoperability]
-    C --> E[Fail-closed security boundary]
-```
-
----
-
-## Shared Base Contract
-
-Both consumers rely on the same invariants:
+Shared invariants:
 - caller-owned input buffers
-- zero-copy spans in parsed outputs
-- no parser-owned transport state
+- zero-copy parsed spans
 - explicit semantics step after syntax parsing
-- explicit body-framing handoff through `ihtp_semantics_*` and `ihtp_body_decoder_*`
+- explicit body-decoder handoff after semantics
+- no transport ownership inside the library
 
-The stateful parser API is the preferred integration path for both:
+Preferred API for both consumers:
 - `ihtp_parser_state_t`
 - `ihtp_parse_request_stateful()`
 - `ihtp_parse_response_stateful()`
 - `ihtp_parse_headers_stateful()`
 
-The semantics handoff is now also part of the public surface:
+Public semantics surface:
 - `ihtp_request_apply_semantics()`
 - `ihtp_response_apply_semantics()`
-- header: `include/iohttpparser/ihtp_semantics.h`
-- consumer-facing semantics flags:
-  - `protocol_upgrade`
-  - `expects_continue`
-  - `has_trailer_fields`
+- `protocol_upgrade`
+- `expects_continue`
+- `has_trailer_fields`
 
----
+## Policy Presets
 
-## iohttp Contract
+| Preset | Current behavior |
+|---|---|
+| `IHTP_POLICY_IOHTTP` | strict RFC profile |
+| `IHTP_POLICY_IOGUARD` | strict RFC profile |
 
-`iohttp` is an HTTP server library. Its parser contract should optimize for clear body framing and reusable connection-level state, while still defaulting to strict RFC behavior.
+Both presets are currently exact aliases of the strict profile.
 
-### Expected integration model
+## `iohttp` Contract
 
-- accumulate bytes per connection
-- reuse one `ihtp_parser_state_t` per in-flight message
-- run semantics immediately after successful header parse
-- hand body mode to request-processing code without embedding routing or app logic in the parser layer
+`iohttp` uses `iohttpparser` as an HTTP/1.1 wire codec.
 
-### Required guarantees
+Required behavior:
+- parse over an accumulated caller buffer
+- reuse parser state across partial reads
+- apply semantics immediately after header parse
+- hand body mode to the connection or request layer
 
-- strict-by-default request parsing
-- optional leniency only through explicit policy configuration
-- stable `bytes_consumed` and parser-phase reporting across partial reads
-- body mode separation:
-  - `IHTP_BODY_NONE`
-  - `IHTP_BODY_FIXED`
-  - `IHTP_BODY_CHUNKED`
-  - `IHTP_BODY_EOF`
+Required outputs:
+- `bytes_consumed`
+- `body_mode`
+- `keep_alive`
+- request and response header spans
+
+## `ioguard` Contract
+
+`ioguard` uses `iohttpparser` as a strict boundary parser.
+
+Required behavior:
+- fail closed on ambiguity
+- keep strict policy by default
+- reject malformed framing before consumer logic
+
+Required outputs:
+- request method and target
+- framing decision
+- connection decision
+- strict rejection on ambiguous syntax or semantics
+
+## Ownership Rules
+
+| Area | Rule |
+|---|---|
+| parser input | caller-owned |
+| parsed spans | point into caller buffer |
+| parser state | progress only |
+| semantics result | copied consumer-owned struct |
+| chunked payload | rewritten in caller buffer |
+| trailing bytes | remain in caller buffer |
+
+## Special Cases
+
+### `CONNECT`
+
+- exposed through `req.method == IHTP_METHOD_CONNECT`
+- authority target is returned in `req.path`
+- tunnel setup belongs to the consumer
+
+### `101 Switching Protocols`
+
+- `protocol_upgrade` is set only when the response explicitly upgrades
+- parser ownership ends at the response header block
+- bytes after the header block belong to the consumer
+
+### `Expect: 100-continue`
+
+- `expects_continue` is request-only
+- the parser does not emit interim responses
+- the consumer decides whether to send `100 Continue`
+
+### Trailer Fields
+
+- `has_trailer_fields` signals trailer advertisement
+- `ihtp_chunked_decoder_t.consume_trailer` decides trailer ownership
+- `consume_trailer = false` returns trailer bytes to the consumer
+
+## Integration Sequence
 
 ```mermaid
 sequenceDiagram
-    participant Conn as iohttp connection
-    participant Parser as iohttpparser parser
-    participant Sem as iohttpparser semantics
-    participant Body as iohttpparser body decoder
+    participant C as Consumer
+    participant P as Parser
+    participant S as Semantics
+    participant B as Body Decoder
 
-    Conn->>Parser: append bytes
-    Parser-->>Conn: request + state + consumed
-    Conn->>Sem: evaluate framing
-    Sem-->>Conn: body_mode + keep_alive
-    Conn->>Body: decode body if needed
+    C->>P: accumulated bytes
+    P-->>C: parsed message + consumed bytes
+    C->>S: apply semantics
+    S-->>C: body mode + connection decision
+    C->>B: decode body if required
+    B-->>C: payload bytes + trailing bytes
 ```
-
----
-
-## ioguard Contract
-
-`ioguard` uses `iohttpparser` as a stricter boundary component. The parser contract should optimize for fail-closed behavior and ambiguity rejection.
-
-### Expected integration model
-
-- one parser state per control-plane message flow
-- strict policy profile by default
-- reject ambiguous framing before higher-level proxy or security logic sees the message
-
-### Required guarantees
-
-- reject-by-default handling for:
-  - conflicting `Content-Length`
-  - `Transfer-Encoding + Content-Length`
-  - malformed `Connection`
-  - malformed line endings
-  - invalid request-target control bytes
-- small, explicit limit surface
-- no hidden fallback from strict decisions to lenient acceptance
-
-`ioguard` should treat `iohttpparser` semantics output as a security decision point, not just a convenience parser result.
-
----
-
-## Policy Split
-
-| Area | iohttp | ioguard |
-|---|---|---|
-| Default mode | Strict | Strict |
-| Lenient toggles | Allowed when explicitly configured | Discouraged; opt-in only for migration |
-| Header limits | Moderate server defaults | Smaller fail-closed defaults |
-| Ambiguous framing | Reject | Reject |
-| Bare `LF` support | Only via explicit lenient policy | Off |
-| `obs-fold` support | Only via explicit lenient policy | Off |
-
-Named presets now exist in the public API:
-- `IHTP_POLICY_IOHTTP`
-- `IHTP_POLICY_IOGUARD`
-
-Both currently map to the strict RFC profile. The separate names make consumer
-intent explicit and leave room for future divergence without changing
-integration call sites.
-
-That current alias contract is exact across the public policy surface:
-- `reject_obs_fold`
-- `reject_bare_lf`
-- `reject_te_cl`
-- `allow_spaces_in_uri`
-
----
-
-## Immediate Follow-Up
-
-Sprint 7 should now lock down:
-
-1. consumer-facing docs for body-mode handoff
-2. `Upgrade`, `CONNECT`, and `Expect: 100-continue` semantics ownership
-3. limit/profile presets for `iohttp` and `ioguard`
-4. integration examples that show stateful parsing on accumulated buffers
-
-### Semantics ownership details
-
-- `protocol_upgrade` is set only when the parsed message itself makes the
-  upgrade decision explicit:
-  - request: `Connection: upgrade` plus non-empty `Upgrade`
-  - response: `101 Switching Protocols` plus `Connection: upgrade` and `Upgrade`
-- `expects_continue` is request-only and is set for exact `Expect: 100-continue`
-- `has_trailer_fields` means the message advertises trailer fields and the
-  consumer should hand off chunked body completion to the trailer-aware path
-- `CONNECT` remains visible primarily through `req.method == IHTP_METHOD_CONNECT`;
-  Sprint 7 does not add a redundant boolean for that case
-
-### Integration example baseline
-
-`examples/basic_parse.c` now shows the preferred consumer flow:
-
-1. accumulate bytes into one caller-owned buffer
-2. reuse `ihtp_parser_state_t`
-3. parse with `IHTP_POLICY_IOHTTP`
-4. call `ihtp_request_apply_semantics()`
-5. hand the remaining bytes to `ihtp_decode_chunked()` when framing is chunked
-
-### CONNECT ownership
-
-`CONNECT` remains intentionally method-driven:
-
-- parsing exposes it through `req.method == IHTP_METHOD_CONNECT`
-- `req.path` carries the authority-form target (`host:port`)
-- semantics do not add a redundant `is_connect_tunnel` boolean
-- tunnel setup, CONNECT-specific ACLs, and post-200 byte forwarding belong to the
-  consumer layer, not parser core
-
-`examples/connect_tunnel.c` is the minimal reference for this handoff model.
-
-### Response upgrade ownership
-
-Response-side upgrade stays explicit and minimal:
-
-- `protocol_upgrade` is set only for `101 Switching Protocols` plus
-  `Connection: Upgrade` and a non-empty `Upgrade` token
-- once this flag is set, `iohttpparser` is finished with HTTP framing for that
-  response
-- any protocol bytes that follow the response header block are consumer-owned
-
-`examples/response_upgrade.c` is the minimal reference for this handoff model.
-
-### `Expect: 100-continue` and trailer ownership
-
-For request-side body handoff:
-
-- `expects_continue` tells the consumer that the request explicitly asked for
-  `100 Continue`
-- the parser does not emit interim responses; the application decides whether
-  to send `100 Continue`, reject the request, or read the body immediately
-- `has_trailer_fields` means the request or response advertised trailing fields
-- the chunked decoder only consumes the trailer section if the consumer opts in
-  through `ihtp_chunked_decoder_t.consume_trailer`
-
-This means trailer ownership is a consumer decision:
-
-- `consume_trailer = true`: decoder consumes the trailer section itself
-- `consume_trailer = false`: decoder returns trailing bytes to the consumer
-
-`examples/expect_trailers.c` is the minimal reference for this handoff model.
-
-### Current preset contract
-
-At the current stage of the project:
-
-- `IHTP_POLICY_IOHTTP` is a named strict-profile alias
-- `IHTP_POLICY_IOGUARD` is also a named strict-profile alias
-
-These presets are intentionally named even though they are currently equivalent.
-The library treats them as stable consumer-facing configuration names, and any
-future divergence must be narrow, explicit, and regression-covered.
-
-## Recommendation
-
-Treat `iohttp` and `ioguard` as policy consumers of one parser core, not as reasons to fork parser behavior into separate implementations.

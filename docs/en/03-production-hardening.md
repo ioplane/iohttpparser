@@ -1,160 +1,111 @@
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Requirements-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/requirementDiagram.html)
+
 # Production Hardening
 
-`iohttpparser` is not a generic text parser. It is a security-sensitive HTTP/1.1 wire parser. Production hardening therefore means making malformed, ambiguous, and hostile traffic fail closed while keeping integration predictable for `iohttp` and `ringwall`.
+## Baseline
 
----
+`iohttpparser` is a security-sensitive HTTP/1.1 wire parser. Production use
+requires fail-closed behavior for malformed and ambiguous input.
 
-## Table of Contents
-
-1. [Strict Policy Surface](#1-strict-policy-surface)
-2. [Limits and Boundaries](#2-limits-and-boundaries)
-3. [Semantics Rejection Rules](#3-semantics-rejection-rules)
-4. [State and Buffer Ownership](#4-state-and-buffer-ownership)
-5. [Verification Pipeline](#5-verification-pipeline)
-6. [Consumer Profiles](#6-consumer-profiles)
-7. [Release Gates](#7-release-gates)
-
----
-
-## 1. Strict Policy Surface
+## Policy Surface
 
 The production baseline is `IHTP_POLICY_STRICT`.
 
-| Policy | Default | Purpose |
+| Field | Default | Effect |
 |---|---|---|
-| `reject_obs_fold` | `true` | Reject obsolete folded header syntax |
-| `reject_bare_lf` | `true` | Reject line endings without `CRLF` |
-| `reject_te_cl` | `true` | Reject ambiguous `Transfer-Encoding` + `Content-Length` |
-| `allow_spaces_in_uri` | `false` | Keep request-target parsing fail-closed |
+| `reject_obs_fold` | `true` | reject obsolete folded header syntax |
+| `reject_bare_lf` | `true` | reject line endings without `CRLF` |
+| `reject_te_cl` | `true` | reject `Transfer-Encoding` plus `Content-Length` ambiguity |
+| `allow_spaces_in_uri` | `false` | reject request targets with spaces |
 
-The goal is a small policy surface. If a rule matters for request smuggling or framing ambiguity, strict mode should reject it by default.
-
-```mermaid
-flowchart TD
-    A[Incoming Bytes] --> B{Strict Syntax OK?}
-    B -- no --> X[Reject]
-    B -- yes --> C{Semantics Ambiguous?}
-    C -- yes --> X
-    C -- no --> D[Body Mode Decision]
-    D --> E[Consumer]
-```
-
----
-
-## 2. Limits and Boundaries
-
-Hard parser limits are part of the production contract.
+## Limits
 
 | Limit | Macro | Default |
 |---|---|---|
-| Max headers | `IHTP_MAX_HEADERS` | 64 |
-| Max request line | `IHTP_MAX_REQUEST_LINE` | 8192 |
-| Max header line | `IHTP_MAX_HEADER_LINE` | 8192 |
+| header count | `IHTP_MAX_HEADERS` | 64 |
+| request line bytes | `IHTP_MAX_REQUEST_LINE` | 8192 |
+| header line bytes | `IHTP_MAX_HEADER_LINE` | 8192 |
 
-These limits should remain:
-- explicit
-- test-covered
-- consumer-configurable at build time
+These limits are part of the public contract.
 
-For `ringwall`, the expected operating profile is smaller limits than the general-purpose `iohttp` profile.
+## Rejection Classes
 
----
-
-## 3. Semantics Rejection Rules
-
-Production hardening lives mostly in the semantics layer.
-
-Current rejection classes already include:
+Current hard rejection classes include:
+- bare `LF`
+- obsolete folded headers in strict mode
 - conflicting duplicate `Content-Length`
 - malformed `Transfer-Encoding`
 - duplicate `chunked`
-- `Transfer-Encoding` chains that do not end in `chunked` on requests
+- request `Transfer-Encoding` chains not ending in `chunked`
 - malformed `Connection` token lists
+- invalid request-target control bytes
 - missing or duplicate `Host` in strict HTTP/1.1 request handling
-- no-body response precedence cases for `1xx`, `204`, and `304`
 
 ```mermaid
-stateDiagram-v2
-    [*] --> ParsedHeaders
-    ParsedHeaders --> Reject: TE plus CL ambiguity
-    ParsedHeaders --> Reject: conflicting Content-Length
-    ParsedHeaders --> Reject: malformed Connection
-    ParsedHeaders --> Reject: malformed Transfer-Encoding
-    ParsedHeaders --> NoBody: 1xx or 204 or 304
-    ParsedHeaders --> FixedBody: Content-Length
-    ParsedHeaders --> ChunkedBody: final chunked coding
-    ParsedHeaders --> EOFBody: response fallback
-    NoBody --> [*]
-    FixedBody --> [*]
-    ChunkedBody --> [*]
-    EOFBody --> [*]
-    Reject --> [*]
+requirementDiagram
+    functionalRequirement strict_policy {
+        id: hardening-1
+        text: strict profile rejects malformed and ambiguous HTTP input
+        risk: high
+        verifymethod: test
+    }
+
+    functionalRequirement explicit_limits {
+        id: hardening-2
+        text: parser limits are explicit and test-covered
+        risk: medium
+        verifymethod: test
+    }
+
+    functionalRequirement ownership {
+        id: hardening-3
+        text: parser keeps caller-owned buffers and no hidden hot-path allocation
+        risk: high
+        verifymethod: inspection
+    }
+
+    element release_gate {
+        type: verification
+    }
+
+    release_gate - satisfies -> strict_policy
+    release_gate - satisfies -> explicit_limits
+    release_gate - satisfies -> ownership
 ```
 
----
+## Ownership Rules
 
-## 4. State and Buffer Ownership
+- The caller owns input bytes.
+- The parser does not allocate hidden input buffers.
+- Parsed spans remain valid only while the caller buffer remains valid.
+- Decoder state stores counters and framing state only.
 
-Production embedding depends on simple ownership rules:
-- the caller owns all input buffers
-- parsed spans remain valid only while the caller buffer remains valid
-- parser state tracks progress, not private storage
-- body decoders keep framing state only
+## Verification Surface
 
-This is critical for:
-- `io_uring` provided-buffer pipelines
-- proxy/security use cases where copies must stay explicit
-- preventing hidden heap allocation in hot paths
-
----
-
-## 5. Verification Pipeline
-
-Production hardening is enforced through multiple verification layers:
-
-| Layer | Current Tooling |
+| Layer | Tooling |
 |---|---|
-| Unit tests | Unity |
-| Corpus tests | Scanner, semantics, body corpora |
-| Fuzzing | `fuzz_parser`, `fuzz_chunked`, `fuzz_scanner` |
-| Formatting | `clang-format` |
-| Static analysis | `cppcheck`, `PVS-Studio`, `CodeChecker` |
-| Benchmark checks | scanner benchmark scripts |
+| unit tests | Unity |
+| corpus tests | parser, semantics, body corpora |
+| differential tests | `picohttpparser`, `llhttp` |
+| fuzzing | parser, scanner, chunked decoder |
+| static analysis | `cppcheck`, `PVS-Studio`, `CodeChecker` |
+| formatting | `clang-format` |
 
-```mermaid
-flowchart LR
-    A[Unit Tests] --> E[Quality Gate]
-    B[Corpus Tests] --> E
-    C[Fuzz Targets] --> E
-    D[Static Analysis] --> E
-    E --> F[Release Candidate]
-```
+## Consumer Profiles
 
----
+| Consumer | Expected profile |
+|---|---|
+| `iohttp` | strict by default; explicit leniency only when configured |
+| `ioguard` | strict, smaller limits, fail closed on ambiguity |
 
-## 6. Consumer Profiles
+## Release Conditions
 
-### iohttp
+Required before a production-tagged release:
 
-The `iohttp` profile should remain interoperable but strict by default. Leniency may exist, but only as an explicit compatibility choice.
-
-### ringwall
-
-The `ringwall` profile should remain smaller and stricter:
-- smaller limits
-- no legacy tolerance by default
-- fail closed on ambiguity
-
----
-
-## 7. Release Gates
-
-Before a production-tagged release, the project should require:
-
-1. Green `./scripts/quality.sh`
-2. Green sanitizer matrix where supported
-3. Green fuzz smoke runs
-4. Differential checks against `picohttpparser` and `llhttp`
-5. Documented consumer contract for `iohttp` and `ringwall`
-
-The rule is simple: performance improvements are optional; strict correctness and explicit failure modes are mandatory.
+1. `./scripts/quality.sh` passes.
+2. Differential corpus is green.
+3. Fuzz smoke runs are green.
+4. Consumer contracts for `iohttp` and `ioguard` are documented.

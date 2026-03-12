@@ -1,0 +1,8 @@
+git_head=34c2e795b30c32dde43c48f6b2a5e8e09313f282
+git_head_short=34c2e79
+clang=clang version 22.1.0 (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+cmake=cmake version 4.2.3
+ctest=ctest version 4.2.3
+valgrind=valgrind-3.26.0
+uftrace=uftrace v0.19 ( x86_64 dwarf python3 tui perf sched )
+gdb=GNU gdb (GDB) 17.1

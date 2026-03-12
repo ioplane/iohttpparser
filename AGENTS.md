@@ -52,12 +52,49 @@ Strongly recommended:
 - `fd`
 - `yq`
 - `hyperfine`
-
-Optional but valuable for deep parser diagnostics:
 - `gdb`
 - `valgrind`
 - `uftrace`
 - `ftracer`
+
+## Documentation Style
+Write English documentation first. Treat `docs/en/*` as authoritative and
+`docs/ru/*` as the translation/adaptation layer.
+
+Documentation must use strict technical language:
+- write facts, contracts, limits, ownership rules, and examples
+- do not write narrative introductions, philosophy sections, or marketing text
+- keep comparisons measurable and testable
+- keep non-goals explicit and tied to API or layer boundaries
+- use Mermaid for diagrams
+- use extended GitHub Markdown only where it improves technical readability:
+  tables, fenced code blocks with language tags, short blockquote alerts for
+  strict warnings, and `<details>` for secondary examples
+- use badges in every stable document; badge links must point to official
+  sources, official repositories, or official project sites
+- Russian documentation must use Russian prose; keep English only for API
+  identifiers, macro names, external project names, protocol names, and RFC
+  identifiers
+
+Mermaid diagram type must match the content:
+- architecture: `architecture-beta` or `flowchart`
+- interaction or handoff: `sequenceDiagram`
+- state transitions: `stateDiagram-v2`
+- release gates or requirements: `requirementDiagram`
+- classification or topology: `mindmap`, `block`, or `flowchart`
+- comparison positioning: `quadrantChart` only when axes are explicit and
+  measurable
+- prefer the official Mermaid syntax page for the selected diagram type when
+  linking Mermaid badges
+
+Keep the stable structure aligned with other `io*` projects:
+- `docs/README.md`
+- `docs/en/README.md`
+- `docs/ru/README.md`
+- numbered documents in `docs/en/` and `docs/ru/`
+- `docs/plans/README.md`, `docs/plans/ROADMAP.md`, `docs/plans/BACKLOG.md`
+
+`docs/tmp/` is non-authoritative scratch space.
 
 ## Coding Style & Naming Conventions
 Target C23 only; C extensions are disabled. Follow `.clang-format`: 4-space indentation, Linux brace style, 100-column limit, and right-aligned pointer stars (`int *ptr`). Keep public and internal symbols consistent with the existing scheme: `ihtp_` for functions, `IHTP_` for macros and enum values, and `_t` for typedefs. Prefer small, single-purpose translation units and keep public headers stable.

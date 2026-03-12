@@ -1,29 +1,78 @@
-# Контракты Body Decoder
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Doxygen](https://img.shields.io/badge/Doxygen-Справочник-2C4AA8?style=for-the-badge)](https://www.doxygen.nl/)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Последовательность-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/sequenceDiagram.html)
 
-Layer 4 в `iohttpparser` отвечает только за framing тела сообщения. Этот слой не владеет транспортными буферами, не делает скрытых аллокаций и не декодирует application-level content codings.
+# Декодер Тела
+
+## Область Применения
+
+Декодер тела занимается только фреймингом.
+
+Внутри области применения:
+- учёт тела фиксированной длины
+- декодирование `chunked`
+- управление потреблением хвостового блока
+
+Вне области применения:
+- чтение из транспорта
+- скрытая буферизация
+- декодирование содержимого
+- интерпретация полезной нагрузки
+
+## Публичная Поверхность
+
+| API | Назначение |
+|---|---|
+| `ihtp_fixed_decoder_init()` | инициализация учёта тела фиксированной длины |
+| `ihtp_decode_fixed()` | продвижение состояния декодера фиксированной длины |
+| `ihtp_chunked_decoder_t` | состояние декодера `chunked` |
+| `ihtp_decode_chunked()` | декодирование `chunked` в исходном буфере |
+
+## Контракт Декодера `chunked`
+
+- Один `ihtp_chunked_decoder_t` переиспользуется между вызовами.
+- Декодер переписывает буфер потребителя без промежуточного буфера.
+- `*bufsz` становится размером сохранённой полезной нагрузки в текущем срезе.
+- `total_decoded` считает только байты полезной нагрузки.
+- Неотрицательное возвращаемое значение означает завершение и равно числу
+  хвостовых байтов после обработки завершающего пути `chunked`.
+
+### Владение Хвостовым Блоком
+
+| `consume_trailer` | Эффект |
+|---|---|
+| `true` | декодер потребляет хвостовые поля до завершающей пустой строки |
+| `false` | декодер оставляет хвостовые байты потребителю |
+
+Хвостовые байты остаются в буфере потребителя сразу после префикса
+декодированной полезной нагрузки.
+
+## Контракт Декодера Фиксированной Длины
+
+- `ihtp_fixed_decoder_init()` задаёт ожидаемую длину полезной нагрузки.
+- `ihtp_decode_fixed()` выполняет только учёт.
+- `remaining` уменьшается монотонно.
+- `total_decoded` увеличивается монотонно.
+- Передача большего числа байтов, чем `remaining`, является ошибкой.
+
+## Правила Владения
+
+- Входные байты принадлежат потребителю.
+- Декодированные байты полезной нагрузки остаются в памяти потребителя.
+- Состояние декодера хранит только счётчики и фазу.
+
+## Последовательность Декодирования
 
 ```mermaid
-flowchart LR
-    A[wire bytes] --> B[ihtp_decode_chunked или ihtp_decode_fixed]
-    B --> C[payload bytes в буфере caller]
-    B --> D[состояние decoder accounting]
-    B --> E[trailing bytes для handoff caller]
+sequenceDiagram
+    participant C as Потребитель
+    participant S as Семантика
+    participant D as Декодер
+
+    C->>S: разобранные заголовки
+    S-->>C: режим тела
+    C->>D: байты тела
+    D-->>C: байты полезной нагрузки
+    D-->>C: хвостовые байты
 ```
-
-## Chunked Decoder
-
-- `ihtp_decode_chunked()` работает инкрементально. Один и тот же `ihtp_chunked_decoder_t` нужно переиспользовать между вызовами по мере прихода новых байтов.
-- Декодер переписывает буфер вызывающей стороны in-place и обновляет `*bufsz` до числа payload-байтов, оставшихся в текущем срезе.
-- `total_decoded` считает только payload bytes.
-- При завершении неотрицательное возвращаемое значение означает успех и равно числу undecoded trailing bytes.
-- Если `consume_trailer == false`, терминальный `CRLF` после zero chunk и все последующие байты остаются в trailing data.
-- Если `consume_trailer == true`, trailer lines потребляются до завершающей пустой строки, после чего возвращается число trailing bytes.
-- trailing bytes остаются в том же caller-owned buffer сразу после decoded payload prefix
-- decoder не аллоцирует память и не забирает ownership ни у payload, ни у trailer bytes
-
-## Fixed-Length Decoder
-
-- `ihtp_fixed_decoder_init()` задаёт ожидаемую длину payload.
-- `ihtp_decode_fixed()` делает только accounting: без копирования, без переписывания framing, без скрытых аллокаций.
-- `remaining` и `total_decoded` меняются только в сторону завершения.
-- Передача больше байтов, чем осталось в `remaining`, считается ошибкой.

@@ -1,156 +1,119 @@
-# Архитектура iohttpparser
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![C23](https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge)](https://www.iso.org/standard/82075.html)
+[![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
+[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Архитектура-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/architecture.html)
 
-## Обзор
+# Архитектура
 
-`iohttpparser` — это строгая HTTP/1.1 parser library для C23. Она проектируется как переиспользуемое wire-level ядро для `iohttp`, `ringwall` и других проектов, которым нужны:
-- zero-copy parsing
-- отсутствие скрытых аллокаций в hot path
-- явный контроль strict/lenient policy
-- transport-agnostic интеграция
+## Область Применения
 
-**Философия дизайна:** разнести syntax parsing, security semantics и body framing по отдельным слоям. Сначала доказывать корректность, потом ускорять SIMD и incremental behavior относительно scalar truth.
+`iohttpparser` — парсер HTTP/1.1 на уровне байтового протокола для C23.
 
----
+Внутри области применения:
+- разбор строки запроса
+- разбор строки статуса
+- разбор полей заголовков
+- состояние парсера для инкрементального разбора
+- семантика фрейминга
+- учёт тела фиксированной длины
+- декодирование `chunked`
 
-## Базовая архитектура
+Вне области применения:
+- нормализация `URI`
+- декодирование процентов
+- cookies
+- `multipart`
+- декодирование сжатого содержимого
+- маршрутизация
+- владение транспортом
+- разбор кадров WebSocket
+
+## Модель Слоёв
 
 ```mermaid
-flowchart TD
-    A[Caller-Owned Buffer] --> B[Layer 1 Scanner]
-    B --> C[Layer 2 Parser]
-    C --> D[Layer 3 Semantics]
-    D --> E[Layer 4 Body Decoder]
-    E --> F[Consumer Integration]
+architecture-beta
+    group caller(cloud)[Потребитель]
+    group core(server)[Ядро iohttpparser]
+    group embedder(cloud)[Интеграция]
 
-    B --> B1[Delimiter Search]
-    B --> B2[Token Validation]
-    B --> B3[CRLF Detection]
-    B --> B4[Scalar SSE4.2 AVX2 Dispatch]
+    service buffer(database)[Буфер] in caller
+    service scanner(server)[Сканер] in core
+    service parser(server)[Парсер] in core
+    service semantics(server)[Семантика] in core
+    service body(server)[Декодер тела] in core
+    service application(server)[Прикладной слой] in embedder
 
-    C --> C1[Request Line]
-    C --> C2[Status Line]
-    C --> C3[Header Extraction]
-    C --> C4[Parser State]
-
-    D --> D1[Content-Length]
-    D --> D2[Transfer-Encoding]
-    D --> D3[Connection and Host]
-    D --> D4[Keep-Alive and No-Body Rules]
-
-    E --> E1[Fixed-Length Tracking]
-    E --> E2[Chunked Decoding]
-    E --> E3[Trailer Consumption]
+    buffer:R --> L:scanner
+    scanner:R --> L:parser
+    parser:R --> L:semantics
+    semantics:R --> L:body
+    body:R --> L:application
 ```
 
----
-
-## Декомпозиция по слоям
-
-| Слой | Ответственность | Текущее состояние |
+| Слой | Ответственность | Результат |
 |---|---|---|
-| Scanner | Поиск delimiters, token validation, runtime SIMD dispatch | Реализован: scalar, SSE4.2, AVX2 |
-| Parser | Разбор request/status line, извлечение headers, consumed-byte reporting | Реализован: stateless и stateful API |
-| Semantics | `Content-Length`, `Transfer-Encoding`, `Connection`, `Host`, keep-alive, ambiguity rejection | Реализован и покрыт corpus-тестами |
-| Body Decoder | Fixed-length accounting, chunked decoding, trailer handling | Реализован и покрыт unit/corpus/fuzz |
+| Сканер | поиск разделителей, проверка токенов, проверка `CRLF`, выбор SIMD-пути | валидированные диапазоны байтов |
+| Парсер | разбор начальной строки, извлечение полей заголовков, ведение состояния | представления `request`, `response` или `headers` без копирования |
+| Семантика | правила фрейминга, правила `Host`, `keep-alive`, отклонение неоднозначностей | режим тела и решение по соединению |
+| Декодер Тела | учёт `fixed-length`, декодирование `chunked`, обработка хвостовых полей | байты полезной нагрузки и хвостовые байты |
 
----
+## Владение Данными
 
-## Режимы разбора
+- Все входные буферы принадлежат потребителю.
+- Разобранные диапазоны указывают в память потребителя.
+- Состояние парсера хранит только прогресс.
+- Декодер тела хранит только состояние фрейминга.
+- Библиотека не выделяет скрытые буферы в горячем пути.
 
-Библиотека теперь поддерживает два parser entry style:
+## Публичная Поверхность
 
-1. Stateless parsing по accumulated buffer.
-2. Stateful parsing через явный `ihtp_parser_state_t`.
+| Область | API |
+|---|---|
+| Разбор без состояния | `ihtp_parse_request()`, `ihtp_parse_response()`, `ihtp_parse_headers()` |
+| Разбор с состоянием | `ihtp_parser_state_t`, `ihtp_parser_state_init()`, `ihtp_parser_state_reset()`, `ihtp_parse_*_stateful()` |
+| Семантика | `ihtp_request_apply_semantics()`, `ihtp_response_apply_semantics()` |
+| Декодирование тела | `ihtp_decode_fixed()`, `ihtp_decode_chunked()` |
+| Сканер | `ihtp_scan_*` для внутреннего использования и бенчмарков |
 
-Оба режима сохраняют одинаковую zero-copy ownership model.
+## Режимы Разбора
 
 ```mermaid
 stateDiagram-v2
-    [*] --> StartLine
-    StartLine --> Headers: line complete
-    StartLine --> Error: malformed input
-    StartLine --> StartLine: need more bytes
-    Headers --> Done: header block complete
-    Headers --> Error: malformed or ambiguous header
-    Headers --> Headers: need more bytes
-    Done --> [*]
-    Error --> [*]
+    [*] --> НачальнаяСтрока
+    НачальнаяСтрока --> Заголовки: строка завершена
+    НачальнаяСтрока --> Ошибка: ошибка формата
+    НачальнаяСтрока --> НачальнаяСтрока: данных недостаточно
+    Заголовки --> Готово: блок завершён
+    Заголовки --> Ошибка: ошибка формата
+    Заголовки --> Заголовки: данных недостаточно
+    Готово --> [*]
+    Ошибка --> [*]
 ```
 
----
+Библиотека поддерживает:
+- разбор по накопленному буферу без отдельного объекта состояния
+- разбор по тому же накопленному буферу с явным объектом состояния и явным прогрессом
 
-## Форма публичного API
+Модель владения одинакова в обоих режимах.
 
-| API | Назначение |
+## Границы Интеграции
+
+| Потребитель | Ожидаемое использование |
 |---|---|
-| `ihtp_parse_request()` | Stateless request parse по accumulated buffer |
-| `ihtp_parse_response()` | Stateless response parse по accumulated buffer |
-| `ihtp_parse_headers()` | Stateless parse отдельного header block |
-| `ihtp_parser_state_init()` | Инициализация явного parser state |
-| `ihtp_parser_state_reset()` | Переиспользование parser state для следующего сообщения |
-| `ihtp_parse_request_stateful()` | Stateful request parsing |
-| `ihtp_parse_response_stateful()` | Stateful response parsing |
-| `ihtp_parse_headers_stateful()` | Stateful parse header block |
-| `ihtp_decode_chunked()` | Incremental decode chunked body |
-| `ihtp_decode_fixed()` | Accounting для fixed-length body |
+| `iohttp` | общий разбор HTTP/1.1 с явной передачей результата фрейминга |
+| `ioguard` | строгий граничный разбор с политикой отказа по умолчанию |
+| отдельный цикл событий | разбор без привязки к транспорту |
 
-Stateful API не меняет ownership rules:
-- входные байты по-прежнему принадлежат caller
-- разобранные spans по-прежнему указывают в caller memory
-- parser state хранит только progress, а не private buffers
+Парсер не владеет:
+- сокетами
+- `TLS`
+- циклами событий
+- маршрутизацией сообщений
 
----
+## Инварианты
 
-## Границы интеграции
-
-```mermaid
-flowchart LR
-    A[iohttp] --> B[iohttpparser]
-    C[ringwall] --> B
-    D[Standalone Event Loop] --> B
-
-    B --> E[Request or Response Views]
-    B --> F[Body Mode Decision]
-    B --> G[Chunked or Fixed Decoder]
-
-    E --> H[Application Model]
-    F --> H
-    G --> H
-```
-
-### iohttp
-
-`iohttp` должен использовать `iohttpparser` как HTTP/1.1 wire codec под более широким server/runtime layer.
-
-### ringwall
-
-`ringwall` должен рассматривать `iohttpparser` как строгую security boundary с fail-closed defaults и меньшими operational limits.
-
-### Generic Consumers
-
-Отдельные приложения могут использовать как stateless, так и stateful parser entry points без зависимости от `io_uring`, TLS, routing или `iohttp`-specific abstractions.
-
----
-
-## Что не входит в задачи parser core
-
-В parser core намеренно не входят:
-- URI normalization
-- percent-decoding
-- cookies
-- multipart parsing
-- compression decoding
-- WebSocket frames
-- routing
-- transport ownership
-
-Это зона верхних слоёв или соседних библиотек.
-
----
-
-## Текущие приоритеты
-
-1. Стабилизировать публичный stateful parser API.
-2. Расширить differential testing против `picohttpparser` и `llhttp`.
-3. Сохранять SIMD-ускорение только при доказанной эквивалентности scalar truth.
-4. Усилить consumer-facing integration contracts для `iohttp` и `ringwall`.
+- строгая политика является базовым режимом
+- SIMD-пути должны быть эквивалентны скалярному пути
+- синтаксический разбор и семантика разделены
+- декодирование тела начинается только после выбора режима тела на этапе семантики

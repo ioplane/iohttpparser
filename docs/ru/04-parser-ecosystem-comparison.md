@@ -1,106 +1,88 @@
-# Сравнение экосистемы парсеров
+[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
+[![picohttpparser](https://img.shields.io/badge/GitHub-picohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/h2o/picohttpparser)
+[![llhttp](https://img.shields.io/badge/GitHub-llhttp-181717?style=for-the-badge&logo=github)](https://github.com/nodejs/llhttp)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Структура-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/mindmap.html)
 
-## Executive Summary
+# Сравнение Экосистемы Парсеров
 
-Экосистема embedded HTTP/1.1 parsers делится на три больших implementation style:
+## Назначение
 
-1. Minimal stateless parsers
-2. Generated callback-driven state machines
-3. Layered pull-based parser cores
+Этот документ определяет, какие задачи должны оставаться внутри
+`iohttpparser`, а какие задачи должны решаться в потребителе или в соседней
+библиотеке.
 
-`iohttpparser` намеренно строится как третья категория. В этом документе сравниваются эти стили и объясняется, почему это важно для `iohttp`, `ringwall` и generic embedders.
+## Разделение Ответственности
 
----
-
-## Семейства реализаций
-
-| Family | Representative | Strength | Weakness |
+| Задача | iohttpparser | Потребитель | Соседняя библиотека |
 |---|---|---|---|
-| Minimal stateless | `picohttpparser` | Маленький API, простая интеграция, быстрый syntax path | Consumer сам владеет semantics и частью edge cases |
-| Generated callback state machine | `llhttp` | Богатый streaming behavior, зрелое покрытие state machine | Callback-first API, более сильное смешение semantics и parser logic |
-| Layered pull-based core | `iohttpparser` | Явное ownership, отдельные semantics/body layers, удобный consumer state | Более молодая кодовая база и ещё формирующаяся ecosystem/docs |
+| разбор строки запроса и строки статуса | да | нет | нет |
+| разбор полей заголовков | да | нет | нет |
+| семантика фрейминга | да | нет | нет |
+| декодирование `chunked` | да | нет | нет |
+| решение по `keep-alive` | да | потребитель использует результат | нет |
+| маршрутизация | нет | да | нет |
+| нормализация `URI` | нет | да | нет |
+| `TLS` | нет | да | да |
+| декодирование сжатия | нет | да | да |
+| cookies | нет | да | да |
+| кадры WebSocket | нет | да | да |
+
+## Сравнение С Семействами Парсеров
+
+| Семейство | Типичная граница |
+|---|---|
+| минимальный парсер (`picohttpparser`) | в основном только синтаксис; семантика вынесена наружу |
+| сгенерированный автомат состояний (`llhttp`) | синтаксис и многие решения по протоколу находятся внутри обратных вызовов |
+| многослойное ядро парсера (`iohttpparser`) | синтаксис, семантика и фрейминг тела разделены по стадиям |
+
+## Почему `iohttpparser` Включает Семантику И Фрейминг Тела
+
+Библиотека включает:
+- решения по фреймингу
+- отклонение неоднозначностей
+- правила `keep-alive` и отсутствия тела
+- декодирование `chunked`
+
+Причины:
+- `iohttp` и `ioguard` нуждаются в этих решениях до прикладной логики
+- эти решения зависят от семантики HTTP на уровне байтов
+- перенос этой логики наружу увеличивает дублирование кода рядом с парсером
+
+## Почему `iohttpparser` Исключает Верхние Слои
+
+Библиотека исключает:
+- маршрутизацию
+- аутентификацию
+- авторизацию
+- нормализацию `URI`
+- декодирование содержимого
+- владение транспортом
+
+Причины:
+- эти задачи зависят от прикладной политики, а не только от синтаксиса HTTP
+- разным потребителям нужна разная логика
+- добавление этих задач в парсер расширит контракт без выигрыша в корректности разбора
+
+## Диаграмма Границы
 
 ```mermaid
 flowchart LR
-    A[Minimal Stateless] --> D[Syntax Speed]
-    B[Generated Callback Machine] --> E[Streaming Completeness]
-    C[Layered Pull-Based Core] --> F[Integration Clarity]
-
-    D --> G[Consumer Must Add Semantics]
-    E --> H[Consumer Must Accept Callback Model]
-    F --> I[Consumer Gets Zero-Copy Views and Explicit State]
+    A[Байты протокола] --> B[Синтаксис]
+    B --> C[Семантика]
+    C --> D[Декодер тела]
+    D --> E[Логика потребителя]
+    E --> F[Маршрутизация]
+    E --> G[Аутентификация]
+    E --> H[Сжатие]
+    E --> I[TLS]
 ```
 
----
+## Совместимость С `picohttpparser` И `llhttp`
 
-## Подходящесть для целевых consumers
+`iohttpparser` совместим с экосистемой в следующем смысле:
+- его можно сравнивать с `picohttpparser` и `llhttp` по синтаксическому поведению
+- он не копирует их модель интеграции
 
-### iohttp
-
-`iohttp` нужен parser core, который:
-- не владеет transport
-- может жить под `io_uring` server
-- держит body framing отдельно от routing и application logic
-
-Это лучше совпадает с `iohttpparser`, чем с callback-driven machine.
-
-### ringwall
-
-`ringwall` нужен parser core, который:
-- работает как строгая security boundary
-- явно показывает semantics decisions
-- не скрывает lenient behavior
-
-И это тоже в пользу layered pull-based parser.
-
-### Generic Embedders
-
-Отдельные event loops обычно хотят:
-- zero-copy structs
-- явный progress через parser state
-- отсутствие обязательной зависимости от framework runtime
-
-Именно под это и сделан новый public stateful API.
-
----
-
-## Comparison Matrix
-
-| Criterion | iohttpparser | picohttpparser | llhttp |
-|---|---|---|---|
-| Caller-owned buffers | Да | Да | Да, но вывод идёт через callbacks |
-| Public parser state | Да | Нет | Да |
-| Pull-based result structs | Да | Да | Нет, вместо этого callback events |
-| Separate semantics phase | Да | Нет | В основном нет |
-| Separate body decoder | Да | Частично | В основном встроен |
-| Differential testing value | Высокая | Высокая | Высокая |
-| Direct fit for `iohttp` and `ringwall` | Наилучший | Средний | Средний |
-
----
-
-## Выводы для roadmap
-
-Сравнение parser ecosystem означает такой roadmap:
-
-1. Держать public parser-state API маленьким и стабильным.
-2. Расширять differential testing вместо widening leniency.
-3. Документировать consumer integration patterns как first-class docs.
-4. Сохранять semantics layer явным, а не сворачивать его в syntax parser.
-
-```mermaid
-flowchart TD
-    A[Public Parser State] --> B[Differential Testing]
-    B --> C[Consumer Contracts]
-    C --> D[Stable Release]
-```
-
----
-
-## Рекомендация
-
-`iohttpparser` не должен превращаться в копию `picohttpparser` или `llhttp`.
-
-Ему стоит оставаться:
-- строже, чем `picohttpparser`
-- проще для embedding, чем `llhttp`
-- более явным по ownership и semantics, чем оба
+`iohttpparser` отличается в следующем:
+- он не предоставляет интерфейс через обратные вызовы как `llhttp`
+- он не ограничивается только синтаксическим результатом как `picohttpparser`

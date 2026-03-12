@@ -1,0 +1,7 @@
+parser	scenario	kind	len	req_per_s_median	mib_per_s_median	ns_per_req_median
+iohttpparser-lenient	req-connect	request	99	11370703.00	1073.55	87.95
+iohttpparser-stateful-lenient	req-connect	request	99	11375010.08	1073.96	87.91
+iohttpparser-stateful-strict	req-connect	request	99	13961958.41	1318.20	71.62
+iohttpparser-strict	req-connect	request	99	12950026.37	1222.66	77.22
+llhttp	req-connect	request	99	10724707.64	1012.56	93.24
+picohttpparser	req-connect	request	99	23477372.10	2216.59	42.59

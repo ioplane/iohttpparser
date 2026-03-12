@@ -3,55 +3,94 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNS="${RUNS:-5}"
-ITERATIONS="${ITERATIONS:-100000}"
+ITERATIONS="${ITERATIONS:-200000}"
 CONNECT_ONLY="${CONNECT_ONLY:-0}"
-WORKDIR="${WORKDIR:-$ROOT_DIR/docs/tmp/throughput-median}"
+TMP_DIR="${TMP_DIR:-$(mktemp -d)}"
+KEEP_TMP="${KEEP_TMP:-0}"
 EXTRA_ARGS="${EXTRA_ARGS:-}"
 
-mkdir -p "$WORKDIR"
+cleanup() {
+    if [[ "$KEEP_TMP" != "1" ]]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+trap cleanup EXIT
 
-for run in $(seq 1 "$RUNS"); do
-    out="$WORKDIR/run-$run.tsv"
-    FORMAT=tsv CONNECT_ONLY="$CONNECT_ONLY" ITERATIONS="$ITERATIONS" \
-        bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS |
-        awk '/^format\t/ {found=1} found {print}' >"$out"
+for ((run = 1; run <= RUNS; run++)); do
+    raw="$TMP_DIR/run-$run.raw"
+    out="$TMP_DIR/run-$run.tsv"
+    if [[ "$CONNECT_ONLY" == "1" ]]; then
+        FORMAT=tsv CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" \
+            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS >"$raw"
+    else
+        FORMAT=tsv ITERATIONS="$ITERATIONS" \
+            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS >"$raw"
+    fi
+    awk 'found || /^format\t/ { found = 1; print }' "$raw" >"$out"
 done
 
-python3 - "$WORKDIR" "$RUNS" <<'PY'
-from pathlib import Path
+python3 - "$TMP_DIR" "$RUNS" <<'PY'
+from __future__ import annotations
+
+import csv
 import statistics
 import sys
+from pathlib import Path
 
-workdir = Path(sys.argv[1])
+tmp_dir = Path(sys.argv[1])
 runs = int(sys.argv[2])
-series = {}
 
-for idx in range(1, runs + 1):
-    path = workdir / f"run-{idx}.tsv"
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if line.startswith(("format\t", "meta\t", "columns\t")):
-                continue
-            parts = line.rstrip("\n").split("\t")
-            if len(parts) != 8:
-                continue
-            parser_name, scenario_name, _kind, _len, _elapsed, req_s, mib_s, ns_s = parts
-            key = (parser_name, scenario_name)
-            bucket = series.setdefault(key, {"req": [], "mib": [], "ns": []})
-            bucket["req"].append(float(req_s))
-            bucket["mib"].append(float(mib_s))
-            bucket["ns"].append(float(ns_s))
+rows: dict[tuple[str, str], dict[str, list[float] | str | int]] = {}
 
-print("parser\tscenario\tmedian_req_per_s\tmedian_mib_per_s\tmedian_ns_per_req")
-for parser_name, scenario_name in sorted(series):
-    bucket = series[(parser_name, scenario_name)]
+for run in range(1, runs + 1):
+    path = tmp_dir / f"run-{run}.tsv"
+    with path.open("r", encoding="utf-8") as fh:
+        reader = csv.DictReader(
+            fh,
+            delimiter="\t",
+            fieldnames=[
+                "parser",
+                "scenario",
+                "kind",
+                "len",
+                "elapsed_ns",
+                "req_per_s",
+                "mib_per_s",
+                "ns_per_req",
+            ],
+        )
+        for row in reader:
+            if row["parser"] in {"format", "meta", "columns"}:
+                continue
+            key = (row["parser"], row["scenario"])
+            item = rows.setdefault(
+                key,
+                {
+                    "parser": row["parser"],
+                    "scenario": row["scenario"],
+                    "kind": row["kind"],
+                    "length": int(row["len"]),
+                    "req_per_s": [],
+                    "mib_per_s": [],
+                    "ns_per_req": [],
+                },
+            )
+            item["req_per_s"].append(float(row["req_per_s"]))  # type: ignore[index]
+            item["mib_per_s"].append(float(row["mib_per_s"]))  # type: ignore[index]
+            item["ns_per_req"].append(float(row["ns_per_req"]))  # type: ignore[index]
+
+print("parser\tscenario\tkind\tlen\treq_per_s_median\tmib_per_s_median\tns_per_req_median")
+for key in sorted(rows):
+    item = rows[key]
     print(
-        "{}\t{}\t{:.2f}\t{:.2f}\t{:.2f}".format(
-            parser_name,
-            scenario_name,
-            statistics.median(bucket["req"]),
-            statistics.median(bucket["mib"]),
-            statistics.median(bucket["ns"]),
+        "{parser}\t{scenario}\t{kind}\t{length}\t{req:.2f}\t{mib:.2f}\t{ns:.2f}".format(
+            parser=item["parser"],
+            scenario=item["scenario"],
+            kind=item["kind"],
+            length=item["length"],
+            req=statistics.median(item["req_per_s"]),  # type: ignore[arg-type]
+            mib=statistics.median(item["mib_per_s"]),  # type: ignore[arg-type]
+            ns=statistics.median(item["ns_per_req"]),  # type: ignore[arg-type]
         )
     )
 PY

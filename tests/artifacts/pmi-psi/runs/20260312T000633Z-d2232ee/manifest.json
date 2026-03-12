@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "run_id": "20260312T000633Z-d2232ee",
+  "metadata": {
+    "date_utc": "2026-03-12T00:06:33Z",
+    "root": "/workspace",
+    "run_id": "20260312T000633Z-d2232ee",
+    "debug_preset": "clang-debug",
+    "release_preset": "clang-release",
+    "iterations": "200000",
+    "median_runs": "5"
+  },
+  "files": {
+    "run": "run.txt",
+    "host": "host.txt",
+    "toolchain": "toolchain.txt",
+    "ctest": "ctest.txt",
+    "throughput": "throughput.tsv",
+    "throughput_connect": "throughput-connect.tsv",
+    "throughput_median": "throughput-median.tsv",
+    "throughput_connect_median": "throughput-connect-median.tsv",
+    "summary": "summary.md"
+  }
+}
