@@ -157,21 +157,82 @@ files = {
     encoding="utf-8",
 )
 
-def render_table(rows):
-    lines = [
-        "| Parser | Scenario | req/s median | MiB/s median | ns/req median |",
-        "|---|---|---:|---:|---:|",
-    ]
+parser_order = [
+    "picohttpparser",
+    "llhttp",
+    "iohttpparser-stateful-strict",
+    "iohttpparser-strict",
+    "iohttpparser-stateful-lenient",
+    "iohttpparser-lenient",
+]
+
+scenario_order = [
+    "req-small",
+    "req-headers",
+    "resp-small",
+    "resp-headers",
+    "resp-upgrade",
+    "req-line-only",
+    "req-line-hot",
+    "req-line-long-target",
+    "req-line-connect",
+    "req-line-options",
+    "req-pico-bench",
+    "hdr-common-heavy",
+    "hdr-name-heavy",
+    "hdr-uncommon-valid",
+    "hdr-value-ascii-clean",
+    "hdr-value-heavy",
+    "hdr-value-obs-text",
+    "hdr-value-trim-heavy",
+    "hdr-count-04-minimal",
+    "hdr-count-16-minimal",
+    "hdr-count-32-minimal",
+]
+
+
+def render_reqs_matrix(rows):
+    grouped = {}
     for row in rows:
+        grouped.setdefault(row["scenario"], {})[row["parser"]] = row["req_per_s_median"]
+
+    lines = [
+        "| Scenario | picohttpparser | llhttp | iohttpparser-stateful-strict | iohttpparser-strict | iohttpparser-stateful-lenient | iohttpparser-lenient |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+
+    seen = set()
+    for scenario in scenario_order:
+        if scenario not in grouped:
+            continue
+        seen.add(scenario)
+        data = grouped[scenario]
         lines.append(
-            "| {parser} | {scenario} | {req} | {mib} | {ns} |".format(
-                parser=row["parser"],
-                scenario=row["scenario"],
-                req=row["req_per_s_median"],
-                mib=row["mib_per_s_median"],
-                ns=row["ns_per_req_median"],
+            "| {scenario} | {pico} | {llhttp} | {ihtp_ss} | {ihtp_s} | {ihtp_sl} | {ihtp_l} |".format(
+                scenario=scenario,
+                pico=data.get("picohttpparser", "—"),
+                llhttp=data.get("llhttp", "—"),
+                ihtp_ss=data.get("iohttpparser-stateful-strict", "—"),
+                ihtp_s=data.get("iohttpparser-strict", "—"),
+                ihtp_sl=data.get("iohttpparser-stateful-lenient", "—"),
+                ihtp_l=data.get("iohttpparser-lenient", "—"),
             )
         )
+
+    for scenario in sorted(set(grouped) - seen):
+        data = grouped[scenario]
+        lines.append(
+            "| {scenario} | {pico} | {llhttp} | {ihtp_ss} | {ihtp_s} | {ihtp_sl} | {ihtp_l} |".format(
+                scenario=scenario,
+                pico=data.get("picohttpparser", "—"),
+                llhttp=data.get("llhttp", "—"),
+                ihtp_ss=data.get("iohttpparser-stateful-strict", "—"),
+                ihtp_s=data.get("iohttpparser-strict", "—"),
+                ihtp_sl=data.get("iohttpparser-stateful-lenient", "—"),
+                ihtp_l=data.get("iohttpparser-lenient", "—"),
+            )
+        )
+
     return "\n".join(lines)
 
 summary = f"""# PSI Run Summary
@@ -194,11 +255,17 @@ Run id: `{run_id}`
 
 ## Common median matrix
 
-{render_table(median_rows)}
+The table below uses `req/s median` only. Full `MiB/s` and `ns/req` values are
+published in `throughput-median.tsv`.
+
+{render_reqs_matrix(median_rows)}
 
 ## CONNECT median matrix
 
-{render_table(connect_rows)}
+The table below uses `req/s median` only. Full `MiB/s` and `ns/req` values are
+published in `throughput-connect-median.tsv`.
+
+{render_reqs_matrix(connect_rows)}
 """
 
 (out_dir / "summary.md").write_text(summary, encoding="utf-8")
