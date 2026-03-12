@@ -231,6 +231,110 @@ Recommended runs:
 - common matrix: `FORMAT=tsv ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
 - `CONNECT`-focused: `FORMAT=tsv CONNECT_ONLY=1 ITERATIONS=200000 bash scripts/run-throughput-compare.sh`
 
+### 2026-03-12 Profiler Stack Follow-up
+
+The new dev image toolchain was used for a deeper three-way follow-up with:
+
+- built-in parser trace mode
+- `callgrind`
+- `uftrace` with a dedicated `-pg` benchmark build
+
+Supporting helpers added during this campaign:
+
+- `scripts/build-uftrace-bench.sh`
+- `scripts/run-profiler-stack.sh`
+
+Profiler artifacts are stored under:
+
+- `docs/tmp/profiling/20260312-toolchain/`
+- `docs/tmp/profiling/20260312-toolchain-fairness/`
+
+#### Tool-level findings
+
+Built-in trace and external profilers converge on the same result:
+
+- the remaining hot path is `parse_header_block`
+- the heaviest internal work is:
+  - `field_text_is_valid`
+  - `find_header_name_colon`
+  - `trim_and_validate_field_value`
+- `request-line` helpers are no longer the dominant cost center
+
+`uftrace` also confirmed that a normal `clang-debug` build is insufficient for function-graph
+tracing; it needs an instrumented benchmark build (`-pg`). That requirement is now encoded in the
+helper script instead of being left as tribal knowledge.
+
+#### Fairness correction in the standalone harness
+
+The throughput harness originally zeroed large typed output structs in the benchmark wrapper before
+every parse call. That distorted the three-way comparison because `iohttpparser` was paying an
+extra caller-side cost that `picohttpparser` and `llhttp` do not have in the same form.
+
+This benchmark-only overhead was removed from the wrapper so the standalone numbers reflect parser
+work more fairly.
+
+After that correction, the comparison changed materially:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-pico-bench` | `1,191,423.98` | `937,139.41` | `2,326,475.48` |
+| `hdr-value-heavy` | `1,621,744.73` | `1,081,931.17` | `2,376,376.16` |
+| `req-small` | `5,962,988.21` | `3,800,373.19` | `11,787,428.35` |
+
+Interpretation:
+
+- `iohttpparser` is no longer slower than `llhttp` on these targeted parser-only scenarios
+  once the benchmark bias is removed.
+- `picohttpparser` remains clearly ahead, which is still expected given its thinner contract and
+  lower parser-layer work.
+- the main remaining question is not “why are we worse than `llhttp` everywhere”, but rather
+  “where do we still pay more than `picohttpparser`, and which part of that is intentional contract
+  cost versus implementation cost?”
+
+For the next tuning steps, `picohttpparser` is the primary raw-throughput baseline and `llhttp`
+becomes the secondary reference. `llhttp` is still useful as a generated-parser comparison point,
+but it is no longer the main explanation target for the remaining gap.
+
+#### Stateful vs stateless benchmark view
+
+The follow-up also added stateful parser entries to the benchmark harness. On the same scenarios,
+stateful and stateless `iohttpparser` throughput stayed close:
+
+| Scenario | `ihtp` stateless strict | `ihtp` stateful strict |
+|---|---:|---:|
+| `req-pico-bench` | `1,200,833.73` | `1,221,530.82` |
+| `hdr-value-heavy` | `1,593,041.27` | `1,565,026.28` |
+| `req-small` | `6,132,969.65` | `5,909,919.12` |
+
+This means the current dominant cost is not the stateless wrapper itself. The real work still sits
+inside the generic header parsing path.
+
+#### Profiler-guided Batch: colon search via `memchr`
+
+Based on the new trace and `callgrind` runs, the next low-risk change replaced the manual byte loop
+in `find_header_name_colon()` with:
+
+1. `memchr` to find the first `:`
+2. token validation only on the prefix before the colon
+
+This keeps the same parser semantics while letting libc take the fast path for the common
+“valid name + one colon” shape.
+
+5-run median after this batch:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `4,622,722.94` | `4,551,522.97` | `9,189,382.51` |
+| `hdr-uncommon-valid` | `9,056,543.62` | `9,035,132.75` | `16,467,373.03` |
+| `req-pico-bench` | `4,107,066.63` | `3,113,414.98` | `7,187,104.04` |
+
+Interpretation:
+
+- this batch is a real three-way win for `iohttpparser` against `llhttp`
+- it does not erase the gap to `picohttpparser`
+- the remaining raw-throughput leader is still `picohttpparser`, so future tuning should continue
+  to benchmark against all three, but explain the residual gap primarily relative to `pico`
+
 Current reproducible results from the repository harness (`200000` iterations):
 
 Common 5-scenario matrix:
@@ -258,8 +362,552 @@ Per-scenario `req/s`:
 |---|---:|---:|---:|
 | `picohttpparser` | `24,034,125.57` | `2,269.15` | `41.61` |
 | `llhttp` | `10,930,685.57` | `1,032.01` | `91.49` |
-| `iohttpparser-strict` | `9,525,021.02` | `899.29` | `104.99` |
-| `iohttpparser-lenient` | `8,560,968.78` | `808.27` | `116.81` |
+
+## Upstream Design Signals
+
+Official upstream documentation points in a consistent direction:
+
+- `llhttp` explicitly positions itself as a port of `http_parser` to `llparse`, with the output C parser
+  generated from a state-machine description instead of handwritten parser code.
+- The same `llhttp` README says that optimizations and multi-character matching are generated
+  automatically, which lowers maintenance cost while keeping the parser core flat and fast.
+- `picohttpparser` explicitly describes itself as a tiny, primitive, fast HTTP parser that is stateless,
+  allocates no memory, and only sets pointers into the caller-owned buffer.
+
+Practical interpretation for this comparison:
+
+- `llhttp` is not "cheating"; it wins part of its throughput from generated DFA-style structure and a
+  narrower embedder contract.
+- `picohttpparser` is faster still because it intentionally does less work and exposes a thinner API.
+- `iohttpparser` sits in a different design point: a pull-style parser with typed outputs, explicit
+  semantics/framing application, and consumer-facing ownership flags.
+
+## What `iohttpparser` Covers That The References Do Not
+
+`iohttpparser` intentionally covers more wire-level responsibility than `picohttpparser`, and packages
+that responsibility differently than `llhttp`.
+
+Meaningful extra scope already present in this repository:
+
+- typed request/response/header/body structures instead of callback-only or raw pointer-only output
+- explicit parser state API for incremental consumers
+- separate semantics layer for framing and ambiguity resolution
+- body decoder with chunked/fixed-length handoff contracts
+- named consumer presets for `iohttp` and `ioguard`
+- consumer-facing ownership flags:
+  - `protocol_upgrade`
+  - `expects_continue`
+  - `has_trailer_fields`
+- maintained differential and consumer-integration test layers
+
+These responsibilities are appropriate inside this library when they remain strictly wire-level:
+
+- request/status line parsing
+- header parsing and field-value validity
+- framing decisions
+- `Transfer-Encoding` / `Content-Length` ambiguity handling
+- `CONNECT` / `Upgrade` / `100 Continue` / trailer handoff metadata
+- chunked and fixed-length body decode
+
+These responsibilities do **not** belong here and should remain above the library:
+
+- URI normalization / decoding
+- routing
+- cookie parsing
+- auth policy
+- content decoding
+- WebSocket frame parsing
+- application-level upgrade protocols
+
+So the current scope is correct, but it must stay disciplined: secure wire semantics yes, HTTP application
+behavior no.
+
+## Why We Are Still Slower Than `llhttp`
+
+After the Sprint 13 localization passes, there is no evidence that the remaining gap comes from request-line
+handling or from SIMD dispatch.
+
+The strongest evidence points to the generic header path:
+
+- `hdr-common-heavy` improved materially once common header names got a fast path
+- `hdr-uncommon-valid` remains the most expensive header-focused scenario
+- `req-pico-bench` degrades in the same direction, which means long header-heavy requests amplify the same cost
+
+This is consistent with the implementation differences:
+
+- `llhttp` pays for a generated state machine and callback streaming model
+- `picohttpparser` pays for very little beyond structure detection and pointer slicing
+- `iohttpparser` pays extra constant factors for:
+  - richer typed output
+  - generic uncommon-header validation
+  - value trimming/validation
+  - explicit pull-style consumer contract
+
+There is no miracle left to discover here. The remaining gap is the sum of:
+
+- a flatter parser core in `llhttp`
+- a much thinner contract in `picohttpparser`
+- our own extra parser-layer work on every uncommon/long header path
+
+## Negative Result: Table-Driven Field-Value Validation
+
+One mathematically plausible optimization was tested in Sprint 13 and rejected:
+
+- replace per-byte field-value classification in `trim_and_validate_field_value()` with a table-driven lookup
+
+The rationale was sound on paper:
+
+- finite alphabet of `256` byte values
+- branch entropy on header-heavy workloads
+- membership test reducible to table lookup
+
+But the measured result was negative.
+
+Focused 5-run median comparison on the same host (`RUNS=5`, `ITERATIONS=100000`):
+
+| Scenario | Baseline strict req/s | Table strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `6,034,987.72` | `4,859,242.33` | `-19.5%` |
+| `req-headers` | `5,436,421.81` | `4,643,772.50` | `-14.6%` |
+| `req-pico-bench` | `1,632,850.95` | `1,221,283.53` | `-25.2%` |
+
+Why it likely regressed:
+
+- the original predicate is already simple and compiler-friendly
+- the table-driven version added an extra dependent memory load per byte
+- on these workloads, the added load cost dominated any branch-prediction win
+
+Engineering decision:
+
+- do not pursue table-driven field-value classification further
+- prefer optimizations that remove work, not optimizations that replace arithmetic with extra memory traffic
+
+## Negative Result: No-Edge-OWS Trim Fast Path
+
+Another apparently safe idea was tested and rejected:
+
+- short-circuit `trim_and_validate_field_value()` when the first and last bytes are not `SP`/`HTAB`
+
+The expectation was that many realistic values are already edge-trimmed, so skipping the two trim
+loops would reduce `T_value`.
+
+In practice, the extra branch hurt the mixed realistic path more than it helped the clean path.
+
+Five-run median comparison on the same host (`RUNS=5`, `ITERATIONS=150000`):
+
+| Scenario | Baseline strict req/s | Fast-path strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-heavy` | `4.79M` | `4.84M` | `+1.1%` |
+| `hdr-uncommon-valid` | `8.76M` | `8.65M` | `-1.3%` |
+| `req-pico-bench` | `4.29M` | `3.06M` | `-28.6%` |
+| `hdr-value-ascii-clean` | `6.85M` | `7.88M` | `+15.0%` |
+
+Why it likely regressed:
+
+- the extra edge-check branch runs on every header value
+- realistic request mixes do not spend all of their time in the clean ASCII-only subcase
+- the helper already pays for `field_text_is_valid()` immediately after trimming, so the branch did
+  not remove enough total work on mixed workloads
+
+Engineering decision:
+
+- do not keep the no-edge-OWS trim fast path
+- prefer optimizations that help mixed realistic values, not only clean synthetic ones
+
+## Negative Result: Early `:` Search Before Full Line-End Resolution
+
+Another header-loop idea was tested and rejected:
+
+- search `:` first for non-continuation lines
+- then resolve `LF` only from `colon + 1`
+- fall back to the old logic only for malformed or incomplete cases
+
+The theory was attractive:
+
+- on valid lines, save one pass over the header-name prefix
+- reduce `memchr` work in the common `name:value...CRLF` case
+
+In practice, it made the hot header loop more expensive on realistic inputs.
+
+Single-run confirmation on the same host (`ITERATIONS=150000`) showed:
+
+| Scenario | Baseline strict req/s | Early-`:` strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `4.46M` | `3.28M` | `-26.4%` |
+| `hdr-value-heavy` | `4.79M` | `4.43M` | `-7.6%` |
+| `hdr-uncommon-valid` | `8.76M` | `7.80M` | `-10.9%` |
+| `req-pico-bench` | `4.29M` | `4.01M` | `-6.7%` |
+
+Why it likely regressed:
+
+- the extra control-flow in `parse_header_block` ran on every normal header line
+- malformed/incomplete fallback paths became more complex, not simpler
+- the saved `memchr` bytes were not enough to pay for the added branch and helper overhead
+
+Engineering decision:
+
+- keep the simpler `find_line_end()` -> `find_header_name_colon()` structure
+- continue optimization through smaller local improvements, not by making the main header loop
+  structurally more complex
+
+## Tuning Directions That Still Look Safe
+
+The next safe directions should stay narrow and evidence-driven:
+
+1. keep using focused scenario groups:
+   - `hdr-uncommon-valid`
+   - `req-headers`
+   - `req-pico-bench`
+2. optimize only when the 5-run median improves on those scenarios
+3. reject changes that merely reshuffle work without reducing it
+
+Promising directions:
+
+- reduce generic uncommon-header overhead without adding table lookups
+- reduce repeated pointer arithmetic in long header lines
+- consider generated or semi-generated parser techniques only if they preserve the current public contract
+
+Unpromising directions based on current evidence:
+
+- branchless/table-driven field-value validation
+- wider SIMD in parser logic without proof that scanner cost is the limiting factor
+- moving wire-level ambiguity handling out of the library just to gain parser throughput
+
+## Sprint 13 Cost Decomposition: Header Name vs Header Value
+
+To reduce guesswork, the standalone harness was extended with two synthetic request scenarios:
+
+- `hdr-name-heavy`: very long uncommon header names with trivial values
+- `hdr-value-heavy`: short header names with long valid values
+
+These scenarios are not meant to model real traffic directly. They isolate the two dominant terms in the
+generic header path:
+
+- `T_name`: name scan + token validation
+- `T_value`: value scan + trim + validation
+
+At a high level, header cost can be thought of as:
+
+`T_headers ~= sum(T_name_i + T_value_i + T_line_i) + T_loop`
+
+where:
+
+- `T_name_i` grows with header-name length and uncommon-name handling
+- `T_value_i` grows with value length and field-value checks
+- `T_line_i` is line-end / delimiter search
+- `T_loop` is fixed parser bookkeeping per header
+
+Focused 5-run median results (`RUNS=5`, `ITERATIONS=100000`):
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `hdr-name-heavy` | `3,308,903.15` | `4,616,647.66` | `9,055,289.70` |
+| `hdr-value-heavy` | `1,649,627.96` | `3,601,368.16` | `8,689,912.30` |
+| `hdr-uncommon-valid` | `5,805,903.54` | `9,251,856.06` | `16,353,122.79` |
+| `req-pico-bench` | `1,598,296.19` | `3,147,542.70` | `7,109,814.79` |
+
+Supporting interpretation:
+
+- `hdr-name-heavy` is slower than `llhttp`, but not catastrophically so
+- `hdr-value-heavy` is much worse, and the gap to `llhttp` widens materially
+- `req-pico-bench` tracks the same direction as `hdr-value-heavy`
+
+This strongly suggests that the dominant remaining cost in `iohttpparser` is not just uncommon header names.
+The bigger tax is in generic field-value handling on long, valid header values.
+
+Secondary observation:
+
+- `strict` and `lenient` are close on these isolated scenarios
+- therefore the remaining cost is mostly parser-core work, not strict-policy branching
+
+Practical conclusion:
+
+- the next tuning wave should target `T_value`, not `T_name`
+- value-path optimization should focus on reducing repeated per-byte work without adding extra memory traffic
+- name-path work is still relevant, but it is now clearly a secondary priority
+
+## Sprint 13 Value-Path Batch 1 (Verified)
+
+The first successful `T_value` optimization in Sprint 13 was a small structural change in
+`trim_and_validate_field_value()`:
+
+- trim leading/trailing OWS first with tight boundary loops
+- validate the trimmed span with the existing field-text check
+
+This preserves the RFC-valid byte set while simplifying the hot loop over long values.
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- the patch was **not** accepted on the first median alone
+- a heavier confirmation run (`RUNS=7`, `ITERATIONS=150000`) was used before accepting it
+
+Confirmed 7-run median results:
+
+| Scenario | Baseline strict req/s | Tuned strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `5,805,903.54` | `6,208,113.34` | `+6.9%` |
+| `hdr-value-heavy` | `1,649,627.96` | `1,777,658.36` | `+7.8%` |
+| `req-pico-bench` | `1,598,296.19` | `1,804,671.87` | `+12.9%` |
+
+Confirmed 7-run median results for lenient mode:
+
+| Scenario | Baseline lenient req/s | Tuned lenient req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-uncommon-valid` | `5,167,224.03` | `6,450,862.11` | `+24.8%` |
+| `hdr-value-heavy` | `1,694,737.19` | `1,834,752.93` | `+8.3%` |
+| `req-pico-bench` | `1,593,251.83` | `1,788,810.72` | `+12.3%` |
+
+Interpretation:
+
+- this is the first Sprint 13 batch that cleanly improves the identified `T_value` bottleneck
+- the gain is strongest on the long mixed request from `pico`'s upstream benchmark
+- the optimization helps because it removes repeated trim bookkeeping from the full value scan
+  without introducing extra per-byte memory traffic
+
+## Sprint 13 Value-Path Batch 2 (Verified)
+
+The second successful `T_value` step kept semantics unchanged and only tightened the inner
+`field_text_is_valid()` loop:
+
+- switched from indexed iteration to pointer-walk
+- removed the unnecessary special-case branch for `' '`
+- kept the same valid set:
+  - `HTAB`
+  - `SP`
+  - `VCHAR`
+  - `obs-text`
+  - reject other control bytes and `DEL`
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- first 5-run median already showed improvement on all value-oriented scenarios
+- final acceptance used a heavier confirmation run (`RUNS=7`, `ITERATIONS=150000`)
+
+Confirmed 7-run median results:
+
+| Scenario | Batch 1 strict req/s | Batch 2 strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-ascii-clean` | `2,553,077.98` | `2,932,513.08` | `+14.9%` |
+| `hdr-value-heavy` | `1,830,023.00` | `1,863,789.91` | `+1.8%` |
+| `req-pico-bench` | `1,616,138.08` | `1,838,413.32` | `+13.8%` |
+
+Interpretation:
+
+- the extra branch on `' '` was expensive enough to matter on long ASCII-heavy header values
+- the gain is strongest exactly where expected:
+  - ASCII-clean values
+  - long mixed real-world request from `pico`'s benchmark
+- the smaller gain on `hdr-value-heavy` suggests that the next remaining cost is no longer just the
+  validation loop body, but the combined generic header path around it
+
+## Header-Count Scaling: Is The Generic Loop Itself Too Expensive?
+
+To test whether the remaining gap comes from fixed per-header bookkeeping rather than long values,
+the harness was extended with minimal repeated-header scenarios:
+
+- `hdr-count-04-minimal`
+- `hdr-count-16-minimal`
+- `hdr-count-32-minimal`
+
+Each scenario keeps headers intentionally small (`X: 1`) so the measured cost is dominated by:
+
+- line-end search
+- colon search
+- header array bookkeeping
+- loop overhead per header
+
+Focused 5-run median results:
+
+| Scenario | `iohttpparser-strict` ns/req | `llhttp` ns/req | `picohttpparser` ns/req |
+|---|---:|---:|---:|
+| `hdr-count-04-minimal` | `66.62` | `71.59` | `45.87` |
+| `hdr-count-16-minimal` | `178.73` | `259.23` | `172.73` |
+| `hdr-count-32-minimal` | `277.76` | `524.80` | `348.21` |
+
+Interpretation:
+
+- on minimal repeated headers, `iohttpparser` is already competitive with `llhttp`
+- the generic per-header loop is **not** the dominant remaining bottleneck
+- `llhttp` likely pays more fixed per-header overhead here because of its callback-oriented parser core
+- therefore the remaining gap on real workloads is not explained by `β·N` alone
+
+Practical conclusion:
+
+- do not spend the next batch on generic loop bookkeeping
+- the remaining payoff is still in long, realistic header values and mixed header-heavy requests
+
+## Sprint 13 Value-Path Batch 3 (Verified)
+
+The next accepted step added a word-at-a-time fast path to `field_text_is_valid()`:
+
+- scan `8` bytes at a time with a `memcpy` load into `uint64_t`
+- skip whole chunks when they contain no bytes `< 0x20` and no `0x7f`
+- fall back to the existing bytewise path for chunks containing tabs or any potentially invalid control byte
+
+Why this worked while the earlier table-driven attempt failed:
+
+- it reduces work on the common case by skipping whole clean chunks
+- it does not introduce an extra dependent memory lookup per byte
+- it preserves the exact valid-byte set and keeps all unusual cases on the slow path
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Confirmed 7-run strict results:
+
+| Scenario | Batch 2 strict req/s | Batch 3 strict req/s | Delta |
+|---|---:|---:|---:|
+| `hdr-value-ascii-clean` | `2,932,513.08` | `7,131,262.39` | `+143.1%` |
+| `hdr-value-heavy` | `1,863,789.91` | `4,565,518.20` | `+145.0%` |
+| `hdr-value-obs-text` | `11,934,233.78` | `11,934,233.78` | `0.0%` |
+| `hdr-value-trim-heavy` | `6,731,744.69` | `6,731,744.69` | `0.0%` |
+| `req-pico-bench` | `1,838,413.32` | `3,308,078.87` | `+80.0%` |
+
+Interpretation:
+
+- the main win is exactly where expected: long printable values
+- `obs-text` and trim-heavy cases do not benefit as much, because they hit the fallback path more often
+- this confirms that the highest-payoff remaining optimization surface was the clean long-value scan itself
+
+### Common Matrix Shift After Batch 3
+
+The broader parser-only matrix also moved materially.
+
+5-run median (`RUNS=5`, `ITERATIONS=100000`) after Batch 3:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-small` | `16,253,090.53` | `18,388,068.79` | `41,447,392.69` |
+| `req-headers` | `8,019,083.49` | `7,021,617.88` | `13,607,684.20` |
+| `req-pico-bench` | `3,420,096.98` | `2,761,719.99` | `7,130,088.17` |
+| `resp-small` | `22,209,281.61` | `17,835,949.93` | `41,749,295.48` |
+| `resp-headers` | `11,903,669.32` | `7,973,997.75` | `17,067,065.72` |
+| `resp-upgrade` | `17,025,156.88` | `13,586,410.11` | `27,937,455.86` |
+
+Practical interpretation:
+
+- `picohttpparser` remains the raw parser-throughput leader on every scenario in this matrix
+- `llhttp` still wins the very short request baseline
+- `iohttpparser-strict` now wins the header-heavy and response-side parser-only scenarios that are
+  more relevant to `iohttp` / `ioguard`
+- the remaining story is no longer “`llhttp` is always faster”; it is:
+- `picohttpparser` is fastest because it does the least
+- `llhttp` is very cheap on short request parsing because of its generated state machine
+- `iohttpparser` is now competitive or better on header-heavy and response-side scenarios while
+  preserving a stricter and richer pull-style contract
+
+The short-request picture is also now clearer:
+
+- `picohttpparser` still dominates `req-small` and `req-line-hot`
+- `llhttp` remains strong on those same cases, but no longer leads the header-heavy and
+  response-side parser-only cases
+- the remaining short-request gap is therefore primarily a `pico` gap, not just a `llhttp` gap
+
+### Sprint 13 Micro-Localization Findings
+
+To localize the remaining gap against `llhttp`, the harness was extended with focused request-side
+scenarios:
+
+- `req-line-hot`
+- `hdr-common-heavy`
+- `hdr-uncommon-valid`
+
+These scenarios separate:
+
+- mostly request-line cost
+- common-header fast-path cost
+- uncommon-header and value-validation cost
+
+Observed pattern:
+
+- the gap versus `llhttp` is present on request-line work, but it becomes materially larger on the
+  generic header path
+- `hdr-common-heavy` narrows the gap relative to `hdr-uncommon-valid`, which supports the earlier
+  conclusion that the common-header fast path is useful
+- `hdr-uncommon-valid` remains the clearest evidence that uncommon header-name handling plus value
+  validation is the hottest remaining parser cost center
+
+Sprint 13 safe tuning step:
+
+- non-continuation header values now use a single-pass trim+validate helper instead of:
+  - trim-left
+  - trim-right
+  - validate
+
+Initial signal after this change:
+
+- request/header-heavy cases improved materially:
+  - `req-headers`
+  - `hdr-common-heavy`
+  - `hdr-uncommon-valid`
+- response-side results were noisier on a single run, so the next acceptance step should be
+  5-run median reporting before treating this as a settled win
+
+Engineering read:
+
+- the next high-value safe optimization area is still the generic header path
+- request-line work matters, but it does not currently explain the whole remaining gap to `llhttp`
+- no evidence yet suggests hidden “cheating” by `llhttp`; the simpler explanation is still lower
+  parser-core cost plus a narrower embedding contract
+
+### `picohttpparser bench.c` Workload Check
+
+The repository harness now also includes the long request shape used by upstream
+`picohttpparser/bench.c` as `req-pico-bench`.
+
+5-run median (`ITERATIONS=100000`):
+
+| Parser | Median req/s | Median MiB/s | Median ns/req |
+|---|---:|---:|---:|
+| `picohttpparser` | `7,600,239.56` | `5,095.45` | `131.57` |
+| `llhttp` | `3,173,277.25` | `2,127.47` | `315.13` |
+| `iohttpparser-lenient` | `1,556,839.11` | `1,043.76` | `642.33` |
+| `iohttpparser-strict` | `1,545,166.32` | `1,035.93` | `647.18` |
+
+Interpretation:
+
+- this workload is heavily request-header dominated, so it amplifies the cost of generic header
+  parsing and validation
+- the result is consistent with the earlier micro-localization:
+  - request-line cost is not the main problem
+  - generic header-name and header-value handling are the larger remaining cost center
+- the tiny gap between strict and lenient here also suggests that the dominant cost is not mainly
+  strict-policy branching; it is the always-on structural work in the parser path
+
+### Sprint 13 Follow-up Tuning Signal
+
+The next safe tuning step combined two changes in the generic header path:
+
+- single-pass trim+validate for non-continuation header values
+- single-pass header-name validation while searching for `:`
+
+Observed single-run impact on the focused scenarios:
+
+| Scenario | `iohttpparser-strict` before | `iohttpparser-strict` after | Approx. delta |
+|---|---:|---:|---:|
+| `req-headers` | `5,411,711.07` | `5,784,550.15` | `+6.9%` |
+| `hdr-common-heavy` | `8,019,308.89` | `8,155,851.80` | `+1.7%` |
+| `hdr-uncommon-valid` | `5,510,077.06` | `6,085,385.75` | `+10.4%` |
+| `req-pico-bench` | `1,545,166.32` | `1,633,692.92` | `+5.7%` |
+
+Interpretation:
+
+- the uncommon/generic header path was indeed a real cost center
+- the new one-pass header-name/value work is directionally correct
+- `iohttpparser-strict` now slightly edges `llhttp` on `hdr-common-heavy`, which suggests the
+  common-header path is no longer the main problem
+- the remaining gap is now concentrated more clearly in uncommon header handling and richer
+  parser-contract work on large header-heavy requests
+
+Next measurement requirement:
+
+- keep using 5-run median before accepting any additional micro-optimization as a real win
+- prefer focused scenarios (`hdr-uncommon-valid`, `req-pico-bench`) over coarse all-scenario
+  averages when evaluating the next parser hot-path changes
 
 ### Why `iohttpparser` Still Trails `llhttp`
 
@@ -292,8 +940,265 @@ Most plausible cost centers in `iohttpparser`:
 - that design is efficient, but it does not expose the same typed pull-style contract that
   `iohttp`/`ioguard` want from `iohttpparser`.
 
+6. `picohttpparser` is faster because it does materially less work
+- it is a tiny stateless parser that mostly finds token boundaries and returns spans
+- it does not carry the same parser-layer semantic contract, stateful API surface, or typed
+  integration-oriented outputs that `iohttpparser` exposes
+- its performance is therefore an upper bound for a much thinner parser contract, not a direct
+  target without changing scope
+
+## Sprint 13 Request-Line Batch 1 (Verified)
+
+The next safe step targeted the short request path by removing one redundant pass over the method
+token:
+
+- `find_method_space()` now finds the first space while validating `METHOD` as a token in the same pass
+- this removes the old sequence:
+  - find first space
+  - validate method token in a second scan
+
+This does not change semantics:
+
+- empty methods still reject
+- invalid token bytes still reject
+- method enum mapping still happens exactly as before
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Focused request-side interpretation:
+
+- the batch is a real win for the short request path
+- it does **not** close the `picohttpparser` gap, because `pico` still carries a much thinner
+  parser contract
+- it slightly improves the `llhttp` comparison on realistic request inputs, but `llhttp` still
+  wins the shortest request baselines
+
+Current 7-run median request-side table:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-hot` | `17,662,722.54` | `22,255,424.02` | `42,469,914.31` |
+| `req-small` | `17,887,212.54` | `24,368,173.87` | `41,152,895.63` |
+| `req-headers` | `8,018,050.66` | `7,733,194.48` | `13,909,296.92` |
+| `req-pico-bench` | `3,459,178.16` | `3,185,810.49` | `7,047,078.29` |
+
+Practical read:
+
+- on short request baselines, `iohttpparser` is still behind both references
+- on realistic header-heavy requests, `iohttpparser` now edges `llhttp` but still trails `pico`
+- this strongly suggests that:
+  - the remaining `llhttp` gap is now mostly concentrated in the shortest request path
+  - the remaining `pico` gap is largely the cost of richer parser work that we intentionally keep
+
+## Sprint 13 Request-Target Batch 2 (Verified)
+
+The next safe step targeted `request_target_is_valid()` for the common `allow_spaces=false` path:
+
+- scan `8` bytes at a time with a `memcpy` load into `uint64_t`
+- skip whole chunks when every byte is strictly greater than `0x20` and not `0x7f`
+- fall back to the existing bytewise path for any chunk containing a possible control byte
+
+This is the request-target analogue of the accepted field-value optimization:
+
+- fast path only for clean printable bytes
+- identical rejection semantics for controls and `DEL`
+- unchanged slow path when spaces are allowed
+
+Verification:
+
+- full `./scripts/quality.sh` stayed green
+- a 7-run confirmation (`RUNS=7`, `ITERATIONS=150000`) was used before acceptance
+
+Confirmed 7-run strict request-line table:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-only` | `28,370,849.37` | `28,003,135.60` | `61,650,558.06` |
+| `req-line-hot` | `23,187,050.87` | `21,843,173.59` | `40,961,883.33` |
+| `req-line-long-target` | `22,582,226.40` | `21,702,855.21` | `47,659,217.53` |
+| `req-line-connect` | `24,588,039.69` | `30,347,840.88` | `62,367,054.23` |
+| `req-small` | `19,546,918.08` | `23,575,653.33` | `36,730,199.30` |
+| `req-pico-bench` | `4,026,939.26` | `3,201,032.53` | `7,464,286.00` |
+
+Interpretation:
+
+- this batch effectively erased the remaining `llhttp` gap on most short request-line scenarios
+- `CONNECT` is still the outlier, which suggests the remaining request-line cost is now much more
+  method-specific than target-specific
+- `picohttpparser` still stays far ahead because its parser contract is materially thinner
+
+Practical consequence:
+
+- the next optimization should not go back to generic target scanning
+- if we keep tuning request-line work, the next likely hotspot is method classification and
+  method-specific branching, especially around `CONNECT`
+
+### `CONNECT` vs `OPTIONS` Control Check
+
+An extra control scenario was added to avoid overfitting on `CONNECT` alone:
+
+- `req-line-connect`
+- `req-line-options`
+
+Observed 5-run median pattern:
+
+| Scenario | `iohttpparser-strict` req/s | `llhttp` req/s | `picohttpparser` req/s |
+|---|---:|---:|---:|
+| `req-line-connect` | `23,826,111.32` | `29,351,929.93` | `65,276,921.02` |
+| `req-line-options` | `24,211,586.02` | `28,213,981.61` | `66,610,403.08` |
+
+Interpretation:
+
+- `CONNECT` is not a unique pathological case
+- the remaining short-request gap is more likely in the general request-line path for longer
+  method names than in authority-form handling alone
+- that points the next request-line investigation toward method classification and general
+  short-line parser overhead, not back toward target validation
+
+Negative result:
+
+- a follow-up attempt to replace short fixed-length `memcmp` calls inside `ihtp_method_from_str()`
+  with direct character-by-character comparisons was **not accepted**
+- 7-run confirmation showed a small gain on `req-small`, but a meaningful regression on
+  `req-line-long-target`
+- practical conclusion: the remaining short-request cost is not explained well enough by the
+  current method-classification helper alone
+
+## Optional Layer Trace: What The Parser Actually Touches
+
+To avoid guessing, Sprint 13 added an optional benchmark-only trace mode:
+
+- build with `IOHTTPPARSER_PERF_TRACE=ON`
+- run `bench_throughput_compare --trace-parser iohttpparser-strict --trace-scenario <name>`
+
+This mode does **not** try to time every helper call. Instead it records structural counters:
+
+- calls per helper
+- bytes actually examined by that helper
+- fast-path bytes vs slow-path bytes for request-target and field-value validation
+
+That approach is better for parser diagnosis because:
+
+- it does not distort tiny hot helpers as much as per-call timers
+- it makes layer ownership visible immediately
+- it shows whether an optimization is reducing real work or only moving branches around
+
+### Trace Snapshot: `req-line-only`
+
+Trace run (`50000` iterations, `iohttpparser-strict`):
+
+- `find_line_end_calls = 100000`
+- `find_line_end_bytes = 1650000`
+- `find_method_space_calls = 50000`
+- `find_method_space_bytes = 200000`
+- `request_target_calls = 50000`
+- `request_target_bytes = 800000`
+- `request_target_fast_bytes = 800000`
+- `request_target_slow_bytes = 0`
+
+Interpretation:
+
+- even the simplest request still pays for:
+  - request-line end detection
+  - terminating empty-line detection
+  - request-target validation
+- method scan is relatively small here
+- the target validator is already entirely on the fast path for clean ASCII input
+
+### Trace Snapshot: `req-pico-bench`
+
+Trace run (`50000` iterations, `iohttpparser-strict`):
+
+- `find_line_end_calls = 550000`
+- `find_line_end_bytes = 35150000`
+- `find_method_space_calls = 50000`
+- `find_method_space_bytes = 200000`
+- `request_target_calls = 50000`
+- `request_target_bytes = 3000000`
+- `request_target_fast_bytes = 2800000`
+- `request_target_slow_bytes = 200000`
+- `find_header_name_colon_calls = 450000`
+- `find_header_name_colon_bytes = 4950000`
+- `trim_field_value_calls = 450000`
+- `trim_field_value_bytes = 25450000`
+- `field_text_calls = 450000`
+- `field_text_bytes = 25000000`
+- `field_text_fast_bytes = 23200000`
+- `field_text_slow_bytes = 1800000`
+
+Interpretation:
+
+- request-line method scanning is basically noise on this workload
+- the dominant parser work is now clearly:
+  - line-ending search
+  - value trimming
+  - field-text validation
+- the accepted fast paths are already doing useful work:
+  - most request-target bytes are handled in the fast path
+  - most field-text bytes are handled in the fast path
+- therefore the next meaningful gains are more likely to come from reducing repeated line/value
+  path work than from more method-lookup tweaks
+
+## External Profiling Stack For Sprint 13+
+
+The repository now treats external profilers/debuggers as complementary tools, not replacements for
+the built-in comparison harness:
+
+- `uftrace`
+  - primary external user-space function graph tracer
+  - use after a throughput delta is confirmed, to see which call paths dominate wall time
+  - do **not** use as the first signal; start from the repo throughput tables and parser trace mode
+- `valgrind`
+  - use `memcheck` for correctness and leak sanity on parser-only harnesses
+  - use `callgrind` / `cachegrind` only for instruction/cache cost modeling, not raw throughput
+  - SIMD-heavy absolute timings under Valgrind are not representative, but relative hot spots are
+- `gdb`
+  - use for control-flow debugging, watchpoints, and validating specific parser-state transitions
+  - not a profiler, but valuable once a suspicious helper or branch is already isolated
+- `ftracer`
+  - keep as an experimental GCC-only tracing option for dedicated instrumented builds
+  - not a default tool for this repository because it needs a special build and adds large call
+    overhead
+
+Repository helper:
+
+- [run-profiler-stack.sh](/opt/projects/repositories/iohttpparser/.worktrees/sprint-13/scripts/run-profiler-stack.sh)
+
+Recommended order of use:
+
+1. repo throughput comparison (`run-throughput-median.sh`)
+2. built-in parser trace mode (`run-profiler-stack.sh trace ...`)
+3. `uftrace` for function graph attribution
+4. `valgrind` for correctness or cache/call modeling
+5. `gdb` for targeted control-flow debugging
+6. `ftracer` only for one-off deep tracing experiments
+
 In short: the remaining gap is not evidence that `llhttp` is “cheating”; it is mostly the cost of a
 broader parser-layer contract plus a hotter multi-pass header path.
+
+### Comparison Rule for Sprint 13
+
+All remaining performance decisions are evaluated against **all three** parser baselines:
+
+- `iohttpparser`
+- `llhttp`
+- `picohttpparser`
+
+They answer different questions:
+
+- `llhttp` is the closest reference for a highly optimized generated parser core
+- `picohttpparser` is the raw-throughput upper bound for a much thinner parser contract
+- `iohttpparser` must be judged both by speed and by the richer consumer contract it preserves
+
+This prevents two common mistakes:
+
+- overfitting to `llhttp` while ignoring that `picohttpparser` still defines the minimal-contract
+  throughput ceiling
+- overfitting to `picohttpparser` and accidentally removing parser-adjacent guarantees that
+  `iohttp` and `ioguard` rely on
 
 ### Where `iohttpparser` Is Better Than `picohttpparser` and `llhttp`
 
@@ -331,6 +1236,164 @@ Where the competitors cover less or differently:
   - very strong parser state machine
   - efficient callback-based embedding
   - different integration model than a stateful pull-style parser with typed semantic handoff
+
+### Profiler-Guided Batch: Thresholded `field_text` Fast Path
+
+The next accepted experiment stayed strictly inside the value-validation path:
+
+- keep the RFC-valid byte rules unchanged
+- add a word-at-a-time fast path in `field_text_is_valid()`
+- enable the wider 16-byte step only when enough bytes remain to amortize the extra loads
+
+This targets the hottest remaining helpers found by built-in trace, `uftrace`, and `callgrind`:
+
+- `field_text_is_valid`
+- `trim_and_validate_field_value`
+
+Five-run median comparison against the same baseline revision (`8eb07e6`) gave:
+
+| Scenario | `iohttpparser` before | `iohttpparser` after | `llhttp` | `picohttpparser` | Delta |
+|---|---:|---:|---:|---:|---:|
+| `hdr-value-heavy` | `4.44M req/s` | `4.79M req/s` | `3.58M` | `8.64M` | `+8.0%` |
+| `hdr-uncommon-valid` | `8.82M req/s` | `8.76M req/s` | `9.17M` | `16.61M` | `-0.7%` |
+| `req-pico-bench` | `4.16M req/s` | `4.29M req/s` | `3.14M` | `7.06M` | `+3.0%` |
+| `hdr-value-ascii-clean` | `6.75M req/s` | `6.85M req/s` | `5.07M` | `11.42M` | `+1.5%` |
+
+Interpretation:
+
+- the change is worth keeping because it improves the long realistic value path and `req-pico-bench`
+- the regression on `hdr-uncommon-valid` is small and does not change the overall three-way ranking
+- `picohttpparser` remains the clear raw-throughput leader
+- `iohttpparser` remains competitive with or faster than `llhttp` on the value-heavy scenarios that
+  matter most for realistic consumer traffic
+
+The corresponding methodology fix is also kept:
+
+- `scripts/run-throughput-compare.sh` now forwards extra benchmark arguments such as `--scenario`
+- this prevents accidental “all-scenarios” runs when only one targeted median was intended
+
+### API Shape Cost: Stateful vs Stateless
+
+The throughput story also depends on **which public `iohttpparser` API shape is measured**.
+
+The stateless wrappers:
+
+- `ihtp_parse_request()`
+- `ihtp_parse_response()`
+
+clear the output struct on every call by contract before delegating to the stateful parser path.
+
+For throughput-sensitive consumers, the relevant hot path is therefore the stateful API:
+
+- `ihtp_parse_request_stateful()`
+- `ihtp_parse_response_stateful()`
+
+Five-run median comparison (`RUNS=5`, `ITERATIONS=150000`) showed:
+
+| Scenario | `iohttpparser` stateless | `iohttpparser` stateful | `llhttp` | `picohttpparser` |
+|---|---:|---:|---:|---:|
+| `req-small` | `17.91M req/s` | `19.73M req/s` | `23.32M` | `41.02M` |
+| `hdr-uncommon-valid` | `8.65M req/s` | `9.39M req/s` | `9.11M` | `17.05M` |
+| `hdr-value-heavy` | `4.66M req/s` | `5.00M req/s` | `3.53M` | `8.16M` |
+| `req-pico-bench` | `3.95M req/s` | `4.43M req/s` | `3.12M` | `7.16M` |
+
+Interpretation:
+
+- stateful parsing is already the right performance-oriented integration path for `iohttp` and
+  `ioguard`
+- once measured on that intended API shape, `iohttpparser` is already ahead of `llhttp` on the
+  realistic header-heavy scenarios in this campaign
+- `picohttpparser` still leads on raw parser throughput because it does materially less parser-layer
+  work and exposes a thinner contract
+
+### Byte-Amplification View of the Remaining Gap
+
+The built-in trace mode makes the remaining throughput gap easier to explain in plain arithmetic.
+
+On `req-pico-bench` with `40000` iterations:
+
+- input bytes processed: `703 * 40000 = 28,120,000`
+- observed helper byte counts:
+  - `find_line_end_bytes = 28,120,000`
+  - `find_header_name_colon_bytes = 3,960,000`
+  - `trim_field_value_bytes = 20,360,000`
+  - `field_text_bytes = 20,000,000`
+  - `request_target_bytes = 2,400,000`
+
+That means the parser hot path touches roughly:
+
+- `74,840,000` helper-attributed bytes
+- for `28,120,000` bytes of wire input
+- or about **2.66x byte amplification**
+
+This is the cleanest mechanical explanation for why `picohttpparser` still stays faster:
+
+- it performs fewer typed parser-layer obligations on the same wire bytes
+- its contract is thinner, so it can stay closer to one-pass slicing
+
+It also explains why the remaining optimization space is now narrow:
+
+- request-line helpers are no longer the main problem
+- the remaining cost is dominated by repeated line/value work on realistic header-heavy inputs
+
+### Callgrind Cost Model on `req-pico-bench`
+
+`callgrind` was then used as an instruction-cost model on the same workload.
+
+For `iohttpparser-stateful-strict`:
+
+- total instructions: `259,659,108`
+- hottest functions:
+  - `field_text_is_valid`: `24.33%`
+  - benchmark-side `memset`: `17.36%`
+  - `find_header_name_colon`: `14.92%`
+  - `ihtp_is_token_char`: `9.78%`
+  - `parse_header_block`: `8.04%`
+  - `trim_and_validate_field_value`: `5.82%`
+  - `memchr`: `4.06%`
+  - `find_line_end`: `3.20%`
+
+For `llhttp`:
+
+- total instructions: `185,044,835`
+- dominant function:
+  - `llhttp__internal__run`: `68.49%`
+
+Interpretation:
+
+- `llhttp` still wins on raw instruction count because it keeps more of the parser core inside a
+  flatter generated state machine
+- `iohttpparser` still spreads work across more helpers because it exposes a richer pull-style
+  consumer contract
+- even this callgrind gap somewhat overstates the library gap, because the benchmark helper still
+  performs caller-side output clearing for the stateful path
+
+`picohttpparser` could not be cleanly profiled with the same AVX2-enabled callgrind run in this
+campaign because the valgrind process hit an illegal-instruction path before reaching a meaningful
+parser profile. For `picohttpparser`, throughput and the repository harness remain the primary
+signals until a separate scalar-only cost-model build is added.
+
+That scalar-only build was then added for the same workload (`req-pico-bench`) with:
+
+- `IOHTTPPARSER_SIMD_SSE42=OFF`
+- `IOHTTPPARSER_SIMD_AVX2=OFF`
+
+Instruction totals on that equalized scalar-only build:
+
+| Parser | Total instructions (`Ir`) |
+|---|---:|
+| `iohttpparser-stateful-strict` | `38,841,616` |
+| `llhttp` | `40,561,711` |
+| `picohttpparser` | `30,517,599` |
+
+Interpretation:
+
+- once SIMD side effects are removed from the profiling environment, `iohttpparser` is already
+  slightly cheaper than `llhttp` on this parser-only cost model
+- `picohttpparser` still stays far ahead because its parser contract is materially thinner
+- the remaining real optimization target is therefore not “catch `llhttp` at any price”, but
+  deciding how much of the remaining gap to `picohttpparser` is worth closing without weakening the
+  current consumer contract
 
 ### Are These Extra Responsibilities in the Right Layer?
 

@@ -179,6 +179,12 @@
 **Main remaining gaps before functional completeness:**
 - Sprint 11 comparison campaign still needs to be finalized and merged
 - the comparison report and divergence matrix need one maintained closeout pass after current results are committed
+- the profiling stack for post-comparison tuning now includes:
+  - built-in parser trace mode
+  - `uftrace` for function graph attribution
+  - `valgrind` for correctness/cost modeling
+  - `gdb` for targeted control-flow debugging
+  - `ftracer` only as an experimental GCC-only deep tracing option
 - consumer presets intentionally remain strict aliases; any future divergence must stay out of the current completion scope
 - SSE4.2 token validation intentionally remains scalar-backed until a proven SIMD-equivalent implementation is justified
 

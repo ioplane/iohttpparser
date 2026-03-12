@@ -60,6 +60,8 @@ static bool scanner_initialized = false;
 
 const char *ihtp_scanner_backend_name_for_level(int simd_level)
 {
+    (void)simd_level;
+
 #ifdef IOHTTPPARSER_HAVE_AVX2
     if ((simd_level & 0x02) != 0) {
         return "avx2";
@@ -75,6 +77,8 @@ const char *ihtp_scanner_backend_name_for_level(int simd_level)
 
 void ihtp_scanner_select_vtable(ihtp_scanner_vtable_t *vtable, int simd_level)
 {
+    (void)simd_level;
+
     /* Start with scalar baseline */
     vtable->find_char = ihtp_scan_find_char_scalar;
     vtable->is_token = ihtp_scan_is_token_scalar;

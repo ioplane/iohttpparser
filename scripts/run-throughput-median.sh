@@ -7,6 +7,7 @@ ITERATIONS="${ITERATIONS:-200000}"
 CONNECT_ONLY="${CONNECT_ONLY:-0}"
 TMP_DIR="${TMP_DIR:-$(mktemp -d)}"
 KEEP_TMP="${KEEP_TMP:-0}"
+EXTRA_ARGS="${EXTRA_ARGS:-}"
 
 cleanup() {
     if [[ "$KEEP_TMP" != "1" ]]; then
@@ -20,10 +21,10 @@ for ((run = 1; run <= RUNS; run++)); do
     out="$TMP_DIR/run-$run.tsv"
     if [[ "$CONNECT_ONLY" == "1" ]]; then
         FORMAT=tsv CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" \
-            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" >"$raw"
+            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS >"$raw"
     else
         FORMAT=tsv ITERATIONS="$ITERATIONS" \
-            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" >"$raw"
+            bash "$ROOT_DIR/scripts/run-throughput-compare.sh" $EXTRA_ARGS >"$raw"
     fi
     awk 'found || /^format\t/ { found = 1; print }' "$raw" >"$out"
 done

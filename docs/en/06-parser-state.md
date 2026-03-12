@@ -89,5 +89,10 @@ Use the stateful API when the consumer:
 - retains an accumulated buffer
 - wants parser progress without callback integration
 
+Prefer the stateful API for throughput-sensitive consumers. The stateless
+wrappers clear the output struct on every call before delegating to the same
+parser logic, so they are simpler to use but slightly more expensive in tight
+loops.
+
 Use the stateless API when the consumer already has the full accumulated buffer
 and does not need explicit parser progress state.

@@ -52,6 +52,10 @@ Strongly recommended:
 - `fd`
 - `yq`
 - `hyperfine`
+- `gdb`
+- `valgrind`
+- `uftrace`
+- `ftracer`
 
 ## Documentation Style
 Write English documentation first. Treat `docs/en/*` as authoritative and

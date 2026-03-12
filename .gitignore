@@ -50,6 +50,7 @@ docs/tmp/
 !.serena/project.yml
 .ccls-cache/
 .cache/clangd/index/
+vgcore.*
 
 # Static analysis output
 PVS-Studio.log
