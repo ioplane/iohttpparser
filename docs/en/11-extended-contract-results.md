@@ -1,7 +1,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
 [![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
 [![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
-[![Mermaid](https://img.shields.io/badge/Mermaid-Mindmap-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/mindmap.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Flowchart-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/flowchart.html)
 
 # Extended Contract Results
 
@@ -41,18 +41,23 @@ Published extended run used by this document:
 | `not-applicable` | performance comparison does not belong to parser-library scope |
 
 ```mermaid
-mindmap
-  root((Extended Results))
-    Shared parser-core
-      Published in 09
-    Shared adapter layer
-      Functional evidence
-      Indirect performance evidence
-    iohttpparser-only layer
-      Functional evidence
-      Internal-only performance evidence
-    Out of scope
-      No parser comparison
+flowchart TD
+  A["Extended Results"]
+  B["Shared parser-core<br/>Published in 09"]
+  C["Shared adapter layer<br/>Functional evidence<br/>Indirect performance evidence"]
+  D["iohttpparser-only layer<br/>Functional evidence<br/>Internal-only performance evidence"]
+  E["Out of scope<br/>No parser comparison"]
+
+  A --> B
+  A --> C
+  A --> D
+  A --> E
+
+  classDef root fill:#dbeafe,stroke:#1d4ed8,color:#111827,stroke-width:2px;
+  classDef node fill:#f8fafc,stroke:#64748b,color:#111827,stroke-width:1.5px;
+
+  class A root;
+  class B,C,D,E node;
 ```
 
 ## Capability Result Matrix

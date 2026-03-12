@@ -1,7 +1,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
 [![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
 [![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
-[![Mermaid](https://img.shields.io/badge/Mermaid-Карта-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/mindmap.html)
+[![Mermaid](https://img.shields.io/badge/Mermaid-Блок--схема-ff3670?style=for-the-badge)](https://mermaid.js.org/syntax/flowchart.html)
 
 # Результаты По Расширенному Контракту
 
@@ -41,18 +41,23 @@
 | не применяется | сравнение производительности не относится к уровню парсерной библиотеки |
 
 ```mermaid
-mindmap
-  root((Расширенные результаты))
-    Общий слой разбора
-      Публикация в 09
-    Общий слой через обвязку
-      Функциональное подтверждение
-      Косвенное подтверждение производительности
-    Только в iohttpparser
-      Функциональное подтверждение
-      Внутреннее измерение
-    Вне области
-      Без parser-сравнения
+flowchart TD
+  A["Расширенные результаты"]
+  B["Общий слой разбора<br/>Публикация в 09"]
+  C["Общий слой через обвязку<br/>Функциональное подтверждение<br/>Косвенное подтверждение производительности"]
+  D["Только в iohttpparser<br/>Функциональное подтверждение<br/>Внутреннее измерение"]
+  E["Вне области<br/>Без сравнения на уровне парсера"]
+
+  A --> B
+  A --> C
+  A --> D
+  A --> E
+
+  classDef root fill:#dbeafe,stroke:#1d4ed8,color:#111827,stroke-width:2px;
+  classDef node fill:#f8fafc,stroke:#64748b,color:#111827,stroke-width:1.5px;
+
+  class A root;
+  class B,C,D,E node;
 ```
 
 ## Матрица Результатов По Возможностям
