@@ -1,0 +1,16 @@
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /opt/projects/repositories/iohttpparser/.worktrees/sprint-14/build/clang-release
+[ 53%] Built target iohttpparser
+[100%] Built target bench_throughput_compare
+format	tsv	v1
+meta	iterations	200000
+meta	connect_only	true
+columns	parser	scenario	kind	len	elapsed_ns	req_per_s	mib_per_s	ns_per_req
+iohttpparser-strict	req-connect	request	99	22019734	9082761.85	857.54	110.10
+iohttpparser-lenient	req-connect	request	99	17085516	11705821.47	1105.19	85.43
+iohttpparser-stateful-strict	req-connect	request	99	13344295	14987678.26	1415.04	66.72
+iohttpparser-stateful-lenient	req-connect	request	99	15921742	12561439.57	1185.97	79.61
+picohttpparser	req-connect	request	99	8105611	24674265.76	2329.59	40.53
+llhttp	req-connect	request	99	17398413	11495301.32	1085.31	86.99
+meta	sink	119394000

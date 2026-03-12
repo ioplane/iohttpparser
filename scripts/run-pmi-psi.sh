@@ -40,7 +40,10 @@ tests/artifacts/pmi-psi/
 - `throughput-connect.tsv`
 - `throughput-median.tsv`
 - `throughput-connect-median.tsv`
+- `throughput-extended.tsv`
+- `throughput-extended-median.tsv`
 - `summary.md`
+- `summary-extended.md`
 EOF
 fi
 
@@ -86,6 +89,9 @@ cmake --preset "$DEBUG_PRESET"
 cmake --build --preset "$DEBUG_PRESET"
 ctest --preset "$DEBUG_PRESET" --output-on-failure | tee "$OUT_DIR/ctest.txt"
 
+cmake --preset "$RELEASE_PRESET"
+cmake --build --preset "$RELEASE_PRESET" --target bench_throughput_compare bench_extended_contract
+
 FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-compare.sh" \
     >"$OUT_DIR/throughput.tsv"
 FORMAT=tsv CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-compare.sh" \
@@ -94,6 +100,10 @@ ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-med
     >"$OUT_DIR/throughput-median.tsv"
 CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-median.sh" \
     >"$OUT_DIR/throughput-connect-median.tsv"
+FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-extended.sh" \
+    >"$OUT_DIR/throughput-extended.tsv"
+ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-extended-median.sh" \
+    >"$OUT_DIR/throughput-extended-median.tsv"
 
 python3 - "$OUT_DIR" "$RUN_ID" <<'PY'
 from __future__ import annotations
@@ -130,6 +140,7 @@ def parse_tsv(path: Path):
 
 median_rows = parse_tsv(out_dir / "throughput-median.tsv")
 connect_rows = parse_tsv(out_dir / "throughput-connect-median.tsv")
+extended_rows = parse_tsv(out_dir / "throughput-extended-median.tsv")
 
 files = {
     "run": "run.txt",
@@ -140,7 +151,10 @@ files = {
     "throughput_connect": "throughput-connect.tsv",
     "throughput_median": "throughput-median.tsv",
     "throughput_connect_median": "throughput-connect-median.tsv",
+    "throughput_extended": "throughput-extended.tsv",
+    "throughput_extended_median": "throughput-extended-median.tsv",
     "summary": "summary.md",
+    "summary_extended": "summary-extended.md",
 }
 
 (out_dir / "manifest.json").write_text(
@@ -269,6 +283,74 @@ published in `throughput-connect-median.tsv`.
 """
 
 (out_dir / "summary.md").write_text(summary, encoding="utf-8")
+
+extended_group_order = [
+    "parser-state",
+    "semantics-body",
+    "consumer-iohttp",
+    "upgrade",
+    "consumer-ioguard",
+]
+
+extended_group_titles = {
+    "parser-state": "Parser State",
+    "semantics-body": "Semantics And Body Handoff",
+    "consumer-iohttp": "iohttp-style Consumer Flows",
+    "upgrade": "Upgrade Handoff",
+    "consumer-ioguard": "ioguard-style Consumer Flows",
+}
+
+extended_lines = [
+    "# Extended PSI Run Summary",
+    "",
+    f"Run id: `{run_id}`",
+    "",
+    "## Scope",
+    "",
+    "This summary publishes the extended-contract performance layer.",
+    "",
+    "## Source code used for the run",
+    "",
+    "- `bench/bench_extended_contract.c`",
+    "- `scripts/run-throughput-extended.sh`",
+    "- `scripts/run-throughput-extended-median.sh`",
+    "- `scripts/run-pmi-psi.sh`",
+    "- `tests/unit/test_iohttp_integration.c`",
+    "- `tests/unit/test_semantics.c`",
+    "- `tests/unit/test_body_decoder.c`",
+    "",
+    "## Median matrix",
+    "",
+    "Full values are published in `throughput-extended-median.tsv`.",
+]
+
+grouped_ext = {}
+for row in extended_rows:
+    grouped_ext.setdefault(row["scenario_group"], []).append(row)
+
+for group in extended_group_order:
+    rows = grouped_ext.get(group)
+    if not rows:
+        continue
+    extended_lines.extend([
+        "",
+        f"### {extended_group_titles.get(group, group)}",
+        "",
+        "| Scenario | Baseline | req/s median | MiB/s median | ns/op median |",
+        "|---|---|---:|---:|---:|",
+    ])
+    for row in rows:
+        extended_lines.append(
+            "| {scenario} | {baseline} | {req} | {mib} | {ns} |".format(
+                scenario=row["scenario"],
+                baseline=row["baseline"],
+                req=row["req_per_s_median"],
+                mib=row["mib_per_s_median"],
+                ns=row["ns_per_op_median"],
+            )
+        )
+
+(out_dir / "summary-extended.md").write_text("\n".join(extended_lines) + "\n", encoding="utf-8")
 PY
 
 printf '%s\n' "$RUN_ID" >"$BASE_DIR/latest.txt"

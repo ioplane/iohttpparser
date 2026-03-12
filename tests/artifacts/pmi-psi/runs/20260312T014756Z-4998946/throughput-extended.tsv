@@ -1,0 +1,13 @@
+scenario_group	scenario	baseline	wire_len	work_len	elapsed_ns	req_per_s	mib_per_s	ns_per_op
+parser-state	stateful-reuse-request	req-small/iohttpparser-stateful-strict	67	134	26281900	7609799.90	972.47	131.41
+semantics-body	request-chunked-parse	req-headers/iohttpparser-stateful-strict	134	89	25908940	7719343.21	655.19	129.54
+semantics-body	request-chunked-parse-semantics	request-chunked-parse	134	89	24874104	8040490.62	682.45	124.37
+semantics-body	request-chunked-parse-semantics-body	request-chunked-parse-semantics	134	98	49857694	4011416.97	374.91	249.29
+consumer-iohttp	consumer-iohttp-pipeline	request-chunked-parse-semantics-body	175	216	61595472	3246991.92	668.86	307.98
+consumer-iohttp	consumer-iohttp-expect-trailers	request-chunked-parse-semantics-body	199	259	51287254	3899604.37	963.21	256.44
+semantics-body	response-fixed-parse-semantics-body	resp-headers/iohttpparser-stateful-strict	43	43	11549750	17316392.13	710.11	57.75
+consumer-iohttp	consumer-iohttp-fixed-response	response-fixed-parse-semantics-body	89	135	24975739	8007771.06	1030.97	124.88
+upgrade	response-upgrade-parse	resp-upgrade/iohttpparser-stateful-strict	84	77	19117481	10461629.33	768.23	95.59
+upgrade	response-upgrade-parse-semantics	response-upgrade-parse	84	77	19216223	10407872.56	764.28	96.08
+consumer-ioguard	consumer-ioguard-connect	req-connect/iohttpparser-stateful-strict	65	65	12412715	16112510.44	998.80	62.06
+consumer-ioguard	consumer-ioguard-reject-te-cl	request-chunked-parse-semantics	91	91	23568996	8485724.21	736.43	117.84

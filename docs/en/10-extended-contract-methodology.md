@@ -198,6 +198,12 @@ Required artifact files for the extended layer:
 - `summary-extended.md`
 - `manifest.json`
 
+Current repository publication path:
+
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended.tsv`
+- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+
 If a capability has no dedicated artifact yet, the result must state:
 - `not yet published`
 - nearest available evidence

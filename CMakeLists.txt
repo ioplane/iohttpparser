@@ -350,6 +350,33 @@ if(IOHTTPPARSER_BUILD_BENCH)
         target_compile_definitions(bench_throughput_compare PRIVATE IOHTTPPARSER_HAVE_AVX2)
         target_compile_options(bench_throughput_compare PRIVATE -mavx2)
     endif()
+
+    add_executable(bench_extended_contract bench/bench_extended_contract.c)
+    target_include_directories(bench_extended_contract PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(bench_extended_contract PRIVATE iohttpparser)
+    target_compile_options(
+        bench_extended_contract
+        PRIVATE
+            -Wno-conversion
+            -Wno-sign-conversion
+            -Wno-shadow
+            -Wno-undef
+            -Wno-unused-function
+            -Wno-unused-parameter
+            -Wno-missing-prototypes
+            -Wno-missing-declarations
+            -Wno-cast-qual
+            -Wno-pedantic
+            -Wno-format-pedantic
+    )
+    if(IOHTTPPARSER_SIMD_SSE42)
+        target_compile_definitions(bench_extended_contract PRIVATE IOHTTPPARSER_HAVE_SSE42)
+        target_compile_options(bench_extended_contract PRIVATE -msse4.2)
+    endif()
+    if(IOHTTPPARSER_SIMD_AVX2)
+        target_compile_definitions(bench_extended_contract PRIVATE IOHTTPPARSER_HAVE_AVX2)
+        target_compile_options(bench_extended_contract PRIVATE -mavx2)
+    endif()
 endif()
 
 # ============================================================================
