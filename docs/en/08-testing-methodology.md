@@ -13,6 +13,8 @@
 |---|---|
 | [02-comparison.md](./02-comparison.md) | comparison targets and compared capabilities |
 | [09-test-results.md](./09-test-results.md) | functional and performance test results |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | methodology for capabilities beyond the common matrix |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | result status for the extended contract |
 | [../plans/2026-03-11-sprint-11-comparison-report.md](../plans/2026-03-11-sprint-11-comparison-report.md) | detailed comparison and profiling history |
 
 ## Purpose
@@ -24,6 +26,12 @@ It covers:
 - performance acceptance testing
 - comparison against `picohttpparser` and `llhttp`
 - publication of repeatable artifacts in the repository
+
+This document covers the common comparison layer.
+
+Capabilities that require an extended-contract interpretation are documented in:
+- [10-extended-contract-methodology.md](./10-extended-contract-methodology.md)
+- [11-extended-contract-results.md](./11-extended-contract-results.md)
 
 ## Test Object
 

@@ -12,6 +12,8 @@
 |---|---|
 | [02-comparison.md](./02-comparison.md) | сравниваемые возможности и область применения |
 | [08-testing-methodology.md](./08-testing-methodology.md) | программа и методика испытаний |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | методика для возможностей расширенного контракта |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | состояние результатов по возможностям вне общей матрицы |
 | [../plans/2026-03-11-sprint-11-comparison-report.md](../plans/2026-03-11-sprint-11-comparison-report.md) | подробные заметки по сравнению и профилированию |
 
 ## Область
@@ -20,6 +22,12 @@
 - функциональной проверке
 - сравнению пропускной способности парсеров
 - прикладным сценариям потребителей
+
+Документ публикует общую сравнительную матрицу.
+
+Возможности, которым нужен расширенный взгляд на контракт, описаны в:
+- [10-extended-contract-methodology.md](./10-extended-contract-methodology.md)
+- [11-extended-contract-results.md](./11-extended-contract-results.md)
 
 ## Набор Артефактов
 
@@ -76,7 +84,7 @@
 | Профиль | Значение |
 |---|---|
 | `picohttpparser` | минимальный нулевой разбор без расширенного контракта |
-| `llhttp` | эталонный сгенерированный parser-core |
+| `llhttp` | эталонное сгенерированное ядро разбора |
 | `iohttpparser-stateful-strict` | предпочтительный производительный путь для потребителей |
 | `iohttpparser-strict` | строгая оболочка без отдельного состояния |
 | `iohttpparser-stateful-lenient` | интерфейс состояния в режиме совместимости |

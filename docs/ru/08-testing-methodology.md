@@ -13,6 +13,8 @@
 |---|---|
 | [02-comparison.md](./02-comparison.md) | цели сравнения и сравниваемые возможности |
 | [09-test-results.md](./09-test-results.md) | результаты функциональных и производительных испытаний |
+| [10-extended-contract-methodology.md](./10-extended-contract-methodology.md) | методика для возможностей вне общей матрицы |
+| [11-extended-contract-results.md](./11-extended-contract-results.md) | состояние результатов по расширенному контракту |
 | [../plans/2026-03-11-sprint-11-comparison-report.md](../plans/2026-03-11-sprint-11-comparison-report.md) | подробная история сравнения и профилирования |
 
 ## Назначение
@@ -24,6 +26,12 @@
 - производительные испытания
 - сравнение с `picohttpparser` и `llhttp`
 - публикацию воспроизводимых артефактов в репозитории
+
+Документ охватывает общий слой сравнения.
+
+Возможности, которым нужен расширенный взгляд на контракт, вынесены в:
+- [10-extended-contract-methodology.md](./10-extended-contract-methodology.md)
+- [11-extended-contract-results.md](./11-extended-contract-results.md)
 
 ## Объект Испытаний
 

@@ -119,6 +119,8 @@ podman run --rm -it -v $(pwd):/workspace:Z iohttpparser-dev:latest
 | [docs/en/06-parser-state.md](docs/en/06-parser-state.md) | stateful parser |
 | [docs/en/07-body-decoder.md](docs/en/07-body-decoder.md) | body decoder |
 | [docs/en/08-testing-methodology.md](docs/en/08-testing-methodology.md) | testing and comparison method |
+| [docs/en/10-extended-contract-methodology.md](docs/en/10-extended-contract-methodology.md) | methodology for extended-contract capabilities |
+| [docs/en/11-extended-contract-results.md](docs/en/11-extended-contract-results.md) | result status for extended-contract capabilities |
 | [docs/en/api-reference.md](docs/en/api-reference.md) | Doxygen entry page |
 
 ## Status Codes
