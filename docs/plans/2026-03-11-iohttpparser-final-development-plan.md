@@ -32,25 +32,22 @@ Functional development is complete.
 
 ### 1. Release-readiness work
 
-This is the primary remaining work.
+This work is complete on `main`.
 
-Required items:
-- CI matrix for core validation
-- sanitizer jobs
-- fuzz smoke jobs
-- differential smoke jobs
+Completed items:
+- self-contained CI release gate
 - artifact publication checks
 - release checklist
-- release automation policy
+- release-candidate evidence publication
 
 ### 2. Remaining evidence publication
 
-The repository still lacks dedicated published evidence for:
-- named preset zero-overhead proof;
-- isolated zero-copy span ownership cost;
-- scanner backend results inside the PMI/PSI artifact bundle.
+This work is complete on `main`.
 
-These are not feature gaps. They are publication and observability gaps.
+Completed items:
+- named preset proof
+- isolated zero-copy span ownership cost
+- scanner backend results inside the PMI/PSI artifact bundle
 
 ### 3. Optional performance tuning
 
@@ -70,7 +67,7 @@ Rules:
 
 ## Phase A: Release Gate
 
-**Goal:** make the current product verifiable and repeatable in automation.
+**Status:** complete.
 
 Tasks:
 1. Add CI for:
@@ -83,13 +80,11 @@ Tasks:
 3. Add artifact integrity checks for published PMI/PSI outputs.
 4. Define required status checks for protected `main`.
 
-Exit criteria:
-- every required validation step has an automated gate;
-- `main` is protected by checks that reflect the current product contract.
+Exit criteria: satisfied.
 
 ## Phase B: Evidence Completion
 
-**Goal:** finish the remaining publication targets from the extended-contract result matrix.
+**Status:** complete.
 
 Tasks:
 1. Publish named preset zero-overhead proof.
@@ -100,14 +95,23 @@ Tasks:
    - `11-extended-contract-results.md`
    - artifact manifests
 
-Exit criteria:
-- all remaining publication targets from `11-extended-contract-results.md` are closed.
+Exit criteria: satisfied.
 
 ## Phase C: Release Candidate Preparation
 
+**Status:** complete.
+
 **Goal:** prepare the repository for the first release-candidate cut.
 
+Published implementation:
+- numbered release-candidate checklist in `docs/en/12` and `docs/ru/12`;
+- root `SUPPORT.md`;
+- `scripts/run-release-candidate.sh`;
+- published artifacts under `tests/artifacts/release-candidate/`;
+- published run id `20260313T215048Z-132129c`.
+
 Tasks:
+Completed tasks:
 1. Freeze the release-candidate checklist.
 2. Verify:
    - examples
@@ -117,9 +121,13 @@ Tasks:
    - artifact publication path
 3. Record supported host and container profiling/debug toolchain versions.
 4. Define release notes structure.
+5. Publish release-candidate verification artifacts.
 
 Exit criteria:
-- the repository can produce a repeatable release-candidate package with documented verification evidence.
+Satisfied:
+- the repository can produce a repeatable release-candidate package with documented verification evidence;
+- `scripts/run-release-candidate.sh` completes successfully;
+- `tests/artifacts/release-candidate/` contains a published run bundle.
 
 ## Phase D: Optional Performance Follow-up
 
@@ -147,8 +155,9 @@ The repository is considered fully complete for first release-candidate work whe
 - consumer integration evidence is published;
 - comparison evidence is published;
 - CI and release gate are automated;
-- remaining publication targets from `11` are closed.
+- remaining publication targets from `11` are closed;
+- release-candidate verification artifacts are published.
 
 ## Immediate Next Step
 
-Start Phase A: Release Gate.
+Proceed to first tagged-release policy and packaging decisions.

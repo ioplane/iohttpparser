@@ -25,6 +25,7 @@ graph TD
     A9["09-test-results.md"]
     A10["10-extended-contract-methodology.md"]
     A11["11-extended-contract-results.md"]
+    A12["12-release-candidate-checklist.md"]
     API["api-reference.md"]
 
     IDX --> A1
@@ -38,6 +39,7 @@ graph TD
     IDX --> A9
     IDX --> A10
     IDX --> A11
+    IDX --> A12
     IDX --> API
 
     style IDX fill:#1a73e8,color:#fff
@@ -58,12 +60,14 @@ graph TD
 | 09 | [Test Results](./09-test-results.md) | Published PMI/PSI results and artifact index |
 | 10 | [Extended Contract Methodology](./10-extended-contract-methodology.md) | Methodology for capabilities outside the common parser-core matrix |
 | 11 | [Extended Contract Results](./11-extended-contract-results.md) | Result status for the extended `iohttpparser` contract |
+| 12 | [Release Candidate Checklist](./12-release-candidate-checklist.md) | Release-candidate verification, published evidence, and release-notes structure |
 
 ## Reference
 
 | Document | Purpose |
 |---|---|
 | [api-reference.md](./api-reference.md) | Doxygen entry page |
+| [../../SUPPORT.md](../../SUPPORT.md) | Support channels and required report inputs |
 | [../README.md](../README.md) | Top-level docs index |
 | [../plans/README.md](../plans/README.md) | Plans index |
 | [../rfc/README.md](../rfc/README.md) | Local RFC mirror |
