@@ -1,0 +1,62 @@
+name: SonarQube Cloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    if: ${{ vars.SONARQUBE_ORGANIZATION != '' && vars.SONARQUBE_PROJECT_KEY != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build curl unzip
+
+      - name: Install build-wrapper
+        run: |
+          curl -sSLo build-wrapper.zip \
+            https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+          unzip -q build-wrapper.zip
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/sonar \
+            -G Ninja \
+            -DCMAKE_C_COMPILER=clang \
+            -DIOHTTPPARSER_BUILD_TESTS=OFF \
+            -DIOHTTPPARSER_BUILD_EXAMPLES=OFF \
+            -DIOHTTPPARSER_BUILD_BENCH=OFF \
+            -DIOHTTPPARSER_BUILD_FUZZ=OFF
+
+      - name: Build with wrapper
+        run: |
+          ./build-wrapper-linux-x86/build-wrapper-linux-x86-64 \
+            --out-dir build-wrapper-output \
+            cmake --build build/sonar
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONARQUBE_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONARQUBE_PROJECT_KEY }}
+            -Dsonar.cfamily.build-wrapper-output=build-wrapper-output
+
