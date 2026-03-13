@@ -26,6 +26,7 @@ graph TD
     A10["10-extended-contract-methodology.md"]
     A11["11-extended-contract-results.md"]
     A12["12-release-candidate-checklist.md"]
+    A13["13-versioning-and-changelog.md"]
     API["api-reference.md"]
 
     IDX --> A1
@@ -40,6 +41,7 @@ graph TD
     IDX --> A10
     IDX --> A11
     IDX --> A12
+    IDX --> A13
     IDX --> API
 
     style IDX fill:#1a73e8,color:#fff
@@ -61,6 +63,7 @@ graph TD
 | 10 | [Extended Contract Methodology](./10-extended-contract-methodology.md) | Methodology for capabilities outside the common parser-core matrix |
 | 11 | [Extended Contract Results](./11-extended-contract-results.md) | Result status for the extended `iohttpparser` contract |
 | 12 | [Release Candidate Checklist](./12-release-candidate-checklist.md) | Release-candidate verification, published evidence, and release-notes structure |
+| 13 | [Versioning And Changelog](./13-versioning-and-changelog.md) | Version identifiers, release-candidate policy, and changelog rules |
 
 ## Reference
 

@@ -7,18 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-rc.1] - 2026-03-14
+
 ### Added
-- Initial project structure
-- 4-layer parser architecture (Scanner / Parser / Semantics / Body decoder)
-- Scalar scanner baseline
-- SSE4.2 scanner with PCMPESTRI
-- AVX2 scanner (placeholder)
-- Pull-based incremental request/response parser
-- Chunked transfer encoding decoder (in-place)
-- Fixed-length body decoder
-- Strict/lenient policy profiles (RFC 9112)
-- Unity unit tests for all layers
-- LibFuzzer targets for parser and chunked decoder
-- CMake build system with 11 presets
-- Quality pipeline (clang-format, cppcheck, PVS-Studio, CodeChecker)
-- Dev container (Containerfile)
+- Parser-core support for HTTP/1.1 request line, status line, and header fields.
+- Public stateless and stateful parsing APIs.
+- Public semantics APIs for framing, upgrade ownership, trailer ownership, and connection decisions.
+- Fixed-length and chunked body decoders.
+- Policy presets for `iohttp` and `ioguard`.
+- Differential verification against `picohttpparser` and `llhttp`.
+- Published PMI/PSI and extended-contract PSI artifact bundles.
+- Release gate, coverage, CodeQL, Trivy, Scorecard, and SonarQube Cloud workflows.
+- Source-first release packaging with source archives, generated API reference, verification bundles, and checksums.
+
+### Changed
+- Documentation set rewritten into numbered technical references.
+- `README.md` updated with release, coverage, and static-analysis badges.
+- Performance comparison methodology aligned to common parser-core scenarios and extended contract scenarios.
+
+### Security
+- Strict-by-default validation and framing rejection rules documented and verified for `iohttp` and `ioguard` consumer scenarios.
+
+[Unreleased]: https://github.com/ioplane/iohttpparser/compare/v0.1.0-rc.1...HEAD
+[0.1.0-rc.1]: https://github.com/ioplane/iohttpparser/releases/tag/v0.1.0-rc.1

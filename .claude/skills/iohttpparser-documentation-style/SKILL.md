@@ -97,3 +97,7 @@ Do not use decorative diagrams without technical value.
   responsibilities.
 - For API docs, describe ownership, lifetime, limits, return codes, and state
   transitions.
+- When a branch changes externally visible behavior, published evidence, or
+  release automation, update `CHANGELOG.md` in the same branch.
+- `CHANGELOG.md` must follow Keep a Changelog 1.1.0 with factual bullets under
+  `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`.

@@ -1,19 +1,23 @@
-[![GitHub](https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github)](https://github.com/ioplane/iohttpparser)
-[![Release](https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/release.yml?style=for-the-badge&label=Release)](https://github.com/ioplane/iohttpparser/actions/workflows/release.yml)
-[![Release Gate](https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/ci.yml?branch=main&style=for-the-badge&label=Release%20Gate)](https://github.com/ioplane/iohttpparser/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/coverage.yml?branch=main&style=for-the-badge&label=Coverage)](https://github.com/ioplane/iohttpparser/actions/workflows/coverage.yml)
-[![Codecov](https://img.shields.io/codecov/c/github/ioplane/iohttpparser?style=for-the-badge&logo=codecov)](https://app.codecov.io/gh/ioplane/iohttpparser)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ioplane/iohttpparser/badge?style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/ioplane/iohttpparser)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/codeql.yml?branch=main&style=for-the-badge&label=CodeQL)](https://github.com/ioplane/iohttpparser/actions/workflows/codeql.yml)
-[![Trivy](https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/trivy.yml?branch=main&style=for-the-badge&label=Trivy)](https://github.com/ioplane/iohttpparser/actions/workflows/trivy.yml)
-[![SonarQube Cloud](https://img.shields.io/sonar/quality_gate/ioplane_iohttpparser?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/project/overview?id=ioplane_iohttpparser)
-[![C23](https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge)](https://www.iso.org/standard/82075.html)
-[![RFC 9110](https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9110.html)
-[![RFC 9112](https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge)](https://www.rfc-editor.org/rfc/rfc9112.html)
-[![Doxygen](https://img.shields.io/badge/Doxygen-Reference-2C4AA8?style=for-the-badge)](https://www.doxygen.nl/)
+<p align="center">
+  <a href="https://github.com/ioplane/iohttpparser"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-iohttpparser-181717?style=for-the-badge&logo=github"></a>
+  <a href="https://github.com/ioplane/iohttpparser/actions/workflows/release.yml"><img alt="Release" src="https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/release.yml?style=for-the-badge&label=Release"></a>
+  <a href="https://github.com/ioplane/iohttpparser/actions/workflows/ci.yml"><img alt="Release Gate" src="https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/ci.yml?branch=main&style=for-the-badge&label=Release%20Gate"></a>
+  <a href="https://github.com/ioplane/iohttpparser/actions/workflows/coverage.yml"><img alt="Coverage" src="https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/coverage.yml?branch=main&style=for-the-badge&label=Coverage"></a>
+  <a href="https://codecov.io/github/ioplane/iohttpparser"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/ioplane/iohttpparser?style=for-the-badge&logo=codecov"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ioplane/iohttpparser"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/ioplane/iohttpparser/badge?style=for-the-badge"></a>
+  <a href="https://github.com/ioplane/iohttpparser/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/codeql.yml?branch=main&style=for-the-badge&label=CodeQL"></a>
+  <a href="https://github.com/ioplane/iohttpparser/actions/workflows/trivy.yml"><img alt="Trivy" src="https://img.shields.io/github/actions/workflow/status/ioplane/iohttpparser/trivy.yml?branch=main&style=for-the-badge&label=Trivy"></a>
+  <a href="https://sonarcloud.io/project/overview?id=ioplane_iohttpparser"><img alt="SonarQube Cloud" src="https://img.shields.io/sonar/quality_gate/ioplane_iohttpparser?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge"></a>
+</p>
 
-[![en](https://img.shields.io/badge/lang-en-blue.svg)](docs/en/README.md)
-[![ru](https://img.shields.io/badge/lang-ru-green.svg)](docs/ru/README.md)
+<p align="center">
+  <a href="https://www.iso.org/standard/82075.html"><img alt="C23" src="https://img.shields.io/badge/ISO-IEC%209899%3A2024-00599C?style=for-the-badge"></a>
+  <a href="https://www.rfc-editor.org/rfc/rfc9110.html"><img alt="RFC 9110" src="https://img.shields.io/badge/RFC-9110-1a73e8?style=for-the-badge"></a>
+  <a href="https://www.rfc-editor.org/rfc/rfc9112.html"><img alt="RFC 9112" src="https://img.shields.io/badge/RFC-9112-1a73e8?style=for-the-badge"></a>
+  <a href="https://www.doxygen.nl/"><img alt="Doxygen" src="https://img.shields.io/badge/Doxygen-Reference-2C4AA8?style=for-the-badge"></a>
+  <a href="docs/en/README.md"><img alt="en" src="https://img.shields.io/badge/lang-en-blue.svg"></a>
+  <a href="docs/ru/README.md"><img alt="ru" src="https://img.shields.io/badge/lang-ru-green.svg"></a>
+</p>
 
 # iohttpparser
 
@@ -162,6 +166,7 @@ Published artifacts:
 | [docs/en/10-extended-contract-methodology.md](docs/en/10-extended-contract-methodology.md) | methodology for extended-contract capabilities |
 | [docs/en/11-extended-contract-results.md](docs/en/11-extended-contract-results.md) | result status for extended-contract capabilities |
 | [docs/en/12-release-candidate-checklist.md](docs/en/12-release-candidate-checklist.md) | release-candidate verification and published evidence |
+| [docs/en/13-versioning-and-changelog.md](docs/en/13-versioning-and-changelog.md) | versioning policy and changelog rules |
 | [docs/en/api-reference.md](docs/en/api-reference.md) | Doxygen entry page |
 | [SUPPORT.md](SUPPORT.md) | support channels and required report inputs |
 
