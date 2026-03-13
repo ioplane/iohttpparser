@@ -7,10 +7,12 @@ BUILD_DIR="$ROOT_DIR/build/clang-release"
 ITERATIONS="${ITERATIONS:-200000}"
 FORMAT="${FORMAT:-human}"
 
-cmake --preset clang-release -DIOHTTPPARSER_BUILD_BENCH=ON -DIOHTTPPARSER_BUILD_TESTS=OFF
-cmake --build "$BUILD_DIR" --target bench_parser
 if [[ "$FORMAT" == "tsv" ]]; then
+    cmake --preset clang-release -DIOHTTPPARSER_BUILD_BENCH=ON -DIOHTTPPARSER_BUILD_TESTS=OFF >&2
+    cmake --build "$BUILD_DIR" --target bench_parser >&2
     "$BUILD_DIR/bench_parser" "$ITERATIONS" --tsv
 else
+    cmake --preset clang-release -DIOHTTPPARSER_BUILD_BENCH=ON -DIOHTTPPARSER_BUILD_TESTS=OFF
+    cmake --build "$BUILD_DIR" --target bench_parser
     "$BUILD_DIR/bench_parser" "$ITERATIONS"
 fi

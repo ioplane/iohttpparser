@@ -33,15 +33,17 @@
 
 Текущий каталог артефактов:
 
-`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/`
+`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/`
 
 Точки входа на уровне репозитория:
 - [`tests/artifacts/pmi-psi/README.md`](../../tests/artifacts/pmi-psi/README.md)
 - [`tests/artifacts/pmi-psi/index.tsv`](../../tests/artifacts/pmi-psi/index.tsv)
 - [`tests/artifacts/pmi-psi/latest.txt`](../../tests/artifacts/pmi-psi/latest.txt)
-- [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary.md`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary.md)
-- [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-median.tsv)
-- [`tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-connect-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-connect-median.tsv)
+- [`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary.md`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary.md)
+- [`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-median.tsv)
+- [`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-connect-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-connect-median.tsv)
+- [`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary-extended.md`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary-extended.md)
+- [`tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/scanner-bench.tsv`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/scanner-bench.tsv)
 
 ```mermaid
 flowchart LR
@@ -62,8 +64,8 @@ flowchart LR
 
 | Поле | Значение |
 |---|---|
-| идентификатор прогона | `20260312T014756Z-4998946` |
-| ревизия git | `4998946` |
+| идентификатор прогона | `20260313T210231Z-3b9c398` |
+| ревизия git | `3b9c398` |
 | функциональный preset | `clang-debug` |
 | число итераций в стенде пропускной способности | `200000` |
 | число прогонов для медианы | `5` |
@@ -120,11 +122,11 @@ flowchart LR
 
 ### Общая Трёхсторонняя Матрица
 
-![Прикладные сценарии, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/common-three-way.svg)
+![Прикладные сценарии, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/common-three-way.svg)
 
 ### Трёхсторонний Фокус На CONNECT
 
-![CONNECT, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/connect-three-way.svg)
+![CONNECT, медиана req/s](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/connect-three-way.svg)
 
 ### req-small
 
@@ -132,12 +134,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `38,695,677.07` | `1,808.25` | `25.84` |
-| `llhttp` | `23,759,749.96` | `1,110.29` | `42.09` |
-| `iohttpparser-stateful-strict` | `19,635,405.86` | `917.56` | `50.93` |
-| `iohttpparser-strict` | `17,987,319.66` | `840.55` | `55.59` |
-| `iohttpparser-stateful-lenient` | `18,004,235.86` | `841.34` | `55.54` |
-| `iohttpparser-lenient` | `17,164,781.47` | `802.11` | `58.26` |
+| `picohttpparser` | `40,385,707.74` | `1,887.23` | `24.76` |
+| `llhttp` | `22,907,400.38` | `1,070.46` | `43.65` |
+| `iohttpparser-stateful-strict` | `18,356,247.59` | `857.79` | `54.48` |
+| `iohttpparser-lenient` | `17,002,573.76` | `794.53` | `58.81` |
+| `iohttpparser-stateful-lenient` | `16,721,689.39` | `781.41` | `59.80` |
+| `iohttpparser-strict` | `16,147,832.76` | `754.59` | `61.93` |
 
 ### req-headers
 
@@ -145,12 +147,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `13,525,043.61` | `2,399.12` | `73.94` |
-| `iohttpparser-stateful-strict` | `9,334,685.68` | `1,655.82` | `107.13` |
-| `iohttpparser-stateful-lenient` | `8,126,390.07` | `1,441.49` | `123.06` |
-| `iohttpparser-strict` | `8,108,611.61` | `1,438.33` | `123.33` |
-| `iohttpparser-lenient` | `7,829,076.23` | `1,388.75` | `127.73` |
-| `llhttp` | `7,702,701.60` | `1,366.33` | `129.82` |
+| `picohttpparser` | `13,729,089.91` | `2,435.31` | `72.84` |
+| `iohttpparser-stateful-strict` | `9,119,757.79` | `1,617.69` | `109.65` |
+| `iohttpparser-stateful-lenient` | `8,250,082.78` | `1,463.43` | `121.21` |
+| `iohttpparser-strict` | `8,181,233.63` | `1,451.22` | `122.23` |
+| `iohttpparser-lenient` | `7,990,219.65` | `1,417.33` | `125.15` |
+| `llhttp` | `7,872,263.39` | `1,396.41` | `127.03` |
 
 ### resp-small
 
@@ -158,12 +160,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `37,669,387.46` | `1,832.14` | `26.55` |
-| `iohttpparser-stateful-strict` | `22,148,835.75` | `1,077.26` | `45.15` |
-| `iohttpparser-lenient` | `20,422,035.66` | `993.27` | `48.97` |
-| `iohttpparser-strict` | `19,865,508.52` | `966.21` | `50.34` |
-| `iohttpparser-stateful-lenient` | `19,663,459.88` | `956.38` | `50.86` |
-| `llhttp` | `17,006,629.18` | `827.16` | `58.80` |
+| `picohttpparser` | `38,847,518.44` | `1,889.44` | `25.74` |
+| `iohttpparser-stateful-lenient` | `21,923,305.26` | `1,066.29` | `45.61` |
+| `iohttpparser-stateful-strict` | `21,488,479.01` | `1,045.14` | `46.54` |
+| `iohttpparser-strict` | `21,222,363.57` | `1,032.20` | `47.12` |
+| `iohttpparser-lenient` | `20,950,136.89` | `1,018.96` | `47.73` |
+| `llhttp` | `17,837,704.54` | `867.58` | `56.06` |
 
 ### resp-headers
 
@@ -171,12 +173,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `16,830,116.55` | `1,861.85` | `59.42` |
-| `iohttpparser-stateful-lenient` | `11,925,962.43` | `1,319.32` | `83.85` |
-| `iohttpparser-stateful-strict` | `11,824,577.19` | `1,308.11` | `84.57` |
-| `iohttpparser-strict` | `11,730,949.04` | `1,297.75` | `85.24` |
-| `iohttpparser-lenient` | `11,631,476.22` | `1,286.75` | `85.97` |
-| `llhttp` | `9,694,390.17` | `1,072.45` | `103.15` |
+| `picohttpparser` | `17,362,885.08` | `1,920.79` | `57.59` |
+| `iohttpparser-stateful-lenient` | `12,080,476.75` | `1,336.42` | `82.78` |
+| `iohttpparser-lenient` | `11,825,557.42` | `1,308.22` | `84.56` |
+| `iohttpparser-stateful-strict` | `11,277,604.26` | `1,247.60` | `88.67` |
+| `iohttpparser-strict` | `11,022,673.14` | `1,219.40` | `90.72` |
+| `llhttp` | `9,553,977.80` | `1,056.92` | `104.67` |
 
 ### resp-upgrade
 
@@ -184,12 +186,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `23,766,424.53` | `1,745.24` | `42.08` |
-| `iohttpparser-stateful-lenient` | `16,180,843.58` | `1,188.21` | `61.80` |
-| `iohttpparser-lenient` | `15,416,374.30` | `1,132.07` | `64.87` |
-| `iohttpparser-strict` | `15,362,211.37` | `1,128.09` | `65.09` |
-| `iohttpparser-stateful-strict` | `15,261,886.34` | `1,120.72` | `65.52` |
-| `llhttp` | `11,994,313.02` | `880.78` | `83.37` |
+| `picohttpparser` | `28,136,039.44` | `2,066.11` | `35.54` |
+| `iohttpparser-stateful-lenient` | `16,685,821.99` | `1,225.29` | `59.93` |
+| `iohttpparser-lenient` | `15,634,622.62` | `1,148.10` | `63.96` |
+| `iohttpparser-stateful-strict` | `15,592,956.47` | `1,145.04` | `64.13` |
+| `iohttpparser-strict` | `15,271,738.44` | `1,121.45` | `65.48` |
+| `llhttp` | `14,175,027.57` | `1,040.91` | `70.55` |
 
 ### req-connect
 
@@ -197,12 +199,12 @@ flowchart LR
 
 | Парсер | медиана req/s | медиана MiB/s | медиана ns/req |
 |---|---:|---:|---:|
-| `picohttpparser` | `23,793,069.77` | `2,246.39` | `42.03` |
-| `iohttpparser-stateful-strict` | `14,397,430.12` | `1,359.32` | `69.46` |
-| `iohttpparser-strict` | `13,286,381.92` | `1,254.42` | `75.27` |
-| `iohttpparser-stateful-lenient` | `12,044,569.24` | `1,137.17` | `83.02` |
-| `iohttpparser-lenient` | `11,857,549.10` | `1,119.52` | `84.33` |
-| `llhttp` | `11,256,663.52` | `1,062.78` | `88.84` |
+| `picohttpparser` | `23,549,243.00` | `2,223.37` | `42.46` |
+| `iohttpparser-stateful-strict` | `14,317,185.50` | `1,351.74` | `69.85` |
+| `iohttpparser-strict` | `13,411,627.73` | `1,266.24` | `74.56` |
+| `iohttpparser-stateful-lenient` | `12,248,678.55` | `1,156.44` | `81.64` |
+| `iohttpparser-lenient` | `11,501,737.60` | `1,085.92` | `86.94` |
+| `llhttp` | `11,360,359.29` | `1,072.57` | `88.03` |
 
 ## Вспомогательные Сценарии Профилирования
 
@@ -229,13 +231,14 @@ flowchart LR
 | `hdr-count-32-minimal` | постоянная стоимость цикла для тридцати двух минимальных заголовков |
 
 Полная числовая матрица опубликована в:
-- [`throughput-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-median.tsv)
+- [`throughput-median.tsv`](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-median.tsv)
 - [2026-03-11-sprint-11-comparison-report.md](../plans/2026-03-11-sprint-11-comparison-report.md)
 
 ## Интерпретация
 
 - Функциональные ПСИ завершились без ошибок.
 - Текущий прогон уже содержит слитые оптимизации горячего пути из PR `#25`.
+- Для этого же прогона в `11` опубликованы расширенные результаты по контракту и вариантам сканера.
 - `picohttpparser` остаётся лидером по чистой пропускной способности во всех опубликованных сценариях.
 - `iohttpparser-stateful-strict` теперь является правильной производительной базой для потребителей.
 - `iohttpparser-stateful-strict` быстрее `llhttp` в сценариях:

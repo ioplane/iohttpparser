@@ -24,6 +24,8 @@ skip() { printf "${YELLOW}SKIP${NC}: %s\n" "$1"; SKIP=$((SKIP + 1)); }
 BUILD_DIR="${BUILD_DIR:-build/clang-debug}"
 PRESET="${PRESET:-clang-debug}"
 NPROC="$(nproc)"
+ROOT_DIR="$(pwd -P)"
+THIRD_PARTY_DIR="${ROOT_DIR}/tests/third_party"
 
 # ── Step 1: Configure + Build ──────────────────────────────────────────────
 step 1 "Configure and Build"
@@ -58,7 +60,7 @@ if command -v cppcheck >/dev/null 2>&1; then
         --error-exitcode=1 --inline-suppr \
         --project="${BUILD_DIR}/compile_commands.json" \
         --suppress='*:/usr/local/src/unity/*' \
-        --suppress='*:/workspace/tests/third_party/*' \
+        --suppress="*:${THIRD_PARTY_DIR}/*" \
         -q 2>&1; then
         ok "cppcheck clean"
     else
@@ -120,9 +122,9 @@ if command -v CodeChecker >/dev/null 2>&1; then
 
     # Create skip file to exclude vendored/third-party code
     CC_SKIP=$(mktemp)
-    cat > "${CC_SKIP}" <<'SKIP'
+    cat > "${CC_SKIP}" <<SKIP
 -/usr/local/src/unity/*
--/workspace/tests/third_party/*
+-${THIRD_PARTY_DIR}/*
 SKIP
 
     CC_BASELINE=".codechecker.baseline"
@@ -143,7 +145,7 @@ SKIP
     CC_OUT=$(echo "${CC_OUT}" \
         | grep -v '^\[INFO\]' | grep -v '^$' \
         | grep -v '/usr/local/src/unity/' \
-        | grep -v '/workspace/tests/third_party/' || true)
+        | grep -v "${THIRD_PARTY_DIR}/" || true)
     CC_HIGH=$(echo "${CC_OUT}" | grep -c '\[HIGH\]' || true)
     CC_MED=$(echo "${CC_OUT}" | grep -c '\[MEDIUM\]' || true)
     if [[ "${CC_HIGH}" -gt 0 || "${CC_MED}" -gt 0 ]]; then

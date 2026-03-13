@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="720" viewBox="0 0 1240 720" role="img" aria-label="Common consumer scenarios req/s median">
+<rect width="1240" height="720" fill="transparent"/>
+<text x="80" y="36" font-size="26" font-weight="700" fill="#334155">Common consumer scenarios req/s median</text>
+<rect x="80" y="48" width="18" height="18" rx="3" fill="#2563eb"/>
+<text x="108" y="62" font-size="16" fill="#334155">picohttpparser</text>
+<rect x="330" y="48" width="18" height="18" rx="3" fill="#dc2626"/>
+<text x="358" y="62" font-size="16" fill="#334155">llhttp</text>
+<rect x="580" y="48" width="18" height="18" rx="3" fill="#059669"/>
+<text x="608" y="62" font-size="16" fill="#334155">iohttpparser-stateful-strict</text>
+<line x1="80" y1="570.0" x2="1200" y2="570.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="575.0" text-anchor="end" font-size="13" fill="#64748b">0.00M</text>
+<line x1="80" y1="474.0" x2="1200" y2="474.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="479.0" text-anchor="end" font-size="13" fill="#64748b">8.88M</text>
+<line x1="80" y1="378.0" x2="1200" y2="378.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="383.0" text-anchor="end" font-size="13" fill="#64748b">17.77M</text>
+<line x1="80" y1="282.0" x2="1200" y2="282.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="287.0" text-anchor="end" font-size="13" fill="#64748b">26.65M</text>
+<line x1="80" y1="186.0" x2="1200" y2="186.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="191.0" text-anchor="end" font-size="13" fill="#64748b">35.54M</text>
+<line x1="80" y1="90.0" x2="1200" y2="90.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="95.0" text-anchor="end" font-size="13" fill="#64748b">44.42M</text>
+<line x1="80" y1="90" x2="80" y2="570" stroke="#64748b" stroke-width="1.5"/>
+<line x1="80" y1="570" x2="1200" y2="570" stroke="#64748b" stroke-width="1.5"/>
+<text x="192.0" y="598" text-anchor="end" transform="rotate(-28 192.0,598)" font-size="13" fill="#334155">req-small</text>
+<rect x="111.4" y="133.6" width="45.2" height="436.4" rx="4" fill="#2563eb" />
+<text x="133.9" y="125.6" text-anchor="middle" font-size="11" fill="#334155">40.39M</text>
+<rect x="169.4" y="322.5" width="45.2" height="247.5" rx="4" fill="#dc2626" />
+<text x="192.0" y="314.5" text-anchor="middle" font-size="11" fill="#334155">22.91M</text>
+<rect x="227.5" y="371.7" width="45.2" height="198.3" rx="4" fill="#059669" />
+<text x="250.1" y="363.7" text-anchor="middle" font-size="11" fill="#334155">18.36M</text>
+<text x="416.0" y="598" text-anchor="end" transform="rotate(-28 416.0,598)" font-size="13" fill="#334155">req-headers</text>
+<rect x="335.4" y="421.7" width="45.2" height="148.3" rx="4" fill="#2563eb" />
+<text x="357.9" y="413.7" text-anchor="middle" font-size="11" fill="#334155">13.73M</text>
+<rect x="393.4" y="484.9" width="45.2" height="85.1" rx="4" fill="#dc2626" />
+<text x="416.0" y="476.9" text-anchor="middle" font-size="11" fill="#334155">7.87M</text>
+<rect x="451.5" y="471.5" width="45.2" height="98.5" rx="4" fill="#059669" />
+<text x="474.1" y="463.5" text-anchor="middle" font-size="11" fill="#334155">9.12M</text>
+<text x="640.0" y="598" text-anchor="end" transform="rotate(-28 640.0,598)" font-size="13" fill="#334155">resp-small</text>
+<rect x="559.4" y="150.3" width="45.2" height="419.7" rx="4" fill="#2563eb" />
+<text x="581.9" y="142.3" text-anchor="middle" font-size="11" fill="#334155">38.85M</text>
+<rect x="617.4" y="377.3" width="45.2" height="192.7" rx="4" fill="#dc2626" />
+<text x="640.0" y="369.3" text-anchor="middle" font-size="11" fill="#334155">17.84M</text>
+<rect x="675.5" y="337.8" width="45.2" height="232.2" rx="4" fill="#059669" />
+<text x="698.1" y="329.8" text-anchor="middle" font-size="11" fill="#334155">21.49M</text>
+<text x="864.0" y="598" text-anchor="end" transform="rotate(-28 864.0,598)" font-size="13" fill="#334155">resp-headers</text>
+<rect x="783.4" y="382.4" width="45.2" height="187.6" rx="4" fill="#2563eb" />
+<text x="805.9" y="374.4" text-anchor="middle" font-size="11" fill="#334155">17.36M</text>
+<rect x="841.4" y="466.8" width="45.2" height="103.2" rx="4" fill="#dc2626" />
+<text x="864.0" y="458.8" text-anchor="middle" font-size="11" fill="#334155">9.55M</text>
+<rect x="899.5" y="448.1" width="45.2" height="121.9" rx="4" fill="#059669" />
+<text x="922.1" y="440.1" text-anchor="middle" font-size="11" fill="#334155">11.28M</text>
+<text x="1088.0" y="598" text-anchor="end" transform="rotate(-28 1088.0,598)" font-size="13" fill="#334155">resp-upgrade</text>
+<rect x="1007.4" y="266.0" width="45.2" height="304.0" rx="4" fill="#2563eb" />
+<text x="1029.9" y="258.0" text-anchor="middle" font-size="11" fill="#334155">28.14M</text>
+<rect x="1065.4" y="416.8" width="45.2" height="153.2" rx="4" fill="#dc2626" />
+<text x="1088.0" y="408.8" text-anchor="middle" font-size="11" fill="#334155">14.18M</text>
+<rect x="1123.5" y="401.5" width="45.2" height="168.5" rx="4" fill="#059669" />
+<text x="1146.1" y="393.5" text-anchor="middle" font-size="11" fill="#334155">15.59M</text>
+</svg>

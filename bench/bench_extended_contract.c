@@ -429,6 +429,125 @@ static bool scenario_consumer_ioguard_reject_te_cl(const char *wire, size_t len,
     return true;
 }
 
+static bool scenario_policy_strict_request_semantics(const char *wire, size_t len,
+                                                     size_t *work_bytes_out)
+{
+    ihtp_policy_t policy = IHTP_POLICY_STRICT;
+    ihtp_parser_state_t state;
+    ihtp_request_t req;
+    size_t consumed = 0;
+
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    memset(&req, 0, sizeof(req));
+    if (ihtp_parse_request_stateful(&state, wire, len, &req, &policy, &consumed) != IHTP_OK) {
+        return false;
+    }
+    if (ihtp_request_apply_semantics(&req, &policy) != IHTP_OK) {
+        return false;
+    }
+
+    *work_bytes_out = consumed;
+    return true;
+}
+
+static bool scenario_policy_iohttp_request_semantics(const char *wire, size_t len,
+                                                     size_t *work_bytes_out)
+{
+    ihtp_policy_t policy = IHTP_POLICY_IOHTTP;
+    ihtp_parser_state_t state;
+    ihtp_request_t req;
+    size_t consumed = 0;
+
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    memset(&req, 0, sizeof(req));
+    if (ihtp_parse_request_stateful(&state, wire, len, &req, &policy, &consumed) != IHTP_OK) {
+        return false;
+    }
+    if (ihtp_request_apply_semantics(&req, &policy) != IHTP_OK) {
+        return false;
+    }
+
+    *work_bytes_out = consumed;
+    return true;
+}
+
+static bool scenario_policy_ioguard_request_semantics(const char *wire, size_t len,
+                                                      size_t *work_bytes_out)
+{
+    ihtp_policy_t policy = IHTP_POLICY_IOGUARD;
+    ihtp_parser_state_t state;
+    ihtp_request_t req;
+    size_t consumed = 0;
+
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    memset(&req, 0, sizeof(req));
+    if (ihtp_parse_request_stateful(&state, wire, len, &req, &policy, &consumed) != IHTP_OK) {
+        return false;
+    }
+    if (ihtp_request_apply_semantics(&req, &policy) != IHTP_OK) {
+        return false;
+    }
+
+    *work_bytes_out = consumed;
+    return true;
+}
+
+static bool scenario_zero_copy_request_parse(const char *wire, size_t len, size_t *work_bytes_out)
+{
+    ihtp_policy_t policy = IHTP_POLICY_STRICT;
+    ihtp_parser_state_t state;
+    ihtp_request_t req;
+    size_t consumed = 0;
+
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    memset(&req, 0, sizeof(req));
+    if (ihtp_parse_request_stateful(&state, wire, len, &req, &policy, &consumed) != IHTP_OK) {
+        return false;
+    }
+
+    *work_bytes_out = consumed;
+    return true;
+}
+
+static bool scenario_zero_copy_request_observe(const char *wire, size_t len,
+                                               size_t *work_bytes_out)
+{
+    ihtp_policy_t policy = IHTP_POLICY_STRICT;
+    ihtp_parser_state_t state;
+    ihtp_request_t req;
+    size_t consumed = 0;
+    uint64_t local_sink = 0;
+
+    ihtp_parser_state_init(&state, IHTP_PARSER_MODE_REQUEST);
+    memset(&req, 0, sizeof(req));
+    if (ihtp_parse_request_stateful(&state, wire, len, &req, &policy, &consumed) != IHTP_OK) {
+        return false;
+    }
+
+    local_sink += req.method_len + req.path_len + req.num_headers;
+    if (req.method_len > 0) {
+        local_sink += (unsigned char)req.method_str[0];
+        local_sink += (unsigned char)req.method_str[req.method_len - 1U];
+    }
+    if (req.path_len > 0) {
+        local_sink += (unsigned char)req.path[0];
+        local_sink += (unsigned char)req.path[req.path_len - 1U];
+    }
+    for (size_t i = 0; i < req.num_headers; i++) {
+        local_sink += req.headers[i].name_len + req.headers[i].value_len;
+        if (req.headers[i].name_len > 0) {
+            local_sink += (unsigned char)req.headers[i].name[0];
+        }
+        if (req.headers[i].value_len > 0) {
+            local_sink += (unsigned char)req.headers[i].value[req.headers[i].value_len - 1U];
+        }
+    }
+    g_sink += local_sink;
+
+    *work_bytes_out = consumed;
+    return true;
+}
+
 static void bench_scenario(output_mode_t mode, const extended_scenario_t *sc, size_t iterations)
 {
     size_t consumed = 0;
@@ -556,8 +675,46 @@ int main(int argc, char **argv)
         "Transfer-Encoding: chunked\r\n"
         "Content-Length: 3\r\n"
         "\r\n";
+    static const char policy_wire[] =
+        "GET /policy HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Connection: keep-alive\r\n"
+        "User-Agent: iohttpparser-bench/1.0\r\n"
+        "\r\n";
+    static const char zero_copy_wire[] =
+        "GET /api/v1/resource?id=42 HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Connection: keep-alive\r\n"
+        "X-Request-Id: 123e4567-e89b-12d3-a456-426614174000\r\n"
+        "User-Agent: iohttpparser-zero-copy-bench/1.0\r\n"
+        "Accept: application/json\r\n"
+        "\r\n";
 
     const extended_scenario_t scenarios[] = {
+        {
+            .name = "policy-strict-request-semantics",
+            .group = "policy",
+            .baseline = "req-headers/iohttpparser-stateful-strict",
+            .wire = policy_wire,
+            .len = sizeof(policy_wire) - 1U,
+            .fn = scenario_policy_strict_request_semantics,
+        },
+        {
+            .name = "policy-iohttp-request-semantics",
+            .group = "policy",
+            .baseline = "policy-strict-request-semantics",
+            .wire = policy_wire,
+            .len = sizeof(policy_wire) - 1U,
+            .fn = scenario_policy_iohttp_request_semantics,
+        },
+        {
+            .name = "policy-ioguard-request-semantics",
+            .group = "policy",
+            .baseline = "policy-strict-request-semantics",
+            .wire = policy_wire,
+            .len = sizeof(policy_wire) - 1U,
+            .fn = scenario_policy_ioguard_request_semantics,
+        },
         {
             .name = "stateful-reuse-request",
             .group = "parser-state",
@@ -565,6 +722,22 @@ int main(int argc, char **argv)
             .wire = stateful_reuse_wire,
             .len = sizeof(stateful_reuse_wire) - 1U,
             .fn = scenario_stateful_reuse_request,
+        },
+        {
+            .name = "zero-copy-request-parse",
+            .group = "zero-copy",
+            .baseline = "req-headers/iohttpparser-stateful-strict",
+            .wire = zero_copy_wire,
+            .len = sizeof(zero_copy_wire) - 1U,
+            .fn = scenario_zero_copy_request_parse,
+        },
+        {
+            .name = "zero-copy-request-observe",
+            .group = "zero-copy",
+            .baseline = "zero-copy-request-parse",
+            .wire = zero_copy_wire,
+            .len = sizeof(zero_copy_wire) - 1U,
+            .fn = scenario_zero_copy_request_observe,
         },
         {
             .name = "request-chunked-parse",
