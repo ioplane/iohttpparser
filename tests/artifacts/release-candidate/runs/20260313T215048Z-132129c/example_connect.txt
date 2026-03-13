@@ -1,0 +1,12 @@
+Method:      CONNECT
+Authority:   vpn.example.com:443
+Body mode:   0
+Keep-alive:  yes
+Upgrade:     no
+Expect:      none
+Consumed:    97
+
+Consumer handoff:
+- CONNECT stays visible through req.method == IHTP_METHOD_CONNECT
+- req.path is the authority-form target for tunnel setup
+- no redundant CONNECT boolean is needed in the parser API

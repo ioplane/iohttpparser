@@ -1,0 +1,9 @@
+Status:    101
+Upgrade:   yes
+Body mode: 0
+Consumed:  77
+
+Consumer handoff:
+- protocol_upgrade means the application should switch protocols after the header block
+- iohttpparser does not interpret WebSocket or other upgraded bytes
+- after a 101 response, framing ownership moves to the upgraded protocol handler

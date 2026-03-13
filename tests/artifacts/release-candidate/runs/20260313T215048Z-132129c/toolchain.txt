@@ -1,0 +1,14 @@
+clang version 22.1.0 (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+Target: x86_64-unknown-linux-gnu
+---
+cmake version 4.2.3
+---
+1.16.1
+---
+GNU gdb (GDB) 17.1
+---
+valgrind-3.26.0
+---
+uftrace v0.19 ( x86_64 dwarf python3 tui perf sched )
+---
+/usr/local/bin/frun

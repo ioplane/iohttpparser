@@ -1,0 +1,12 @@
+Method:   POST
+Expect:   100-continue
+Trailer:  advertised
+Body:     2
+
+Consumer handoff:
+- if expects_continue is set, the consumer may emit 100 Continue before reading the body
+- has_trailer_fields tells the consumer that trailing fields may follow the chunked body
+- this example leaves consume_trailer disabled to keep trailer ownership in consumer code
+Decoded body prefix: Wikipedia
+Trailing bytes returned to consumer: 24
+Consumer note: trailer bytes stay outside parser semantics and remain consumer-owned.

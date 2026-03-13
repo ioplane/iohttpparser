@@ -1,0 +1,17 @@
+iohttpparser 0.1.0 (SIMD level: 0x03)
+
+Method:  POST
+Path:    /upload
+Version: HTTP/1.1
+Headers: 4
+Body:    2
+Expect:  100-continue
+Upgrade: no
+Trailer: advertised
+  Host: example.com
+  Transfer-Encoding: chunked
+  Trailer: Digest
+  Expect: 100-continue
+Consumed: 111 bytes
+Decoded body: Wikipedia
+Trailing bytes after chunked decode: 0
