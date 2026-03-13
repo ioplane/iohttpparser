@@ -1,0 +1,70 @@
+format	tsv	v1
+meta	iterations	200000
+meta	simd_level	0x3
+meta	active_backend	avx2
+columns	backend	operation	case	len	elapsed_ns	ns_per_op
+dispatch	find	request-space	26	1114638	5.57
+dispatch	find	header-crlf	26	2377943	11.89
+dispatch	find	query-delim	23	1287041	6.44
+dispatch	find	not-found	19	2113982	10.57
+dispatch	find	status-space	25	1275303	6.38
+dispatch	find	cookie-semi	46	1420945	7.10
+dispatch	find	long-header-crlf	61	3756345	18.78
+dispatch	find	wide-not-found	62	4438723	22.19
+dispatch	token	method	3	544380	2.72
+dispatch	token	header	12	1442478	7.21
+dispatch	token	invalid-space	10	697302	3.49
+dispatch	token	invalid-colon	8	631903	3.16
+dispatch	token	conn-token	10	1157655	5.79
+dispatch	token	long-header	15	1767312	8.84
+dispatch	token	wide-valid	32	1663154	8.32
+dispatch	token	invalid-del	8	588127	2.94
+scalar	find	request-space	26	925831	4.63
+scalar	find	header-crlf	26	3284184	16.42
+scalar	find	query-delim	23	1437721	7.19
+scalar	find	not-found	19	2637068	13.19
+scalar	find	status-space	25	1279850	6.40
+scalar	find	cookie-semi	46	1859783	9.30
+scalar	find	long-header-crlf	61	6681951	33.41
+scalar	find	wide-not-found	62	7226000	36.13
+scalar	token	method	3	535055	2.68
+scalar	token	header	12	1144984	5.72
+scalar	token	invalid-space	10	608628	3.04
+scalar	token	invalid-colon	8	635849	3.18
+scalar	token	conn-token	10	1150254	5.75
+scalar	token	long-header	15	1707030	8.54
+scalar	token	wide-valid	32	2916494	14.58
+scalar	token	invalid-del	8	586233	2.93
+sse42	find	request-space	26	2193763	10.97
+sse42	find	header-crlf	26	2633373	13.17
+sse42	find	query-delim	23	2321297	11.61
+sse42	find	not-found	19	2719204	13.60
+sse42	find	status-space	25	2193902	10.97
+sse42	find	cookie-semi	46	2291692	11.46
+sse42	find	long-header-crlf	61	3214967	16.07
+sse42	find	wide-not-found	62	3625956	18.13
+sse42	token	method	3	576518	2.88
+sse42	token	header	12	1326613	6.63
+sse42	token	invalid-space	10	702160	3.51
+sse42	token	invalid-colon	8	615258	3.08
+sse42	token	conn-token	10	1257385	6.29
+sse42	token	long-header	15	1590284	7.95
+sse42	token	wide-valid	32	3320290	16.60
+sse42	token	invalid-del	8	730213	3.65
+avx2	find	request-space	26	1171165	5.86
+avx2	find	header-crlf	26	3103639	15.52
+avx2	find	query-delim	23	1228421	6.14
+avx2	find	not-found	19	2165590	10.83
+avx2	find	status-space	25	1187690	5.94
+avx2	find	cookie-semi	46	1270687	6.35
+avx2	find	long-header-crlf	61	4215684	21.08
+avx2	find	wide-not-found	62	4995422	24.98
+avx2	token	method	3	501655	2.51
+avx2	token	header	12	1456260	7.28
+avx2	token	invalid-space	10	681299	3.41
+avx2	token	invalid-colon	8	653606	3.27
+avx2	token	conn-token	10	1275203	6.38
+avx2	token	long-header	15	1667031	8.34
+avx2	token	wide-valid	32	1611866	8.06
+avx2	token	invalid-del	8	608729	3.04
+meta	sinks	153600000:4000000

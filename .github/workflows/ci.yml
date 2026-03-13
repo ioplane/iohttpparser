@@ -1,4 +1,4 @@
-name: CI
+name: Release Gate
 
 on:
   push:
@@ -6,66 +6,24 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  release-gate:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/pnx/iohttpparser-dev:latest
-    strategy:
-      matrix:
-        preset: [clang-debug, gcc-debug]
+    timeout-minutes: 180
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: cmake --preset "$PRESET"
+      - name: Build dev image
+        run: docker build -t iohttpparser-dev:ci -f deploy/podman/Containerfile .
 
-      - name: Build
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: cmake --build --preset "$PRESET"
-
-      - name: Test
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: ctest --preset "$PRESET" --output-on-failure
-
-  sanitizers:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/pnx/iohttpparser-dev:latest
-    strategy:
-      matrix:
-        preset: [clang-asan, clang-msan]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: cmake --preset "$PRESET"
-
-      - name: Build
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: cmake --build --preset "$PRESET"
-
-      - name: Test
-        env:
-          PRESET: ${{ matrix.preset }}
-        run: ctest --preset "$PRESET" --output-on-failure
-
-  format:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/pnx/iohttpparser-dev:latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        run: cmake --preset clang-debug
-
-      - name: Check formatting
-        run: cmake --build --preset clang-debug --target format-check
+      - name: Run release gate
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            iohttpparser-dev:ci \
+            bash scripts/run-release-gate.sh

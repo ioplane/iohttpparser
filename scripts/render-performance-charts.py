@@ -41,6 +41,23 @@ def parse_tsv(path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def parse_scanner_tsv(path: Path) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    header: list[str] | None = None
+    with path.open("r", encoding="utf-8") as fh:
+        for raw in fh:
+            parts = raw.rstrip("\n").split("\t")
+            if not parts or parts[0] in {"", "format", "meta"}:
+                continue
+            if parts[0] == "columns":
+                header = parts[1:]
+                continue
+            if header is None:
+                continue
+            rows.append(dict(zip(header, parts, strict=False)))
+    return rows
+
+
 def ensure_manifest_has_charts(out_dir: Path, chart_files: list[str]) -> None:
     manifest = out_dir / "manifest.json"
     if not manifest.exists():
@@ -55,6 +72,10 @@ def ensure_manifest_has_charts(out_dir: Path, chart_files: list[str]) -> None:
 
 def fmt_reqs(value: float) -> str:
     return f"{value/1_000_000:.2f}M"
+
+
+def fmt_ns(value: float) -> str:
+    return f"{value:.2f} ns"
 
 
 def esc(text: str) -> str:
@@ -154,6 +175,8 @@ def render_single_series_horizontal_svg(
     rows: list[tuple[str, float]],
     color: str,
     out_path: Path,
+    formatter=fmt_reqs,
+    legend_label: str = "iohttpparser",
 ) -> None:
     width = 1240
     row_h = 52
@@ -178,7 +201,7 @@ def render_single_series_horizontal_svg(
         f'<rect x="{left}" y="48" width="18" height="18" rx="3" fill="{color}"/>'
     )
     plot.append(
-        f'<text x="{left+28}" y="62" font-size="16" fill="{TEXT}">iohttpparser</text>'
+        f'<text x="{left+28}" y="62" font-size="16" fill="{TEXT}">{esc(legend_label)}</text>'
     )
 
     for idx, (label, value) in enumerate(rows):
@@ -194,7 +217,7 @@ def render_single_series_horizontal_svg(
             f'<rect x="{left}" y="{y+8}" width="{bar_w:.1f}" height="22" rx="4" fill="{color}"/>'
         )
         plot.append(
-            f'<text x="{left+bar_w+8:.1f}" y="{y+24}" font-size="13" fill="{TEXT}">{fmt_reqs(value)}</text>'
+            f'<text x="{left+bar_w+8:.1f}" y="{y+24}" font-size="13" fill="{TEXT}">{formatter(value)}</text>'
         )
 
     plot.append("</svg>")
@@ -213,6 +236,7 @@ def main() -> int:
     throughput = parse_tsv(out_dir / "throughput-median.tsv")
     connect = parse_tsv(out_dir / "throughput-connect-median.tsv")
     extended = parse_tsv(out_dir / "throughput-extended-median.tsv")
+    scanner = parse_scanner_tsv(out_dir / "scanner-bench.tsv")
 
     common_scenarios = ["req-small", "req-headers", "resp-small", "resp-headers", "resp-upgrade"]
     common_map = {(r["parser"], r["scenario"]): float(r["req_per_s_median"]) for r in throughput}
@@ -282,6 +306,27 @@ def main() -> int:
         charts_dir / "extended-upgrade-ioguard.svg",
     )
 
+    scanner_rows_by_backend: dict[str, list[float]] = {}
+    for row in scanner:
+        backend = row["backend"]
+        scanner_rows_by_backend.setdefault(backend, []).append(float(row["ns_per_op"]))
+
+    scanner_avg_rows = []
+    for backend in ["dispatch", "scalar", "sse42", "avx2"]:
+        values = scanner_rows_by_backend.get(backend)
+        if not values:
+            continue
+        scanner_avg_rows.append((backend, sum(values) / float(len(values))))
+
+    render_single_series_horizontal_svg(
+        "Scanner backend average ns/op",
+        scanner_avg_rows,
+        "#7c3aed",
+        charts_dir / "scanner-backends.svg",
+        formatter=fmt_ns,
+        legend_label="lower is better",
+    )
+
     ensure_manifest_has_charts(
         out_dir,
         [
@@ -291,6 +336,7 @@ def main() -> int:
             "charts/extended-semantics-body.svg",
             "charts/extended-consumer-iohttp.svg",
             "charts/extended-upgrade-ioguard.svg",
+            "charts/scanner-backends.svg",
         ],
     )
     return 0

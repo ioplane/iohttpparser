@@ -113,8 +113,8 @@ WARN_LOGFILE           =
 
 INPUT                  = include/ \
                          docs/en/api-reference.md \
-                         docs/en/parser-state.md \
-                         docs/en/body-decoder.md \
+                         docs/en/06-parser-state.md \
+                         docs/en/07-body-decoder.md \
                          docs/en/05-consumer-contracts.md
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =

@@ -29,8 +29,9 @@ The document answers:
 
 Published extended run used by this document:
 
-- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
-- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-extended-median.tsv`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/scanner-bench.tsv`
 
 ## Result Classes
 
@@ -70,7 +71,7 @@ flowchart TD
 | standalone header parse | `shared-adapter` | `test_parser.c`, `test_differential_corpus.c` | `09` scenarios `req-headers`, `resp-headers`, `hdr-*` | `published-indirect` | direct parser-core evidence exists; external glue cost is not separated per competitor |
 | public parser state | `shared-adapter` | `test_parser_state.c` | `stateful-reuse-request` in `throughput-extended-median.tsv` | `published-direct` | a dedicated state-reuse throughput scenario is published |
 | stateless parse | `shared-adapter` | `test_parser.c` | `09` comparison of `iohttpparser-*` vs `iohttpparser-stateful-*` | `published-indirect` | wrapper overhead is measurable for `iohttpparser`, not for all external APIs on equal terms |
-| zero-copy spans | `shared-adapter` | `test_parser.c`, `test_iohttp_integration.c` | nearest parser-core scenarios in `09` | `published-indirect` | zero-copy ownership is part of parser outputs but not isolated as a standalone benchmark |
+| zero-copy spans | `shared-adapter` | `test_parser.c`, `test_iohttp_integration.c` | `zero-copy-request-parse` and `zero-copy-request-observe` in `throughput-extended-median.tsv` | `published-direct` | parse cost and observation cost are published separately |
 | framing semantics | `shared-adapter` | `test_semantics.c`, `test_semantics_corpus.c`, `test_semantics_differential.c` | `request-chunked-parse-semantics`, `response-upgrade-parse-semantics`, `consumer-ioguard-reject-te-cl` in `throughput-extended-median.tsv` | `published-direct` | dedicated semantics-stage scenarios are published |
 | ambiguity rejection | `shared-adapter` | `test_semantics.c`, `test_semantics_differential.c`, `test_iohttp_integration.c` | `consumer-ioguard-reject-te-cl` in `throughput-extended-median.tsv` | `published-direct` | the reject path is measured directly |
 | chunked body decode | `shared-adapter` | `test_body_decoder.c`, `test_body_decoder_corpus.c` | `request-chunked-parse-semantics-body` in `throughput-extended-median.tsv` | `published-direct` | chunked body handoff and decode cost is published |
@@ -78,8 +79,8 @@ flowchart TD
 | trailer ownership flags | `shared-adapter` | `test_semantics.c`, `test_body_decoder.c`, `test_iohttp_integration.c` | `consumer-iohttp-expect-trailers` in `throughput-extended-median.tsv` | `published-direct` | trailer handoff cost is published |
 | upgrade ownership flags | `shared-adapter` | `test_semantics.c`, `test_iohttp_integration.c` | `response-upgrade-parse-semantics` in `throughput-extended-median.tsv` | `published-direct` | upgrade ownership cost is measured directly |
 | `Expect: 100-continue` flag | `shared-adapter` | `test_semantics.c`, `test_iohttp_integration.c` | `consumer-iohttp-expect-trailers` in `throughput-extended-median.tsv` | `published-direct` | the `Expect` flow is measured directly |
-| named strict presets | `iohttpparser-only` | `test_semantics.c`, public headers | strict vs lenient rows in `09`; no standalone preset artifact | `published-indirect` | preset selection is visible through policy profiles but not isolated as zero-cost proof |
-| SIMD scanner backends | `iohttpparser-only` | `test_scanner_backends.c`, `test_scanner_corpus.c` | `bench/bench_parser.c`, `scripts/check-scanner-bench.sh`, profiler notes in sprint report | `published-indirect` | performance evidence exists in repository tooling, but not yet inside PMI/PSI artifact bundle |
+| named strict presets | `iohttpparser-only` | `test_semantics.c`, public headers | `policy-strict-request-semantics`, `policy-iohttp-request-semantics`, `policy-ioguard-request-semantics` in `throughput-extended-median.tsv` | `published-direct` | preset-specific rows prove there is no separate hidden slow path |
+| SIMD scanner backends | `iohttpparser-only` | `test_scanner_backends.c`, `test_scanner_corpus.c` | `scanner-bench.tsv` and `charts/scanner-backends.svg` inside the PMI/PSI artifact set | `published-direct` | scanner backend evidence is now part of the published artifact bundle |
 | maintained differential corpus | `iohttpparser-only` | `test_differential_corpus.c`, `test_semantics_differential.c` | not a throughput feature | `not-applicable` | this is a verification asset, not a runtime capability |
 | consumer integration tests | `iohttpparser-only` | `test_iohttp_integration.c` | `consumer-iohttp-*` and `consumer-ioguard-*` in `throughput-extended-median.tsv` | `published-direct` | direct consumer-flow throughput is now published |
 | URI normalization | `out-of-scope` | excluded by design | not applicable | `not-applicable` | belongs outside the wire-level parser |
@@ -97,48 +98,75 @@ not belong to the common three-way parser-core matrix from `09`.
 
 Published run:
 
-- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/summary-extended.md`
-- `tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/throughput-extended-median.tsv`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/summary-extended.md`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/throughput-extended-median.tsv`
+- `tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/scanner-bench.tsv`
 
 ### Parser State Reuse
 
 | Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
 |---|---|---|---:|---:|---:|
-| `stateful-reuse-request` | public parser state | `req-small/iohttpparser-stateful-strict` | `7,981,577.56` | `1,019.98` | `125.29` |
+| `stateful-reuse-request` | public parser state | `req-small/iohttpparser-stateful-strict` | `7,173,783.07` | `916.75` | `139.40` |
 
-![Parser state reuse req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-parser-state.svg)
+![Parser state reuse req/s median](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/extended-parser-state.svg)
+
+### Named Strict Presets
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `policy-strict-request-semantics` | strict preset baseline | `req-headers/iohttpparser-stateful-strict` | `8,211,956.51` | `806.65` | `121.77` |
+| `policy-iohttp-request-semantics` | named `IHTP_POLICY_IOHTTP` preset | `policy-strict-request-semantics` | `8,744,997.15` | `859.01` | `114.35` |
+| `policy-ioguard-request-semantics` | named `IHTP_POLICY_IOGUARD` preset | `policy-strict-request-semantics` | `8,796,864.30` | `864.10` | `113.68` |
 
 ### Semantics And Body Handoff
 
 | Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
 |---|---|---|---:|---:|---:|
-| `request-chunked-parse` | parser plus chunked framing input | `req-headers/iohttpparser-stateful-strict` | `7,852,263.74` | `666.48` | `127.35` |
-| `request-chunked-parse-semantics` | framing semantics | `request-chunked-parse` | `8,154,989.49` | `692.17` | `122.62` |
-| `request-chunked-parse-semantics-body` | chunked body decode | `request-chunked-parse-semantics` | `4,075,425.45` | `380.89` | `245.37` |
-| `response-fixed-parse-semantics-body` | fixed-length accounting | `resp-headers/iohttpparser-stateful-strict` | `16,895,333.75` | `692.84` | `59.19` |
+| `request-chunked-parse` | parser plus chunked framing input | `req-headers/iohttpparser-stateful-strict` | `7,653,287.11` | `649.59` | `130.66` |
+| `request-chunked-parse-semantics` | framing semantics | `request-chunked-parse` | `7,590,657.40` | `644.27` | `131.74` |
+| `request-chunked-parse-semantics-body` | chunked body decode | `request-chunked-parse-semantics` | `4,932,477.34` | `460.99` | `202.74` |
+| `response-fixed-parse-semantics-body` | fixed-length accounting | `resp-headers/iohttpparser-stateful-strict` | `17,064,526.09` | `699.78` | `58.60` |
 
-![Semantics and body handoff req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-semantics-body.svg)
+![Semantics and body handoff req/s median](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/extended-semantics-body.svg)
+
+### Zero-copy Span Observation
+
+| Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
+|---|---|---|---:|---:|---:|
+| `zero-copy-request-parse` | parse plus zero-copy result formation | `req-headers/iohttpparser-stateful-strict` | `8,783,805.30` | `1,725.64` | `113.85` |
+| `zero-copy-request-observe` | consumer-side span observation | `zero-copy-request-parse` | `8,242,407.56` | `1,619.28` | `121.32` |
 
 ### iohttp-style Consumer Flows
 
 | Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
 |---|---|---|---:|---:|---:|
-| `consumer-iohttp-expect-trailers` | `Expect: 100-continue` and trailer ownership | `request-chunked-parse-semantics-body` | `3,913,056.27` | `966.53` | `255.55` |
-| `consumer-iohttp-fixed-response` | fixed-length body handoff | `response-fixed-parse-semantics-body` | `8,018,723.08` | `1,032.38` | `124.71` |
-| `consumer-iohttp-pipeline` | pipelined stateful consumer flow | `request-chunked-parse-semantics-body` | `3,418,498.73` | `704.19` | `292.53` |
+| `consumer-iohttp-expect-trailers` | `Expect: 100-continue` and trailer ownership | `request-chunked-parse-semantics-body` | `3,581,515.46` | `884.64` | `279.21` |
+| `consumer-iohttp-fixed-response` | fixed-length body handoff | `response-fixed-parse-semantics-body` | `7,849,751.05` | `1,010.62` | `127.39` |
+| `consumer-iohttp-pipeline` | pipelined stateful consumer flow | `request-chunked-parse-semantics-body` | `3,736,765.92` | `769.75` | `267.61` |
 
-![iohttp-style consumer flows req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-consumer-iohttp.svg)
+![iohttp-style consumer flows req/s median](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/extended-consumer-iohttp.svg)
 
 ### Upgrade And ioguard-style Flows
 
 | Scenario | Capability | Baseline | req/s median | MiB/s median | ns/op median |
 |---|---|---|---:|---:|---:|
-| `response-upgrade-parse` | response upgrade handoff | `resp-upgrade/iohttpparser-stateful-strict` | `10,138,496.42` | `744.50` | `98.63` |
-| `response-upgrade-parse-semantics` | upgrade ownership flags | `response-upgrade-parse` | `10,942,576.59` | `803.55` | `91.39` |
-| `consumer-ioguard-connect` | strict `CONNECT` handoff | `req-connect/iohttpparser-stateful-strict` | `17,046,011.45` | `1,056.66` | `58.66` |
-| `consumer-ioguard-reject-te-cl` | strict ambiguity rejection | `request-chunked-parse-semantics` | `7,838,169.09` | `680.23` | `127.58` |
+| `response-upgrade-parse` | response upgrade handoff | `resp-upgrade/iohttpparser-stateful-strict` | `9,647,043.15` | `708.41` | `103.66` |
+| `response-upgrade-parse-semantics` | upgrade ownership flags | `response-upgrade-parse` | `10,398,724.53` | `763.61` | `96.17` |
+| `consumer-ioguard-connect` | strict `CONNECT` handoff | `req-connect/iohttpparser-stateful-strict` | `17,192,341.12` | `1,065.73` | `58.17` |
+| `consumer-ioguard-reject-te-cl` | strict ambiguity rejection | `request-chunked-parse-semantics` | `8,234,980.90` | `714.67` | `121.43` |
 
-![Upgrade and ioguard-style flows req/s median](../../tests/artifacts/pmi-psi/runs/20260312T014756Z-4998946/charts/extended-upgrade-ioguard.svg)
+![Upgrade and ioguard-style flows req/s median](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/extended-upgrade-ioguard.svg)
+
+### Scanner Backend Results
+
+| Backend | Meaning | Evidence |
+|---|---|---|
+| `dispatch` | runtime-selected backend | `scanner-bench.tsv` |
+| `scalar` | scalar fallback path | `scanner-bench.tsv` |
+| `sse42` | SSE4.2 path on supported hosts | `scanner-bench.tsv` |
+| `avx2` | AVX2 path on supported hosts | `scanner-bench.tsv` |
+
+![Scanner backend average ns/op](../../tests/artifacts/pmi-psi/runs/20260313T210231Z-3b9c398/charts/scanner-backends.svg)
 
 ## Extended Contract Performance Interpretation
 
@@ -149,10 +177,10 @@ Published run:
 - request, response, upgrade, and `CONNECT` parser scenarios
 - scanner backend performance through dedicated scanner bench tooling
 
-### What is not yet published as a dedicated matrix
+### What is now published directly
 
-- named preset zero-overhead proof
-- zero-copy span ownership cost isolated from parser-core throughput
+- named preset selection through dedicated `policy-*` rows
+- zero-copy parse cost and observation cost through dedicated `zero-copy-*` rows
 - scanner backend results inside the PMI/PSI artifact bundle
 
 ## Current Conclusion
@@ -162,13 +190,8 @@ The repository already proves the following facts:
 - the shared parser-core layer is measured directly in `09`;
 - the extended `iohttpparser` contract is functionally covered;
 - some extended cost is visible indirectly through stateful/stateless and strict/lenient profiles;
-- the remaining gap is not absence of verification, but absence of dedicated publication for presets, isolated zero-copy ownership cost, and scanner results inside the PMI/PSI bundle.
+- the previously missing publication targets are now covered by dedicated rows and scanner artifacts inside the PMI/PSI bundle.
 
 ## Remaining Publication Targets
 
-The next artifact bundle for this document should add only the remaining
-specialized evidence:
-
-- named preset zero-overhead proof;
-- isolated zero-copy span ownership cost;
-- scanner backend results inside the PMI/PSI bundle.
+No open publication target remains for the extended-contract matrix. Future runs only need to refresh numbers for the current artifact format.

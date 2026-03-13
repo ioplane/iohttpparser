@@ -1,0 +1,7 @@
+date_utc=2026-03-13T21:02:31Z
+root=/opt/projects/repositories/iohttpparser/.worktrees/release-gate
+run_id=20260313T210231Z-3b9c398
+debug_preset=clang-debug
+release_preset=clang-release
+iterations=200000
+median_runs=5

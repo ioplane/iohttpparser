@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="720" viewBox="0 0 1240 720" role="img" aria-label="CONNECT req/s median">
+<rect width="1240" height="720" fill="transparent"/>
+<text x="80" y="36" font-size="26" font-weight="700" fill="#334155">CONNECT req/s median</text>
+<rect x="80" y="48" width="18" height="18" rx="3" fill="#2563eb"/>
+<text x="108" y="62" font-size="16" fill="#334155">picohttpparser</text>
+<rect x="330" y="48" width="18" height="18" rx="3" fill="#dc2626"/>
+<text x="358" y="62" font-size="16" fill="#334155">llhttp</text>
+<rect x="580" y="48" width="18" height="18" rx="3" fill="#059669"/>
+<text x="608" y="62" font-size="16" fill="#334155">iohttpparser-stateful-strict</text>
+<line x1="80" y1="570.0" x2="1200" y2="570.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="575.0" text-anchor="end" font-size="13" fill="#64748b">0.00M</text>
+<line x1="80" y1="474.0" x2="1200" y2="474.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="479.0" text-anchor="end" font-size="13" fill="#64748b">5.18M</text>
+<line x1="80" y1="378.0" x2="1200" y2="378.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="383.0" text-anchor="end" font-size="13" fill="#64748b">10.36M</text>
+<line x1="80" y1="282.0" x2="1200" y2="282.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="287.0" text-anchor="end" font-size="13" fill="#64748b">15.54M</text>
+<line x1="80" y1="186.0" x2="1200" y2="186.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="191.0" text-anchor="end" font-size="13" fill="#64748b">20.72M</text>
+<line x1="80" y1="90.0" x2="1200" y2="90.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="70" y="95.0" text-anchor="end" font-size="13" fill="#64748b">25.90M</text>
+<line x1="80" y1="90" x2="80" y2="570" stroke="#64748b" stroke-width="1.5"/>
+<line x1="80" y1="570" x2="1200" y2="570" stroke="#64748b" stroke-width="1.5"/>
+<text x="640.0" y="598" text-anchor="end" transform="rotate(-28 640.0,598)" font-size="13" fill="#334155">req-connect</text>
+<rect x="236.8" y="133.6" width="225.8" height="436.4" rx="4" fill="#2563eb" />
+<text x="349.7" y="125.6" text-anchor="middle" font-size="11" fill="#334155">23.55M</text>
+<rect x="527.1" y="359.5" width="225.8" height="210.5" rx="4" fill="#dc2626" />
+<text x="640.0" y="351.5" text-anchor="middle" font-size="11" fill="#334155">11.36M</text>
+<rect x="817.4" y="304.7" width="225.8" height="265.3" rx="4" fill="#059669" />
+<text x="930.3" y="296.7" text-anchor="middle" font-size="11" fill="#334155">14.32M</text>
+</svg>

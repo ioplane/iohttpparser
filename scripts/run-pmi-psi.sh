@@ -42,12 +42,14 @@ tests/artifacts/pmi-psi/
 - `throughput-connect-median.tsv`
 - `throughput-extended.tsv`
 - `throughput-extended-median.tsv`
+- `scanner-bench.tsv`
 - `charts/common-three-way.svg`
 - `charts/connect-three-way.svg`
 - `charts/extended-parser-state.svg`
 - `charts/extended-semantics-body.svg`
 - `charts/extended-consumer-iohttp.svg`
 - `charts/extended-upgrade-ioguard.svg`
+- `charts/scanner-backends.svg`
 - `summary.md`
 - `summary-extended.md`
 EOF
@@ -95,7 +97,7 @@ cmake --preset "$DEBUG_PRESET"
 cmake --build --preset "$DEBUG_PRESET"
 ctest --preset "$DEBUG_PRESET" --output-on-failure | tee "$OUT_DIR/ctest.txt"
 
-cmake --preset "$RELEASE_PRESET"
+cmake --preset "$RELEASE_PRESET" -DIOHTTPPARSER_BUILD_BENCH=ON
 cmake --build --preset "$RELEASE_PRESET" --target bench_throughput_compare bench_extended_contract
 
 FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-compare.sh" \
@@ -110,6 +112,8 @@ FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-exten
     >"$OUT_DIR/throughput-extended.tsv"
 ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-extended-median.sh" \
     >"$OUT_DIR/throughput-extended-median.tsv"
+FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-scanner-bench.sh" \
+    >"$OUT_DIR/scanner-bench.tsv"
 
 python3 "$ROOT_DIR/scripts/render-performance-charts.py" "$OUT_DIR"
 
@@ -161,12 +165,14 @@ files = {
     "throughput_connect_median": "throughput-connect-median.tsv",
     "throughput_extended": "throughput-extended.tsv",
     "throughput_extended_median": "throughput-extended-median.tsv",
+    "scanner_bench": "scanner-bench.tsv",
     "chart_common_three_way": "charts/common-three-way.svg",
     "chart_connect_three_way": "charts/connect-three-way.svg",
     "chart_extended_parser_state": "charts/extended-parser-state.svg",
     "chart_extended_semantics_body": "charts/extended-semantics-body.svg",
     "chart_extended_consumer_iohttp": "charts/extended-consumer-iohttp.svg",
     "chart_extended_upgrade_ioguard": "charts/extended-upgrade-ioguard.svg",
+    "chart_scanner_backends": "charts/scanner-backends.svg",
     "summary": "summary.md",
     "summary_extended": "summary-extended.md",
 }
