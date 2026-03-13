@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   coverage:
@@ -39,7 +38,7 @@ jobs:
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: build/clang-coverage/coverage/coverage.lcov
           flags: unit
-          use_oidc: true
           fail_ci_if_error: false
