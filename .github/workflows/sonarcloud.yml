@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 120
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
 
     steps:
       - uses: actions/checkout@v6
@@ -29,10 +30,7 @@ jobs:
           sudo apt-get install -y clang cmake ninja-build curl unzip
 
       - name: Install build-wrapper
-        run: |
-          curl -sSLo build-wrapper.zip \
-            https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
-          unzip -q build-wrapper.zip
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v7
 
       - name: Configure
         run: |
@@ -46,17 +44,16 @@ jobs:
 
       - name: Build with wrapper
         run: |
-          ./build-wrapper-linux-x86/build-wrapper-linux-x86-64 \
-            --out-dir build-wrapper-output \
+          build-wrapper-linux-x86-64 \
+            --out-dir "${BUILD_WRAPPER_OUT_DIR}" \
             cmake --build build/sonar
 
       - name: SonarQube Cloud scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=${{ vars.SONARQUBE_ORGANIZATION }}
             -Dsonar.projectKey=${{ vars.SONARQUBE_PROJECT_KEY }}
-            -Dsonar.cfamily.build-wrapper-output=build-wrapper-output
-
+            -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json

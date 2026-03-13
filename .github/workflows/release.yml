@@ -47,7 +47,7 @@ jobs:
             bash scripts/build-release-assets.sh "${GITHUB_REF_NAME}"
 
       - name: Upload release assets as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ github.ref_name }}
           path: dist/
