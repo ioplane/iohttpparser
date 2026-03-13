@@ -96,6 +96,26 @@ Keep the stable structure aligned with other `io*` projects:
 
 `docs/tmp/` is non-authoritative scratch space.
 
+## Changelog And Versioning
+Maintain [CHANGELOG.md](CHANGELOG.md) for every merge that changes behavior, public API, verification evidence, release automation, or published documentation.
+
+Rules:
+- Follow [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
+- Keep `Unreleased` at the top.
+- Add entries only under the standard sections that apply:
+  `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
+- Write short factual bullets. Do not write narrative paragraphs in the changelog.
+- Record externally visible changes only. Do not list routine refactors unless they change behavior, contract, or release evidence.
+- Update the changelog in the same branch as the code or documentation change. Do not defer it to a later cleanup branch.
+
+Versioning rules:
+- Use Semantic Versioning tags with a leading `v`.
+- Current pre-1.0 policy:
+  - `v0.y.z` for normal unstable releases
+  - `v0.y.z-rc.N` for release candidates
+- Do not create `1.0.0` until public API, release gate, and published evidence are all declared stable.
+- For this repository, the first public release candidate line is `v0.1.0-rc.N`.
+
 ## Coding Style & Naming Conventions
 Target C23 only; C extensions are disabled. Follow `.clang-format`: 4-space indentation, Linux brace style, 100-column limit, and right-aligned pointer stars (`int *ptr`). Keep public and internal symbols consistent with the existing scheme: `ihtp_` for functions, `IHTP_` for macros and enum values, and `_t` for typedefs. Prefer small, single-purpose translation units and keep public headers stable.
 
