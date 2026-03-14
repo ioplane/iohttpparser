@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-rc.2] - 2026-03-14
+
+### Fixed
+- Release publication pipeline now configures Git safe-directory handling inside containerized verification and asset-build steps.
+- Coverage workflow now uploads flat coverage artifacts that are readable to GitHub Actions and Codecov on hosted runners.
+- SonarQube Cloud workflow uses a compatible CFamily configuration and the project no longer inherits unsupported custom target settings.
+
 ## [0.1.0-rc.1] - 2026-03-14
 
 ### Added
@@ -28,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Strict-by-default validation and framing rejection rules documented and verified for `iohttp` and `ioguard` consumer scenarios.
 
-[Unreleased]: https://github.com/ioplane/iohttpparser/compare/v0.1.0-rc.1...HEAD
+[Unreleased]: https://github.com/ioplane/iohttpparser/compare/v0.1.0-rc.2...HEAD
+[0.1.0-rc.2]: https://github.com/ioplane/iohttpparser/compare/v0.1.0-rc.1...v0.1.0-rc.2
 [0.1.0-rc.1]: https://github.com/ioplane/iohttpparser/releases/tag/v0.1.0-rc.1
