@@ -63,3 +63,8 @@ llvm-cov show \
   --format=html \
   --output-dir="${REPORT_DIR}/html" \
   > /dev/null
+
+# GitHub Actions uploads artifacts from the host runner after this script exits.
+# Nested HTML directories created as root may not remain readable on bind-mounted
+# workspaces, so the workflow only uploads the flat text outputs needed for CI.
+chmod 0644 "${REPORT_DIR}/coverage.lcov" "${REPORT_DIR}/coverage.txt"
