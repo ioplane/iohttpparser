@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 RUNSTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+
+git config --global --add safe.directory "${ROOT_DIR}" >/dev/null 2>&1 || true
+
 HEAD_SHORT="$(git -C "${ROOT_DIR}" rev-parse --short HEAD)"
 RUN_ID="${RUNSTAMP}-${HEAD_SHORT}"
 OUT_DIR="${ROOT_DIR}/tests/artifacts/release-candidate/runs/${RUN_ID}"

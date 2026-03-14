@@ -6,6 +6,8 @@ DIST_DIR="${ROOT_DIR}/dist"
 TAG_NAME="${1:-${GITHUB_REF_NAME:-dev}}"
 ARCHIVE_PREFIX="iohttpparser-${TAG_NAME}"
 
+git config --global --add safe.directory "${ROOT_DIR}" >/dev/null 2>&1 || true
+
 mkdir -p "${DIST_DIR}"
 rm -f \
   "${DIST_DIR}/${ARCHIVE_PREFIX}.tar.gz" \
