@@ -33,7 +33,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: build/clang-coverage/coverage/
+          path: |
+            build/clang-coverage/coverage/coverage.lcov
+            build/clang-coverage/coverage/coverage.txt
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
