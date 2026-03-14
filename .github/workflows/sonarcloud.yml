@@ -56,4 +56,4 @@ jobs:
           args: >
             -Dsonar.organization=${{ vars.SONARQUBE_ORGANIZATION }}
             -Dsonar.projectKey=${{ vars.SONARQUBE_PROJECT_KEY }}
-            -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
+            -Dsonar.cfamily.build-wrapper-output=${{ env.BUILD_WRAPPER_OUT_DIR }}
