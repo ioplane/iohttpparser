@@ -1,172 +1,132 @@
 #!/usr/bin/env bash
-# Full quality pipeline for iohttpparser
+# shellcheck shell=bash
+# Repository quality pipeline for iohttpparser.
 # Run inside the dev container: cd /workspace && ./scripts/quality.sh
 # Or from host: podman run --rm \
+#   --env-file .env \
 #   -v /opt/projects/repositories/iohttpparser:/workspace:Z \
 #   localhost/iohttpparser-dev:latest bash -c "cd /workspace && ./scripts/quality.sh"
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 
-PASS=0
-FAIL=0
-SKIP=0
-
-step() { printf "\n${CYAN}=== [%d/6] %s ===${NC}\n" "$1" "$2"; }
-ok()   { printf "${GREEN}PASS${NC}: %s\n" "$1"; PASS=$((PASS + 1)); }
-fail() { printf "${RED}FAIL${NC}: %s\n" "$1"; FAIL=$((FAIL + 1)); }
-skip() { printf "${YELLOW}SKIP${NC}: %s\n" "$1"; SKIP=$((SKIP + 1)); }
-
-BUILD_DIR="${BUILD_DIR:-build/clang-debug}"
-PRESET="${PRESET:-clang-debug}"
-NPROC="$(nproc)"
-ROOT_DIR="$(pwd -P)"
-THIRD_PARTY_DIR="${ROOT_DIR}/tests/third_party"
-
-# ── Step 1: Configure + Build ──────────────────────────────────────────────
-step 1 "Configure and Build"
-cmake --preset "${PRESET}" 2>&1 | tail -3
-if cmake --build --preset "${PRESET}" 2>&1 | tail -5; then
-    ok "Build succeeded"
+# shellcheck disable=SC1091
+if [[ -f /usr/local/lib/ioplane/common.sh ]]; then
+    source /usr/local/lib/ioplane/common.sh
 else
-    fail "Build failed"
-    exit 1
+    source "${SCRIPT_DIR}/lib/common.sh"
 fi
 
-# ── Step 2: Unit Tests ─────────────────────────────────────────────────────
-step 2 "Unit Tests"
-if ctest --preset "${PRESET}" --output-on-failure 2>&1; then
-    ok "All tests passed"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+readonly ROOT_DIR
+readonly BUILD_DIR="${BUILD_DIR:-build/clang-debug}"
+readonly PRESET="${PRESET:-clang-debug}"
+readonly THIRD_PARTY_DIR="${ROOT_DIR}/tests/third_party"
+readonly TOTAL_STEPS=10
+
+cd "${ROOT_DIR}"
+
+# ═══════════════════════════════════════════════════════
+# Step 1: Repository baseline
+# ═══════════════════════════════════════════════════════
+
+ioj_step 1 "${TOTAL_STEPS}" "Repository baseline"
+ioj_check_repo_baseline
+
+# ═══════════════════════════════════════════════════════
+# Step 2: Stale identifier scan
+# ═══════════════════════════════════════════════════════
+
+ioj_step 2 "${TOTAL_STEPS}" "Stale identifier scan"
+STALE_HITS=$(grep -rn 'iojournal\|ij_\|IJ_' docs/ scripts/ \
+    --include='*.md' --include='*.sh' --include='*.py' \
+    --exclude='quality.sh' \
+    2>/dev/null || true)
+if [[ -z "${STALE_HITS}" ]]; then
+    ioj_record_pass "No stale iojournal/ij_ prefix remnants in docs/scripts"
 else
-    fail "Some tests failed"
+    printf '%s\n' "${STALE_HITS}"
+    ioj_record_fail "Stale iojournal/ij_ prefix found in docs/scripts"
 fi
 
-# ── Step 3: clang-format ───────────────────────────────────────────────────
-step 3 "clang-format"
-if cmake --build --preset "${PRESET}" --target format-check 2>&1; then
-    ok "Formatting clean"
-else
-    fail "Formatting issues found"
-fi
+# ═══════════════════════════════════════════════════════
+# Step 3: Documentation lint
+# ═══════════════════════════════════════════════════════
 
-# ── Step 4: cppcheck ──────────────────────────────────────────────────────
-step 4 "cppcheck"
-if command -v cppcheck >/dev/null 2>&1; then
-    if cppcheck --enable=warning,performance,portability \
-        --error-exitcode=1 --inline-suppr \
-        --project="${BUILD_DIR}/compile_commands.json" \
-        --suppress='*:/usr/local/src/unity/*' \
-        --suppress="*:${THIRD_PARTY_DIR}/*" \
-        -q 2>&1; then
-        ok "cppcheck clean"
+ioj_step 3 "${TOTAL_STEPS}" "Documentation lint"
+ioj_check_docs_lint
+
+# ═══════════════════════════════════════════════════════
+# Step 4: Configure and build
+# ═══════════════════════════════════════════════════════
+
+ioj_step 4 "${TOTAL_STEPS}" "Configure and build"
+ioj_check_build_and_test "${PRESET}" "${BUILD_DIR}"
+
+# ═══════════════════════════════════════════════════════
+# Step 5: Format check
+# ═══════════════════════════════════════════════════════
+
+ioj_step 5 "${TOTAL_STEPS}" "Format check"
+ioj_check_format "${PRESET}"
+
+# ═══════════════════════════════════════════════════════
+# Step 6: cppcheck
+# ═══════════════════════════════════════════════════════
+
+ioj_step 6 "${TOTAL_STEPS}" "cppcheck"
+if ioj_has_cmake_surface; then
+    if [[ ! -f "${BUILD_DIR}/compile_commands.json" ]]; then
+        ioj_record_fail "cppcheck: compile database missing"
+    elif ! command -v cppcheck >/dev/null 2>&1; then
+        ioj_record_skip "cppcheck not installed"
     else
-        fail "cppcheck found issues"
-    fi
-else
-    skip "cppcheck not installed"
-fi
-
-# ── Step 5: PVS-Studio ────────────────────────────────────────────────────
-step 5 "PVS-Studio"
-if command -v pvs-studio-analyzer >/dev/null 2>&1; then
-    # Load license from .env
-    if [[ -f .env ]]; then
-        # shellcheck disable=SC1091
-        source .env
-    fi
-    if [[ -z "${PVS_NAME:-}" || -z "${PVS_KEY:-}" ]]; then
-        skip "PVS-Studio: no license in .env (PVS_NAME/PVS_KEY)"
-    else
-        pvs-studio-analyzer credentials "${PVS_NAME}" "${PVS_KEY}" >/dev/null 2>&1
-        PVS_LOG="${BUILD_DIR}/pvs-studio.log"
-        PVS_SUPPRESS=".pvs-suppress.json"
-        PVS_SUPPRESS_ARG=""
-        if [[ -f "${PVS_SUPPRESS}" ]]; then
-            PVS_SUPPRESS_ARG="-s ${PVS_SUPPRESS}"
-        fi
-        # shellcheck disable=SC2086
-        pvs-studio-analyzer analyze \
-            -f "${BUILD_DIR}/compile_commands.json" \
-            -o "${PVS_LOG}" \
-            -e /usr/local/src/unity/ \
-            -e tests/third_party/ \
-            ${PVS_SUPPRESS_ARG} \
-            -j"${NPROC}" 2>&1 | grep -v '^\[' || true
-
-        # GA:1,2 = errors + warnings (skip notes/low)
-        PVS_OUT=$(plog-converter -t errorfile -a 'GA:1,2' "${PVS_LOG}" 2>/dev/null \
-            | grep -v '^pvs-studio.com' | grep -v '^Analyzer log' \
-            | grep -v '^PVS-Studio is' | grep -v '^$' \
-            | grep -v 'Total messages' | grep -v 'Filtered messages' \
-            | grep -v '^Copyright')
-        PVS_COUNT=$(echo "${PVS_OUT}" | grep -cE '(error|warning):' || true)
-        if [[ "${PVS_COUNT}" -eq 0 ]]; then
-            ok "PVS-Studio clean (GA:1,2)"
+        if cppcheck --enable=warning,performance,portability \
+            --error-exitcode=1 --inline-suppr \
+            --project="${BUILD_DIR}/compile_commands.json" \
+            --suppress='*:/usr/local/src/unity/*' \
+            --suppress="*:${THIRD_PARTY_DIR}/*" \
+            -q 2>&1; then
+            ioj_record_pass "cppcheck clean"
         else
-            echo "${PVS_OUT}"
-            fail "PVS-Studio: ${PVS_COUNT} errors/warnings"
+            ioj_record_fail "cppcheck found issues"
         fi
     fi
 else
-    skip "PVS-Studio not installed"
+    ioj_record_skip "Compile database unavailable before CMake bootstrap"
 fi
 
-# ── Step 6: CodeChecker ───────────────────────────────────────────────────
-step 6 "CodeChecker (Clang SA + clang-tidy)"
-if command -v CodeChecker >/dev/null 2>&1; then
-    CC_DIR=$(mktemp -d)
+# ═══════════════════════════════════════════════════════
+# Step 7: PVS-Studio
+# ═══════════════════════════════════════════════════════
 
-    # Create skip file to exclude vendored/third-party code
-    CC_SKIP=$(mktemp)
-    cat > "${CC_SKIP}" <<SKIP
--/usr/local/src/unity/*
--${THIRD_PARTY_DIR}/*
-SKIP
+ioj_step 7 "${TOTAL_STEPS}" "PVS-Studio"
+ioj_check_pvs_studio "${BUILD_DIR}"
 
-    CC_BASELINE=".codechecker.baseline"
-    CC_BASELINE_ARG=""
-    if [[ -f "${CC_BASELINE}" ]]; then
-        CC_BASELINE_ARG="--baseline ${CC_BASELINE}"
-    fi
+# ═══════════════════════════════════════════════════════
+# Step 8: CodeChecker
+# ═══════════════════════════════════════════════════════
 
-    CodeChecker analyze "${BUILD_DIR}/compile_commands.json" \
-        -o "${CC_DIR}" \
-        --analyzers clangsa clang-tidy \
-        --skip "${CC_SKIP}" \
-        -j"${NPROC}" 2>&1 | grep -E '(Summary|Successfully|Failed|error:)' || true
-    # shellcheck disable=SC2086
-    CC_OUT=$(CodeChecker parse "${CC_DIR}" \
-        --trim-path-prefix "$(pwd)/" \
-        ${CC_BASELINE_ARG} 2>&1 || true)
-    CC_OUT=$(echo "${CC_OUT}" \
-        | grep -v '^\[INFO\]' | grep -v '^$' \
-        | grep -v '/usr/local/src/unity/' \
-        | grep -v "${THIRD_PARTY_DIR}/" || true)
-    CC_HIGH=$(echo "${CC_OUT}" | grep -c '\[HIGH\]' || true)
-    CC_MED=$(echo "${CC_OUT}" | grep -c '\[MEDIUM\]' || true)
-    if [[ "${CC_HIGH}" -gt 0 || "${CC_MED}" -gt 0 ]]; then
-        echo "${CC_OUT}" | grep -E '\[(HIGH|MEDIUM)\]' || true
-        fail "CodeChecker: ${CC_HIGH} HIGH, ${CC_MED} MEDIUM"
-    else
-        ok "CodeChecker clean (no HIGH/MEDIUM)"
-    fi
-    rm -rf "${CC_DIR}" "${CC_SKIP}"
-else
-    skip "CodeChecker not installed"
-fi
+ioj_step 8 "${TOTAL_STEPS}" "CodeChecker"
+ioj_check_codechecker "${BUILD_DIR}" "${THIRD_PARTY_DIR}"
 
-# ── Summary ───────────────────────────────────────────────────────────────
-printf "\n${CYAN}=== Summary ===${NC}\n"
-printf "${GREEN}PASS: %d${NC}  ${RED}FAIL: %d${NC}  ${YELLOW}SKIP: %d${NC}\n" \
-    "${PASS}" "${FAIL}" "${SKIP}"
+# ═══════════════════════════════════════════════════════
+# Step 9: GCC analyzer
+# ═══════════════════════════════════════════════════════
 
-if [[ "${FAIL}" -gt 0 ]]; then
-    printf "${RED}Quality pipeline FAILED${NC}\n"
-    exit 1
-else
-    printf "${GREEN}Quality pipeline PASSED${NC}\n"
-fi
+ioj_step 9 "${TOTAL_STEPS}" "GCC analyzer"
+ioj_check_gcc_analyzer
+
+# ═══════════════════════════════════════════════════════
+# Step 10: shellcheck
+# ═══════════════════════════════════════════════════════
+
+ioj_step 10 "${TOTAL_STEPS}" "Shellcheck"
+ioj_check_shellcheck
+
+# ═══════════════════════════════════════════════════════
+# Summary
+# ═══════════════════════════════════════════════════════
+
+ioj_print_summary
