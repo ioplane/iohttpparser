@@ -20,6 +20,8 @@ cmake --build --preset clang-debug --target format-check
 
 ## Dev Container
 
+- Base image: `podman build -t ioplane-base:latest -f /opt/projects/repositories/container-images/tools/ioplane-base/Containerfile .`
+- All `io*` projects share `localhost/ioplane-base:latest` as the common toolchain layer.
 - Build: `podman build -t iohttpparser-dev:latest -f deploy/podman/Containerfile .`
 - Run: `podman run --rm -it -v $(pwd):/workspace:Z iohttpparser-dev:latest`
 - Prefer doing development and quality checks inside the container.
