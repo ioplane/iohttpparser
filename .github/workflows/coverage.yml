@@ -38,7 +38,7 @@ jobs:
             build/clang-coverage/coverage/coverage.txt
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/clang-coverage/coverage/coverage.lcov
