@@ -44,7 +44,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:release \
-            bash scripts/build-release-assets.sh "${GITHUB_REF_NAME}"
+            uv run --script scripts/release_assets.py "${GITHUB_REF_NAME}"
 
       - name: Upload release assets as workflow artifact
         uses: actions/upload-artifact@v7
