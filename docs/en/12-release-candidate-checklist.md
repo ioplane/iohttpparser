@@ -57,7 +57,7 @@ flowchart LR
 
 The release-candidate bundle must be produced by:
 
-- `scripts/run-release-candidate.sh`
+- `scripts/release_candidate.py`
 
 Published output location:
 
