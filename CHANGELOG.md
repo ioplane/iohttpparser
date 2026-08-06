@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scanner benchmark and machine-readable output validation now use standalone `uv run --script` Python CLIs.
 - Throughput comparison, extended-contract, and median benchmark workflows now share one typed Python CLI.
 - Profiler entrypoints now use one Python CLI for trace, uftrace, Valgrind, GDB, and ftracer guidance.
+- Sprint 11 comparison evidence generation now uses a Python orchestrator with explicit subprocess argv.
 
 ### Removed
 - Removed the scanner benchmark and scanner benchmark checker shell entrypoints.
 - Removed the profiler stack shell entrypoint.
+- Removed the Sprint 11 comparison shell orchestrator.
 
 ## [0.1.0-rc.2] - 2026-03-14
 
