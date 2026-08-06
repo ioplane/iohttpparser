@@ -115,7 +115,7 @@ flowchart TD
 
 Используется общая трёхсторонняя ПСИ из:
 - `scripts/run-pmi-psi.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/throughput.py median`
 - `tests/artifacts/pmi-psi/runs/<run_id>/throughput-median.tsv`
 
 Ответ по производительности:

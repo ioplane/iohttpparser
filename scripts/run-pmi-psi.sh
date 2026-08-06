@@ -100,17 +100,17 @@ ctest --preset "$DEBUG_PRESET" --output-on-failure | tee "$OUT_DIR/ctest.txt"
 cmake --preset "$RELEASE_PRESET" -DIOHTTPPARSER_BUILD_BENCH=ON
 cmake --build --preset "$RELEASE_PRESET" --target bench_throughput_compare bench_extended_contract
 
-FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-compare.sh" \
+FORMAT=tsv ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/throughput.py" compare \
     >"$OUT_DIR/throughput.tsv"
-FORMAT=tsv CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-compare.sh" \
+FORMAT=tsv CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/throughput.py" compare \
     >"$OUT_DIR/throughput-connect.tsv"
-ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-median.sh" \
+ITERATIONS="$ITERATIONS" RUNS="$RUNS" uv run --script "$ROOT_DIR/scripts/throughput.py" median \
     >"$OUT_DIR/throughput-median.tsv"
-CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-median.sh" \
+CONNECT_ONLY=1 ITERATIONS="$ITERATIONS" RUNS="$RUNS" uv run --script "$ROOT_DIR/scripts/throughput.py" median \
     >"$OUT_DIR/throughput-connect-median.tsv"
-FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-extended.sh" \
+FORMAT=tsv ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/throughput.py" extended \
     >"$OUT_DIR/throughput-extended.tsv"
-ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-extended-median.sh" \
+ITERATIONS="$ITERATIONS" RUNS="$RUNS" uv run --script "$ROOT_DIR/scripts/throughput.py" extended-median \
     >"$OUT_DIR/throughput-extended-median.tsv"
 FORMAT=tsv ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/run_scanner_bench.py" \
     >"$OUT_DIR/scanner-bench.tsv"
@@ -276,8 +276,8 @@ Run id: `{run_id}`
 ## Source code used for the run
 
 - `bench/bench_throughput_compare.c`
-- `scripts/run-throughput-compare.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/throughput.py compare`
+- `scripts/throughput.py median`
 - `scripts/run-pmi-psi.sh`
 - `tests/unit/test_differential_corpus.c`
 - `tests/unit/test_semantics_differential.c`
@@ -332,8 +332,8 @@ extended_lines = [
     "## Source code used for the run",
     "",
     "- `bench/bench_extended_contract.c`",
-    "- `scripts/run-throughput-extended.sh`",
-    "- `scripts/run-throughput-extended-median.sh`",
+    "- `scripts/throughput.py extended`",
+    "- `scripts/throughput.py extended-median`",
     "- `scripts/run-pmi-psi.sh`",
     "- `tests/unit/test_iohttp_integration.c`",
     "- `tests/unit/test_semantics.c`",

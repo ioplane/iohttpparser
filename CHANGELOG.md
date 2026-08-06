@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Scanner benchmark and machine-readable output validation now use standalone `uv run --script` Python CLIs.
+- Throughput comparison, extended-contract, and median benchmark workflows now share one typed Python CLI.
 
 ### Removed
 - Removed the scanner benchmark and scanner benchmark checker shell entrypoints.

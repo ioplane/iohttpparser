@@ -123,8 +123,8 @@ gantt
 
 Производительные испытания используют:
 - `bench/bench_throughput_compare.c`
-- `scripts/run-throughput-compare.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/throughput.py compare`
+- `scripts/throughput.py median`
 
 Производительный прогон обязан включать все три парсера:
 - `iohttpparser`
