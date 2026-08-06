@@ -123,8 +123,8 @@ gantt
 
 Производительные испытания используют:
 - `bench/bench_throughput_compare.c`
-- `scripts/run-throughput-compare.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/throughput.py compare`
+- `scripts/throughput.py median`
 
 Производительный прогон обязан включать все три парсера:
 - `iohttpparser`
@@ -179,7 +179,7 @@ gantt
 Основной воспроизводимый исполнительный скрипт:
 
 ```bash
-bash scripts/run-pmi-psi.sh
+uv run --script scripts/pmi_psi.py
 ```
 
 Скрипт:

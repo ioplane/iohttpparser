@@ -28,7 +28,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:release \
-            bash scripts/run-release-gate.sh
+            python scripts/release_gate.py
 
       - name: Run release-candidate verification
         run: |
@@ -36,7 +36,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:release \
-            bash scripts/run-release-candidate.sh
+            uv run --script scripts/release_candidate.py
 
       - name: Build release assets
         run: |
@@ -44,7 +44,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:release \
-            bash scripts/build-release-assets.sh "${GITHUB_REF_NAME}"
+            uv run --script scripts/release_assets.py "${GITHUB_REF_NAME}"
 
       - name: Upload release assets as workflow artifact
         uses: actions/upload-artifact@v7

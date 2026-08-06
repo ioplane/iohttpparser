@@ -57,7 +57,7 @@ flowchart LR
 
 Пакет релизного кандидата должен собираться командой:
 
-- `scripts/run-release-candidate.sh`
+- `scripts/release_candidate.py`
 
 Каталог публикации:
 

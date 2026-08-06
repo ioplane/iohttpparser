@@ -21,7 +21,7 @@ This directory stores published verification evidence for release-candidate runs
 
 Artifacts are produced by:
 
-- `scripts/run-release-candidate.sh`
+- `scripts/release_candidate.py`
 
 ## Required Files Per Run
 

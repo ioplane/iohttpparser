@@ -123,8 +123,8 @@ Acceptance rule:
 
 Performance acceptance testing uses:
 - `bench/bench_throughput_compare.c`
-- `scripts/run-throughput-compare.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/throughput.py compare`
+- `scripts/throughput.py median`
 
 The performance run must include all three parsers:
 - `iohttpparser`
@@ -179,7 +179,7 @@ Required files:
 Primary repeatable runner:
 
 ```bash
-bash scripts/run-pmi-psi.sh
+uv run --script scripts/pmi_psi.py
 ```
 
 This runner:

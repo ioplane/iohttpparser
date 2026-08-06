@@ -92,7 +92,7 @@ flowchart TD
 | semantics layer | `tests/unit/test_semantics.c`, `tests/unit/test_semantics_corpus.c`, `tests/unit/test_semantics_differential.c` | nearest parser-core scenario plus dedicated contract scenario when published |
 | body decoder layer | `tests/unit/test_body_decoder.c`, `tests/unit/test_body_decoder_corpus.c` | nearest parser-core scenario plus body handoff scenario when published |
 | consumer contract layer | `tests/unit/test_iohttp_integration.c` | consumer-style throughput scenario when published |
-| scanner backend layer | `tests/unit/test_scanner_backends.c`, `tests/unit/test_scanner_corpus.c` | `bench/bench_parser.c`, `scripts/check-scanner-bench.sh` |
+| scanner backend layer | `tests/unit/test_scanner_backends.c`, `tests/unit/test_scanner_corpus.c` | `bench/bench_parser.c`, `scripts/check_scanner_bench.py` |
 
 ## Functional Method
 
@@ -114,8 +114,8 @@ Functional evidence must identify:
 ### Shared-direct
 
 Use the published PMI/PSI three-way comparison from:
-- `scripts/run-pmi-psi.sh`
-- `scripts/run-throughput-median.sh`
+- `scripts/pmi_psi.py`
+- `scripts/throughput.py median`
 - `tests/artifacts/pmi-psi/runs/<run_id>/throughput-median.tsv`
 
 The performance answer is:
