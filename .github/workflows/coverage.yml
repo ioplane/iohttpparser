@@ -27,7 +27,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:coverage \
-            bash scripts/run-coverage.sh
+            python scripts/coverage.py
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v7

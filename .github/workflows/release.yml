@@ -28,7 +28,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             iohttpparser-dev:release \
-            bash scripts/run-release-gate.sh
+            python scripts/release_gate.py
 
       - name: Run release-candidate verification
         run: |
