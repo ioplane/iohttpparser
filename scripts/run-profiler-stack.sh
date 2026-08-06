@@ -52,7 +52,7 @@ uftrace)
     need_cmd uftrace
     if [[ ! -x "$uftrace_bin" ]]; then
         echo "uftrace benchmark binary not found: $uftrace_bin" >&2
-        echo "build it with scripts/build-uftrace-bench.sh first" >&2
+        echo "build it with uv run --script scripts/build_uftrace_bench.py first" >&2
         exit 2
     fi
     out_dir="$results_dir/uftrace-${SCENARIO}-${PARSER}"
