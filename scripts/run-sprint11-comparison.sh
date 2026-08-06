@@ -42,7 +42,7 @@ ctest --preset "$BUILD_PRESET" --output-on-failure -R \
 
 bench_raw="$OUT_DIR/scanner-bench.raw.txt"
 
-FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-scanner-bench.sh" >"$bench_raw"
+FORMAT=tsv ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/run_scanner_bench.py" >"$bench_raw"
 awk 'found || /^format\t/ { found = 1; print }' "$bench_raw" >"$OUT_DIR/scanner-bench.tsv"
 
 printf 'comparison_results=%s\n' "$OUT_DIR"

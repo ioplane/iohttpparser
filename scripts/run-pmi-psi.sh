@@ -112,7 +112,7 @@ FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-throughput-exten
     >"$OUT_DIR/throughput-extended.tsv"
 ITERATIONS="$ITERATIONS" RUNS="$RUNS" bash "$ROOT_DIR/scripts/run-throughput-extended-median.sh" \
     >"$OUT_DIR/throughput-extended-median.tsv"
-FORMAT=tsv ITERATIONS="$ITERATIONS" bash "$ROOT_DIR/scripts/run-scanner-bench.sh" \
+FORMAT=tsv ITERATIONS="$ITERATIONS" uv run --script "$ROOT_DIR/scripts/run_scanner_bench.py" \
     >"$OUT_DIR/scanner-bench.tsv"
 
 python3 "$ROOT_DIR/scripts/render-performance-charts.py" "$OUT_DIR"
