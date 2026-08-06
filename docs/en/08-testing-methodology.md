@@ -179,7 +179,7 @@ Required files:
 Primary repeatable runner:
 
 ```bash
-bash scripts/run-pmi-psi.sh
+uv run --script scripts/pmi_psi.py
 ```
 
 This runner:

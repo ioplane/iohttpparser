@@ -179,7 +179,7 @@ gantt
 Основной воспроизводимый исполнительный скрипт:
 
 ```bash
-bash scripts/run-pmi-psi.sh
+uv run --script scripts/pmi_psi.py
 ```
 
 Скрипт:

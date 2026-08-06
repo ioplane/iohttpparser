@@ -114,7 +114,7 @@ Functional evidence must identify:
 ### Shared-direct
 
 Use the published PMI/PSI three-way comparison from:
-- `scripts/run-pmi-psi.sh`
+- `scripts/pmi_psi.py`
 - `scripts/throughput.py median`
 - `tests/artifacts/pmi-psi/runs/<run_id>/throughput-median.tsv`
 
