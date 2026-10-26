@@ -18,6 +18,18 @@ fixed/chunked decoding. The dated final development plan marks its release/evide
 phases complete and identifies tagged-release policy as the next step; those are historical
 records, not fresh verification of another revision or toolchain.
 
+## W0: external analysis entry (2026-10-26)
+
+Source `ea2209e10397de8051daafda812552411342f088`, run `40395394140`,
+Sonar job `121826955450`: JRE metadata lookup at
+`https://api.sonarcloud.io/analysis/jres` returns HTTP 403. The same default
+source previously passed Sonar job `67072480919` in run `23089831445`;
+this is a newly observed external-access failure, not a demonstrated code
+regression. Check service policy/entitlement and the authorized integration
+before retrying or changing secrets; the masked token field does not establish
+an invalid token. Qualify this entry before release claims. Other test/check
+results remain scoped to their actual jobs and source, not this prose update.
+
 ## Next functional slice
 
 Refresh the existing strict consumer and release contract on an exact source/image pair.
