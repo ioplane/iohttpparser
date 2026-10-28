@@ -1,5 +1,7 @@
 # Plans Index
 
+Current execution/validation plan: [2026-10-26 iohttpparser agent development plan](2026-10-26-iohttpparser-agent-development-plan.md). Historical sequences and results below retain their original scope and dates.
+
 Stable planning entry points:
 
 - [ROADMAP.md](ROADMAP.md)
