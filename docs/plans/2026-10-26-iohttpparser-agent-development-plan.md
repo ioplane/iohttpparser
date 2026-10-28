@@ -33,14 +33,16 @@ results remain scoped to their actual jobs and source, not this prose update.
 ## Next functional slice
 
 Refresh the existing strict consumer and release contract on an exact source/image pair.
-Use one fragmented CONNECT or chunked HTTP transaction through the existing parser,
-semantics and body decoder. Prove consumed-byte accounting and span lifetime across
+Use one fragmented chunked HTTP transaction through the existing parser, semantics
+and body decoder, so the body layer is actually exercised. `CONNECT` is covered
+separately as an optional boundary case for the tunnel-handoff path, which does not
+invoke the body decoder. Prove consumed-byte accounting and span lifetime across
 buffer retention/compaction. Keep transport ownership in iohttp/ioguard.
 
 | Order | Owned paths | Exit evidence |
 | --- | --- | --- |
-| 1 | Existing consumer fixtures, `include/iohttpparser/` contract and tests | Whole-buffer versus fragmented byte-equivalent results; exact consumed count |
-| 2 | Existing semantics/body tests and fuzz corpus | Request-smuggling/TE-CL conflict, overflow, truncation, limits, trailers and post-upgrade bytes rejected or retained as specified |
+| 1 | Existing consumer fixtures, `include/iohttpparser/` contract and tests | Whole-buffer versus fragmented byte-equivalent results; exact consumed count; parsed header/body spans remain valid up to their documented consumption point and are copied or rebased by the consumer before any buffer compaction |
+| 2 | Existing semantics/body tests and fuzz corpus | Chunked body decoded through `ihtp_body_*` with trailer handling; request-smuggling/TE-CL conflict, overflow, truncation, limits, trailers and post-upgrade bytes rejected or retained as specified |
 | 3 | Existing release scripts, candidate checklist and artifacts | Same-SHA container release gate, examples and Doxygen; current common and extended-contract bundle hashes |
 
 ## Dependencies and overlap
